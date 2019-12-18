@@ -3,8 +3,9 @@
 import sys
 import os
 import re
+from random import random
 from time import sleep
-from configparser import ConfigParser
+from pickle import dump, load
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
@@ -29,8 +30,10 @@ class LoginDialog(QDialog):
 
     def default_var(self):
         try:
-            self._user = self._config.get("login", "username")
-            self._pwd = self._config.get("login", "password")
+            with open(self._config, "rb") as _file:
+                _info = load(_file)
+            self._user = _info["user"]
+            self._pwd = _info["pwd"]
         except Exception:
             pass
         self.name_ed.setText(self._user)
@@ -74,9 +77,14 @@ class LoginDialog(QDialog):
         self.close()
 
     def clicked_ok(self):
-        self._config.set("login", "username", self._user)
-        self._config.set("login", "password", self._pwd)
-        self._config.write(open("config.ini", "w", encoding="utf-8"))
+        try:
+            with open(self._config, "rb") as _file:
+                _info = load(_file)
+        except Exception:
+            _info = {}
+        _info.update({"user": self._user, "pwd": self._pwd})
+        with open(self._config, "wb") as _file:
+            dump(_info, _file)
         self.close()
 
 
@@ -95,7 +103,7 @@ class MainWindow(QMainWindow, Ui_MainWindow, QThread):
 
         self.btn_disk_dl.clicked.connect(self.call_downloader)
         self.table_disk.doubleClicked.connect(self.chang_dir)
-        self.downloader.download_proc.connect(self.show_download_process)
+        
         self.login.triggered.connect(self.login_dialog.show)
         self.logout.triggered.connect(self.menu_logout)
         self.login.setShortcut("Ctrl+L")
@@ -109,8 +117,7 @@ class MainWindow(QMainWindow, Ui_MainWindow, QThread):
 
     def init_variable(self):
         self._disk = LanZouCloud()
-        self._config = ConfigParser()
-        self._config.read("config.ini", encoding="utf-8")
+        self._config = "./config.pkl"
         self._folder_list = {}
         self._file_list = {}
         self._path_list = {}
@@ -119,10 +126,19 @@ class MainWindow(QMainWindow, Ui_MainWindow, QThread):
         self._work_name = ""
         self._work_id = -1
         self._full_path = ""
-        self._stopped = True
-        self._mutex = QMutex()
+        # self._stopped = True
+        # self._mutex = QMutex()
         self.login_dialog = LoginDialog(self._config)
-        self.downloader = Downloader(self._disk)
+       
+
+    def load_settings(self):
+        try:
+            with open(self._config, "rb") as _file:
+                self.settings = load(_file)
+        except Exception:
+            self.settings = {"user":"","pwd":"", "path":"downloads"}
+            with open(self._config, "wb") as _file:
+                dump(self.settings, _file)
 
     def _refresh(self, dir_id=-1):
         """刷新当前文件夹和路径信息"""
@@ -140,12 +156,23 @@ class MainWindow(QMainWindow, Ui_MainWindow, QThread):
 
     def call_downloader(self, name):
         _indexs = self.table_disk.selectionModel().selection().indexes()
-        name = self.model_disk.item(_indexs[0].row(), 0).text()
-        self.statusbar.showMessage("准备下载：{}".format(name), 0)
-        save_path = self._config.get("path", "save_path")
-        isfolder = self._folder_list.get(name, None)
-        isfile = self._file_list.get(name, None)
-        self.downloader.setVal(isfile, isfolder, save_path)
+        indexs = []
+        downloader = {}
+        for i in _indexs:
+            indexs.append(i.row())
+        indexs = set(indexs)
+        for index in indexs:
+            name = self.model_disk.item(index, 0).text()
+            if name == "...":
+                continue
+            dl_id = int(random() * 100000)
+            downloader[dl_id] = Downloader(self._disk)
+            downloader[dl_id].download_proc.connect(self.show_download_process)
+            self.statusbar.showMessage("准备下载：{}".format(name), 0)
+            save_path = self.settings["path"]
+            isfolder = self._folder_list.get(name, None)
+            isfile = self._file_list.get(name, None)
+            downloader[dl_id].setVal(isfile, isfolder, name, save_path)
 
     def menu_logout(self):
         self._disk.logout()
@@ -158,10 +185,11 @@ class MainWindow(QMainWindow, Ui_MainWindow, QThread):
 
     def autologin_dialog(self):
         """登录网盘"""
+        self.load_settings()
         self._disk.logout()
         try:
-            username = self._config.get("login", "username")
-            password = self._config.get("login", "password")
+            username = self.settings["user"]
+            password = self.settings["pwd"]
             if not username or not password:
                 self.statusbar.showMessage("登录失败: 没有用户或密码", 3000)
                 raise Exception("没有用户或密码")
@@ -305,7 +333,7 @@ class MainWindow(QMainWindow, Ui_MainWindow, QThread):
 
     def _down_by_url(self, url):
         """通过url下载"""
-        save_path = self._config.get("path", "save_path")
+        save_path = self.settings["path"]
         if self._disk.is_file_url(url):
             code = self._disk.download_file(url, "", save_path, self._show_progress)
             if code == LanZouCloud.LACK_PASSWORD:
