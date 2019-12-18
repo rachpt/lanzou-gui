@@ -30,18 +30,22 @@ class Downloader(QThread):
             percent * 100, bar_str, now_size / 1048576, total_size / 1048576, file_name,
         )
         if total_size == now_size:
-            msg = msg + " <b>Done!</b>"
+            msg = msg + " Done!"
         self.download_proc.emit(msg)
 
-    def setVal(self, isfile, isfolder, save_path):
+    def __del__(self):
+        self.wait()
+
+    def setVal(self, isfile, isfolder, name, save_path):
         self.isfile = isfile
         self.isfolder = isfolder
+        self.name = name
         self.save_path = save_path
         self.start()
 
     def run(self):
         if self.isfolder:
-            self._disk.download_dir2(self.isfolder, self.save_path, self._show_progress)
+            self._disk.download_dir2(self.isfolder, self.name, self.save_path, self._show_progress)
         elif self.isfile:
             self._disk.download_file2(
                 self.isfile[0], self.save_path, self._show_progress
