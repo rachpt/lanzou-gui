@@ -1,0 +1,337 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="enabled">
+   <bool>true</bool>
+  </property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>640</width>
+    <height>480</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout_2">
+    <item>
+     <widget class="QTabWidget" name="tabWidget">
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
+      <widget class="QWidget" name="share_tab">
+       <attribute name="title">
+        <string>蓝奏云链接提取</string>
+       </attribute>
+       <layout class="QGridLayout" name="horizontalLayout_7">
+        <item row="0" column="0">
+         <layout class="QVBoxLayout" name="verticalLayout_share">
+          <item>
+           <layout class="QGridLayout" name="gridLayout">
+            <item row="0" column="0">
+             <widget class="QLabel" name="label_share_url">
+              <property name="text">
+               <string>蓝奏链接</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QLineEdit" name="line_share_url"/>
+            </item>
+            <item row="0" column="2">
+             <widget class="QPushButton" name="btn_extract">
+              <property name="text">
+               <string>提取</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0" colspan="3">
+             <widget class="QTableView" name="table_share"/>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_share">
+            <item>
+             <widget class="QPushButton" name="btn_select_all">
+              <property name="text">
+               <string>全选</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="label_dl_path">
+              <property name="text">
+               <string>文件下载路径</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="line_dl_path"/>
+            </item>
+            <item>
+             <widget class="QPushButton" name="btn_dl">
+              <property name="text">
+               <string>下载选中文件</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="disk_tab">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>620</width>
+         <height>0</height>
+        </size>
+       </property>
+       <attribute name="title">
+        <string>我的蓝奏云</string>
+       </attribute>
+       <layout class="QHBoxLayout" name="horizontalLayout_5">
+        <item>
+         <layout class="QVBoxLayout" name="horizontalLayout_disk">
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_disk_1">
+            <item>
+             <widget class="QLabel" name="label_disk_location">
+              <property name="text">
+               <string>位置</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="line_location"/>
+            </item>
+            <item>
+             <widget class="QPushButton" name="btn_location">
+              <property name="text">
+               <string>跳转</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <widget class="QTableView" name="table_disk"/>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_disk_2">
+            <item>
+             <widget class="QPushButton" name="btn_disk_select_all">
+              <property name="text">
+               <string>全选</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="horizontalSpacer_disk">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <widget class="QPushButton" name="btn_disk_delect">
+              <property name="text">
+               <string>删除</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="btn_disk_dl">
+              <property name="text">
+               <string>下载</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="upload_tab">
+       <attribute name="title">
+        <string>上传文件</string>
+       </attribute>
+       <layout class="QHBoxLayout" name="horizontalLayout_4">
+        <item>
+         <layout class="QGridLayout" name="gridLayout_up">
+          <item row="0" column="1">
+           <widget class="QLabel" name="label_up_select_file">
+            <property name="text">
+             <string>选择文件</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0" colspan="3">
+           <widget class="QLineEdit" name="line_up_files"/>
+          </item>
+          <item row="5" column="1">
+           <spacer name="verticalSpacer_2">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>40</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item row="3" column="1">
+           <widget class="QLabel" name="label_up_cloud_path">
+            <property name="text">
+             <string>上传路径</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="1">
+           <widget class="QPushButton" name="btn_upload">
+            <property name="text">
+             <string>上传</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <spacer name="verticalSpacer_1">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>40</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item row="4" column="0" colspan="3">
+           <widget class="QLineEdit" name="line_up_cloud_path"/>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>640</width>
+     <height>30</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="acount">
+    <property name="title">
+     <string>登录</string>
+    </property>
+    <addaction name="separator"/>
+    <addaction name="login"/>
+    <addaction name="logout"/>
+   </widget>
+   <widget class="QMenu" name="files">
+    <property name="title">
+     <string>文件</string>
+    </property>
+    <addaction name="upload"/>
+    <addaction name="download"/>
+    <addaction name="delect"/>
+    <addaction name="share"/>
+   </widget>
+   <widget class="QMenu" name="help">
+    <property name="title">
+     <string>帮助</string>
+    </property>
+    <addaction name="how"/>
+    <addaction name="about"/>
+   </widget>
+   <addaction name="acount"/>
+   <addaction name="files"/>
+   <addaction name="help"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QToolBar" name="toolbar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+  </widget>
+  <action name="login">
+   <property name="text">
+    <string>登录</string>
+   </property>
+  </action>
+  <action name="logout">
+   <property name="text">
+    <string>登出</string>
+   </property>
+  </action>
+  <action name="upload">
+   <property name="text">
+    <string>上传</string>
+   </property>
+  </action>
+  <action name="download">
+   <property name="text">
+    <string>下载</string>
+   </property>
+  </action>
+  <action name="delect">
+   <property name="text">
+    <string>删除</string>
+   </property>
+  </action>
+  <action name="share">
+   <property name="text">
+    <string>分享</string>
+   </property>
+  </action>
+  <action name="how">
+   <property name="text">
+    <string>使用说明</string>
+   </property>
+  </action>
+  <action name="about">
+   <property name="text">
+    <string>关于</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
