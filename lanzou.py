@@ -253,7 +253,7 @@ class LanZouCloud(object):
         if "输入密码" in html:  # 文件设置了提取码时
             if len(pwd) == 0:
                 return {"code": LanZouCloud.LACK_PASSWORD, "name": ""}
-            post_str = re.findall(r"data\s:\s\'(.*)\'", html)[0] + str(pwd)
+            post_str = re.findall(r"[^/]*data\s:\s\'(.*)\'", html)[0] + str(pwd)
             f_size = re.findall(
                 r'class="n_filesize">[^<]*([\.0-9 MKBmkbGg]+)<div', html
             )[0]
@@ -328,9 +328,8 @@ class LanZouCloud(object):
         if "输入密码" in html:  # 文件设置了提取码时
             if len(pwd) == 0:
                 return {"code": LanZouCloud.LACK_PASSWORD, "name": "", "direct_url": ""}
-            post_str = re.findall(r"data\s:\s\'(.*)\'", html)[0] + str(
-                pwd
-            )  # action=downprocess&sign=xxxxx&p=
+            post_str = re.findall(r"[^/]*data\s:\s\'(.*)\'", html)[0] + str(pwd)
+            # action=downprocess&sign=xxxxx&p=
             post_data = {}
             for i in post_str.split("&"):  # 转换成 dict
                 k, v = i.split("=")
@@ -338,7 +337,7 @@ class LanZouCloud(object):
             link_info = self._post(self._host_url + "/ajaxm.php", post_data).json()
         else:  # 无提取码时
             para = re.findall(r'<iframe.*?src="(.*?)".*?>', html)[1]  # 提取构造下载页面链接所需的参数
-            file_name = re.findall(r'<div class="b">(.*?)</div>', html)[0]
+            file_name = re.findall(r'<div style="[^"]+">([^><]*?)</div>', html)[0]
             html = self._get(self._host_url + para).text
             post_data = re.findall(r"[^/]*data\s:\s(.*),", html)[0]
             # {'action': 'downprocess', 'sign': 'xxxxx'}
@@ -745,12 +744,15 @@ class LanZouCloud(object):
                 self.download_file(url, "", save_path, call_back)
             return self._unrar(file_list, save_path)
 
-    def download_dir2(self, fid, save_path="./down", call_back=None):
+    def download_dir2(self, fid, name, save_path="./down", call_back=None):
         """登录用户通过id下载文件夹"""
         info = self.get_file_list2(fid)
         if len(info) == 0:
             return LanZouCloud.FAILED
+        folder_path = save_path + os.sep + name
+        os.makedirs(folder_path)
+        save_path = folder_path
         for f_id in info.values():
-            if self.download_file2(f_id, save_path, call_back) == LanZouCloud.FAILED:
+            if self.download_file2(f_id[0], save_path, call_back) == LanZouCloud.FAILED:
                 return LanZouCloud.FAILED
         return self._unrar(list(info.keys()), save_path)
