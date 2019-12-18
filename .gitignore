@@ -130,6 +130,7 @@ dmypy.json
 
 # other
 config.ini
+config.pkl
 .directory
 .vscode/
 .idea/
