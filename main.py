@@ -3,7 +3,6 @@
 import sys
 import os
 import re
-from random import random
 from time import sleep
 from pickle import dump, load
 from PyQt5.QtCore import *
@@ -13,7 +12,7 @@ from Ui_lanzou import Ui_MainWindow
 
 from lanzou import LanZouCloud
 
-from downloader import Downloader
+from downloader import Downloader, DownloadManger
 
 
 def update_settings(_config, up_info):
@@ -109,7 +108,7 @@ class MyLineEdit(QLineEdit):
             self.clicked.emit()
 
 
-class MainWindow(QMainWindow, Ui_MainWindow, QThread):
+class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
         self.setupUi(self)
@@ -179,43 +178,43 @@ class MainWindow(QMainWindow, Ui_MainWindow, QThread):
     def disk_call_downloader(self):
         _indexs = self.table_disk.selectionModel().selection().indexes()
         indexs = []
-        downloader = {}
         for i in _indexs:
             indexs.append(i.row())
         indexs = set(indexs)
+        tasks = []
+        isurl = None
+        save_path = self.settings["path"]
         for index in indexs:
             name = self.model_disk.item(index, 0).text()
             if name == "...":
                 continue
-            dl_id = int(random() * 100000)
-            downloader[dl_id] = Downloader(self._disk)
-            downloader[dl_id].download_proc.connect(self.show_download_process)
-            self.statusbar.showMessage("准备下载：{}".format(name), 0)
-            save_path = self.settings["path"]
             isfolder = self._folder_list.get(name, None)
             isfile = self._file_list.get(name, None)
-            isurl = None
-            downloader[dl_id].setVal(isfile, isfolder, isurl, name, save_path)
+            tasks.append([isfile, isfolder, isurl, name, save_path])
+        self.download_manger_disk = DownloadManger(self._disk, tasks, self)
+        self.download_manger_disk.download_mgr_msg.connect(self.show_download_process)
+        self.download_manger_disk.downloaders_msg.connect(self.show_download_process)
+        self.download_manger_disk.start()
 
     def share_call_downloader(self):
         _indexs = self.table_share.selectionModel().selection().indexes()
         indexs = []
-        downloader = {}
         for i in _indexs:
             indexs.append(i.row())
         indexs = set(indexs)
+        tasks = []
+        isfolder = None
+        isfile = None
+        save_path = self.settings["path"]
         for index in indexs:
             name = self.model_share.item(index, 0).text()
-            dl_id = int(random() * 100000)
-            downloader[dl_id] = Downloader(self._disk)
-            downloader[dl_id].download_proc.connect(self.show_download_process)
-            self.statusbar.showMessage("准备下载：{}".format(name), 0)
-            save_path = self.settings["path"]
-            isfolder = None
-            isfile = None
             _info = self.share_file_infos["info"][name]
             isurl = (_info[0], _info[4])  # (url, size, date, desc, pwd)
-            downloader[dl_id].setVal(isfile, isfolder, isurl, name, save_path)
+            tasks.append([isfile, isfolder, isurl, name, save_path])
+        self.download_manger_share = DownloadManger(self._disk, tasks, self)
+        self.download_manger_share.download_mgr_msg.connect(self.show_download_process)
+        self.download_manger_share.downloaders_msg.connect(self.show_download_process)
+        self.download_manger_share.start()
 
     def menu_logout(self):
         self._disk.logout()
@@ -228,6 +227,8 @@ class MainWindow(QMainWindow, Ui_MainWindow, QThread):
 
     def autologin_dialog(self):
         """登录网盘"""
+        while self.login_dialog.isActiveWindow():
+            sleep(0.5)
         self.load_settings()
         self._disk.logout()
         try:
@@ -399,6 +400,9 @@ class MainWindow(QMainWindow, Ui_MainWindow, QThread):
         self.table_disk.clicked.connect(lambda: self.select_all_btn("disk", "cancel"))
 
     def list_share_url_file(self):
+        self.btn_share_select_all.setDisabled(True)
+        self.btn_share_dl.setDisabled(True)
+        self.table_share.setDisabled(True)
         line_share_text = self.line_share_url.text().strip()
         patn = re.findall(
             r"(https?://www.lanzous.com/[bi][a-z0-9]+)[^0-9a-z]*([a-z0-9]+)?",
@@ -441,7 +445,9 @@ class MainWindow(QMainWindow, Ui_MainWindow, QThread):
                         QStandardItem(infos[2]),
                     ]
                 )
-                self.btn_share_select_all.setDisabled(False)
+            self.table_share.setDisabled(False)
+            self.btn_share_select_all.setDisabled(False)
+            self.btn_share_dl.setDisabled(False)
 
     def set_dl_path(self):
         """设置下载路径"""
@@ -459,6 +465,8 @@ class MainWindow(QMainWindow, Ui_MainWindow, QThread):
 
     def extract_share_ui(self):
         self.btn_share_select_all.setDisabled(True)
+        self.btn_share_dl.setDisabled(True)
+        self.table_share.setDisabled(True)
         self.model_share = QStandardItemModel(1, 3)
         self.config_tableview("share")
         self.line_share_url.setPlaceholderText("蓝奏云链接，如有提取码，放后面，空格或汉字等分割，回车键提取")
@@ -467,7 +475,7 @@ class MainWindow(QMainWindow, Ui_MainWindow, QThread):
         self.btn_share_dl.clicked.connect(self.share_call_downloader)
         self.btn_share_select_all.clicked.connect(lambda: self.select_all_btn("share"))
         self.table_share.clicked.connect(lambda: self.select_all_btn("share", "cancel"))
-        
+
         # 添加文件下载路径选择器
         self.line_dl_path = MyLineEdit(self.share_tab)
         self.line_dl_path.setObjectName("line_dl_path")
