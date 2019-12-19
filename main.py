@@ -16,7 +16,21 @@ from lanzou import LanZouCloud
 from downloader import Downloader
 
 
+def update_settings(_config, up_info):
+    """更新配置文件"""
+    try:
+        with open(_config, "rb") as _file:
+            _info = load(_file)
+    except Exception:
+        _info = {}
+    _info.update(up_info)
+    with open(_config, "wb") as _file:
+        dump(_info, _file)
+
+
 class LoginDialog(QDialog):
+    """登录对话框"""
+
     def __init__(self, config):
         super().__init__()
         self._config = config
@@ -77,15 +91,22 @@ class LoginDialog(QDialog):
         self.close()
 
     def clicked_ok(self):
-        try:
-            with open(self._config, "rb") as _file:
-                _info = load(_file)
-        except Exception:
-            _info = {}
-        _info.update({"user": self._user, "pwd": self._pwd})
-        with open(self._config, "wb") as _file:
-            dump(_info, _file)
+        up_info = {"user": self._user, "pwd": self._pwd}
+        update_settings(self._config, up_info)
         self.close()
+
+
+class MyLineEdit(QLineEdit):
+    """添加单击事件的输入框"""
+
+    clicked = pyqtSignal()
+
+    def __init__(self, parent):
+        super(MyLineEdit, self).__init__(parent)
+
+    def mouseReleaseEvent(self, QMouseEvent):
+        if QMouseEvent.button() == Qt.LeftButton:
+            self.clicked.emit()
 
 
 class MainWindow(QMainWindow, Ui_MainWindow, QThread):
@@ -101,9 +122,9 @@ class MainWindow(QMainWindow, Ui_MainWindow, QThread):
         self.disk_ui()
         self.autologin_dialog()
 
-        self.btn_disk_dl.clicked.connect(self.call_downloader)
+        self.btn_disk_dl.clicked.connect(self.disk_call_downloader)
         self.table_disk.doubleClicked.connect(self.chang_dir)
-        
+
         self.login.triggered.connect(self.login_dialog.show)
         self.logout.triggered.connect(self.menu_logout)
         self.login.setShortcut("Ctrl+L")
@@ -128,15 +149,16 @@ class MainWindow(QMainWindow, Ui_MainWindow, QThread):
         self._full_path = ""
         # self._stopped = True
         # self._mutex = QMutex()
+        self.load_settings()
         self.login_dialog = LoginDialog(self._config)
-       
 
     def load_settings(self):
         try:
             with open(self._config, "rb") as _file:
                 self.settings = load(_file)
         except Exception:
-            self.settings = {"user":"","pwd":"", "path":"downloads"}
+            dl_path = os.path.dirname(os.path.abspath(__file__)) + os.sep + "downloads"
+            self.settings = {"user": "", "pwd": "", "path": dl_path}
             with open(self._config, "wb") as _file:
                 dump(self.settings, _file)
 
@@ -154,7 +176,7 @@ class MainWindow(QMainWindow, Ui_MainWindow, QThread):
     def show_download_process(self, msg):
         self.statusbar.showMessage(str(msg), 8000)
 
-    def call_downloader(self, name):
+    def disk_call_downloader(self):
         _indexs = self.table_disk.selectionModel().selection().indexes()
         indexs = []
         downloader = {}
@@ -172,7 +194,28 @@ class MainWindow(QMainWindow, Ui_MainWindow, QThread):
             save_path = self.settings["path"]
             isfolder = self._folder_list.get(name, None)
             isfile = self._file_list.get(name, None)
-            downloader[dl_id].setVal(isfile, isfolder, name, save_path)
+            isurl = None
+            downloader[dl_id].setVal(isfile, isfolder, isurl, name, save_path)
+
+    def share_call_downloader(self):
+        _indexs = self.table_share.selectionModel().selection().indexes()
+        indexs = []
+        downloader = {}
+        for i in _indexs:
+            indexs.append(i.row())
+        indexs = set(indexs)
+        for index in indexs:
+            name = self.model_share.item(index, 0).text()
+            dl_id = int(random() * 100000)
+            downloader[dl_id] = Downloader(self._disk)
+            downloader[dl_id].download_proc.connect(self.show_download_process)
+            self.statusbar.showMessage("准备下载：{}".format(name), 0)
+            save_path = self.settings["path"]
+            isfolder = None
+            isfile = None
+            _info = self.share_file_infos["info"][name]
+            isurl = (_info[0], _info[4])  # (url, size, date, desc, pwd)
+            downloader[dl_id].setVal(isfile, isfolder, isurl, name, save_path)
 
     def menu_logout(self):
         self._disk.logout()
@@ -326,36 +369,34 @@ class MainWindow(QMainWindow, Ui_MainWindow, QThread):
             self._full_path = self._full_path.split(self._parent_name)[0] + text
         self.line_location.setText(self._full_path)
 
+    def select_all_btn(self, page, action="reverse"):
+        if page == "disk":
+            btn = self.btn_disk_select_all
+            table = self.table_disk
+        elif page == "share":
+            btn = self.btn_share_select_all
+            table = self.table_share
+        else:
+            return
+        if action == "reverse":
+            if btn.text() == "全选":
+                table.selectAll()
+                btn.setText("取消")
+            elif btn.text() == "取消":
+                table.clearSelection()
+                btn.setText("全选")
+        elif action == "cancel":
+            btn.setText("全选")
+        else:
+            table.selectAll()
+            btn.setText("取消")
+
     def disk_ui(self):
         self.model_disk = QStandardItemModel(1, 3)
         self.config_tableview("disk")
         self.btn_disk_delect.setIcon(QIcon("./icon/delete.png"))
-
-    def _down_by_url(self, url):
-        """通过url下载"""
-        save_path = self.settings["path"]
-        if self._disk.is_file_url(url):
-            code = self._disk.download_file(url, "", save_path, self._show_progress)
-            if code == LanZouCloud.LACK_PASSWORD:
-                pwd = input("输入该文件的提取码 : ") or ""
-                code2 = self._disk.download_file(
-                    url, str(pwd), save_path, self._show_progress
-                )
-                self._print_error(code2)
-            else:
-                self._print_error(code)
-        elif self._disk.is_folder_url(url):
-            code = self._disk.download_dir(url, "", save_path, self._show_progress)
-            if code == LanZouCloud.LACK_PASSWORD:
-                pwd = input("输入该文件夹的提取码 : ") or ""
-                code2 = self._disk.download_dir(
-                    url, str(pwd), save_path, self._show_progress
-                )
-                self._print_error(code2)
-            else:
-                self._print_error(code)
-        else:
-            print("ERROR : 该链接无效")
+        self.btn_disk_select_all.clicked.connect(lambda: self.select_all_btn("disk"))
+        self.table_disk.clicked.connect(lambda: self.select_all_btn("disk", "cancel"))
 
     def list_share_url_file(self):
         line_share_text = self.line_share_url.text().strip()
@@ -370,27 +411,29 @@ class MainWindow(QMainWindow, Ui_MainWindow, QThread):
             share_url = line_share_text
             pwd = ""
 
+        self.model_share.removeRows(0, self.model_share.rowCount())
         if self._disk.is_file_url(share_url):
-            file_infos = self._disk.get_share_file_info(share_url, pwd)
+            self.share_file_infos = self._disk.get_share_file_info(share_url, pwd)
         elif self._disk.is_folder_url(share_url):
-            file_infos = self._disk.get_share_folder_info(share_url, pwd)
+            self.share_file_infos = self._disk.get_share_folder_info(share_url, pwd)
         else:
             self.statusbar.showMessage("{} 为非法链接！".format(share_url), 0)
+            self.share_file_infos = {}
             return
-        self.model_share.removeRows(0, self.model_share.rowCount())
-        if file_infos["code"] == LanZouCloud.FILE_CANCELLED:
+
+        if self.share_file_infos["code"] == LanZouCloud.FILE_CANCELLED:
             self.statusbar.showMessage("文件不存在！", 0)
-        elif file_infos["code"] == LanZouCloud.URL_INVALID:
+        elif self.share_file_infos["code"] == LanZouCloud.URL_INVALID:
             self.statusbar.showMessage("链接非法！", 0)
-        elif file_infos["code"] == LanZouCloud.PASSWORD_ERROR:
+        elif self.share_file_infos["code"] == LanZouCloud.PASSWORD_ERROR:
             self.statusbar.showMessage("提取码 [{}] 错误！".format(pwd), 0)
-        elif file_infos["code"] == LanZouCloud.LACK_PASSWORD:
+        elif self.share_file_infos["code"] == LanZouCloud.LACK_PASSWORD:
             self.statusbar.showMessage("请在链接后面跟上提取码，空格分割！", 0)
-        elif file_infos["code"] == LanZouCloud.FAILED:
+        elif self.share_file_infos["code"] == LanZouCloud.FAILED:
             self.statusbar.showMessage("网络错误！", 0)
-        elif file_infos["code"] == LanZouCloud.SUCCESS:
+        elif self.share_file_infos["code"] == LanZouCloud.SUCCESS:
             self.statusbar.showMessage("提取信息成功！", 0)
-            for key, infos in file_infos["info"].items():
+            for key, infos in self.share_file_infos["info"].items():
                 self.model_share.appendRow(
                     [
                         QStandardItem(self.set_file_icon(key), key),
@@ -398,13 +441,39 @@ class MainWindow(QMainWindow, Ui_MainWindow, QThread):
                         QStandardItem(infos[2]),
                     ]
                 )
+                self.btn_share_select_all.setDisabled(False)
+
+    def set_dl_path(self):
+        """设置下载路径"""
+        dl_path = QFileDialog.getExistingDirectory()
+        if dl_path == self.settings["path"]:
+            return
+        if dl_path == "":
+            dl_path = os.path.dirname(os.path.abspath(__file__)) + os.sep + "downloads"
+            up_info = {"path": dl_path}
+        else:
+            up_info = {"path": dl_path}
+        update_settings(self._config, up_info)
+        self.load_settings()
+        self.line_dl_path.setText(self.settings["path"])
 
     def extract_share_ui(self):
+        self.btn_share_select_all.setDisabled(True)
         self.model_share = QStandardItemModel(1, 3)
         self.config_tableview("share")
         self.line_share_url.setPlaceholderText("蓝奏云链接，如有提取码，放后面，空格或汉字等分割，回车键提取")
         self.line_share_url.returnPressed.connect(self.list_share_url_file)
         self.btn_extract.clicked.connect(self.list_share_url_file)
+        self.btn_share_dl.clicked.connect(self.share_call_downloader)
+        self.btn_share_select_all.clicked.connect(lambda: self.select_all_btn("share"))
+        self.table_share.clicked.connect(lambda: self.select_all_btn("share", "cancel"))
+        
+        # 添加文件下载路径选择器
+        self.line_dl_path = MyLineEdit(self.share_tab)
+        self.line_dl_path.setObjectName("line_dl_path")
+        self.horizontalLayout_share.insertWidget(2, self.line_dl_path)
+        self.line_dl_path.setText(self.settings["path"])
+        self.line_dl_path.clicked.connect(self.set_dl_path)
 
 
 if __name__ == "__main__":
