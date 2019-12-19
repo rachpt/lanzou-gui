@@ -95,6 +95,50 @@ class LoginDialog(QDialog):
         self.close()
 
 
+class UploadDialog(QDialog):
+    """文件上传对话框"""
+
+    def __init__(self, config):
+        super().__init__()
+        self._config = config
+        self._user = ""
+        self._pwd = ""
+        self.initUI()
+        self.btn_upload.clicked.connect(self.clicked_upload)
+        self.btn_cancel.clicked.connect(self.clicked_cancel)
+
+    def initUI(self):
+        self.setWindowTitle("上传文件")
+        self.logo = QLabel()
+        self.logo.setPixmap(QPixmap("./icon/logo3.gif"))
+        self.logo.setAlignment(Qt.AlignCenter)
+        self.name_lb = QLabel("&Files")
+        self.name_ed = QLineEdit()
+        self.name_lb.setBuddy(self.name_ed)
+
+        self.pwd_lb = QLabel("&Path")
+        self.pwd_ed = QLineEdit()
+        self.pwd_lb.setBuddy(self.pwd_ed)
+
+        self.btn_upload = QPushButton("&Upload")
+        self.btn_cancel = QPushButton("&Cancel")
+        main_layout = QGridLayout()
+        main_layout.addWidget(self.logo, 0, 0, 2, 3)
+        main_layout.addWidget(self.name_lb, 2, 0)
+        main_layout.addWidget(self.name_ed, 2, 1, 1, 2)
+        main_layout.addWidget(self.pwd_lb, 3, 0)
+        main_layout.addWidget(self.pwd_ed, 3, 1, 1, 2)
+        main_layout.addWidget(self.btn_upload, 4, 1)
+        main_layout.addWidget(self.btn_cancel, 4, 2)
+        self.setLayout(main_layout)
+
+    def clicked_cancel(self):
+        self.close()
+
+    def clicked_upload(self):
+        self.close()
+
+
 class MyLineEdit(QLineEdit):
     """添加单击事件的输入框"""
 
@@ -242,6 +286,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 raise Exception("登录失败")
             self.statusbar.showMessage("登录成功！", 5000)
 
+            self.upload_dialog = UploadDialog(self._config)
+            self.upload.triggered.connect(self.upload_dialog.show)
+            # self.download.triggered.connect(self.menu_logout)
+            self.upload.setShortcut("Ctrl+U")
+            self.upload.setIcon(QIcon("./icon/upload.ico"))
+            # self.upload.setIcon(QIcon("./icon/logout.ico"))
+            # self.logout.setShortcut("Ctrl+Q")
+            self.toolbar.addAction(self.upload)
+            # self.toolbar.addAction(self.logout)
+
             self.tabWidget.insertTab(1, self.disk_tab, "我的蓝奏云")
             self.tabWidget.insertTab(2, self.upload_tab, "上传文件")
             self.disk_tab.setEnabled(True)
@@ -383,19 +437,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if btn.text() == "全选":
                 table.selectAll()
                 btn.setText("取消")
+                btn.setIcon(QIcon("./icon/select-none.ico"))
             elif btn.text() == "取消":
                 table.clearSelection()
                 btn.setText("全选")
+                btn.setIcon(QIcon("./icon/select-all.ico"))
         elif action == "cancel":
             btn.setText("全选")
+            btn.setIcon(QIcon("./icon/select-all.ico"))
         else:
             table.selectAll()
             btn.setText("取消")
+            btn.setIcon(QIcon("./icon/select-none.ico"))
 
     def disk_ui(self):
         self.model_disk = QStandardItemModel(1, 3)
         self.config_tableview("disk")
-        self.btn_disk_delect.setIcon(QIcon("./icon/delete.png"))
+        self.btn_disk_delect.setIcon(QIcon("./icon/delete.ico"))
+        self.btn_disk_dl.setIcon(QIcon("./icon/downloader.ico"))
+        self.btn_disk_select_all.setIcon(QIcon("./icon/select-all.ico"))
         self.btn_disk_select_all.clicked.connect(lambda: self.select_all_btn("disk"))
         self.table_disk.clicked.connect(lambda: self.select_all_btn("disk", "cancel"))
 
@@ -473,6 +533,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.line_share_url.returnPressed.connect(self.list_share_url_file)
         self.btn_extract.clicked.connect(self.list_share_url_file)
         self.btn_share_dl.clicked.connect(self.share_call_downloader)
+        self.btn_share_dl.setIcon(QIcon("./icon/downloader.ico"))
+        self.btn_share_select_all.setIcon(QIcon("./icon/select-all.ico"))
         self.btn_share_select_all.clicked.connect(lambda: self.select_all_btn("share"))
         self.table_share.clicked.connect(lambda: self.select_all_btn("share", "cancel"))
 
