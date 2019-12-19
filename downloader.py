@@ -14,6 +14,7 @@ class Downloader(QThread):
         self._disk = disk
         self.isfile = ""
         self.isfolder = ""
+        self.isurl = ""
         self.save_path = ""
 
     def stop(self):
@@ -25,9 +26,20 @@ class Downloader(QThread):
         """显示进度条的回调函数"""
         percent = now_size / total_size
         bar_len = 20  # 进度条长总度
+        if total_size >= 1048576:
+            unit = "MB"
+            piece = 1048576
+        else:
+            unit = "KB"
+            piece = 1024
         bar_str = ">" * round(bar_len * percent) + "=" * round(bar_len * (1 - percent))
-        msg = "\r{:.2f}%\t[{}] {:.1f}/{:.1f}MB | {} ".format(
-            percent * 100, bar_str, now_size / 1048576, total_size / 1048576, file_name,
+        msg = "\r{:.2f}%\t[{}] {:.1f}/{:.1f}{} | {} ".format(
+            percent * 100,
+            bar_str,
+            now_size / piece,
+            total_size / piece,
+            unit,
+            file_name,
         )
         if total_size == now_size:
             msg = msg + " Done!"
@@ -36,17 +48,24 @@ class Downloader(QThread):
     def __del__(self):
         self.wait()
 
-    def setVal(self, isfile, isfolder, name, save_path):
+    def setVal(self, isfile, isfolder, isurl, name, save_path):
         self.isfile = isfile
         self.isfolder = isfolder
+        self.isurl = isurl
         self.name = name
         self.save_path = save_path
         self.start()
 
     def run(self):
         if self.isfolder:
-            self._disk.download_dir2(self.isfolder, self.name, self.save_path, self._show_progress)
+            self._disk.download_dir2(
+                self.isfolder, self.name, self.save_path, self._show_progress
+            )
         elif self.isfile:
             self._disk.download_file2(
                 self.isfile[0], self.save_path, self._show_progress
+            )
+        elif self.isurl:
+            self._disk.download_file(
+                self.isurl[0], self.isurl[1], self.save_path, self._show_progress
             )
