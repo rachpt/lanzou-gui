@@ -337,7 +337,11 @@ class LanZouCloud(object):
             link_info = self._post(self._host_url + "/ajaxm.php", post_data).json()
         else:  # 无提取码时
             para = re.findall(r'<iframe.*?src="(.*?)".*?>', html)[1]  # 提取构造下载页面链接所需的参数
-            file_name = re.findall(r'<div style="[^"]+">([^><]*?)</div>', html)[0]
+            file_name = re.findall(r'<div style="[^"]+">([^><]*?)</div>', html)
+            if file_name:
+                file_name = file_name[0]
+            else:
+                file_name = re.findall(r"var filename = '(.*)';", html)[0]
             html = self._get(self._host_url + para).text
             post_data = re.findall(r"[^/]*data\s:\s(.*),", html)[0]
             # {'action': 'downprocess', 'sign': 'xxxxx'}
@@ -666,12 +670,14 @@ class LanZouCloud(object):
             r = requests.get(info["direct_url"], stream=True)
             total_size = int(r.headers["content-length"])
             now_size = 0
+            timer = -1
             with open(save_path + os.sep + info["name"], "wb") as f:
                 for chunk in r.iter_content(chunk_size=8192):
                     if chunk:
                         f.write(chunk)
                         now_size += len(chunk)
-                        if call_back is not None:
+                        timer += 1
+                        if call_back is not None and (timer % 30 == 0 or total_size == now_size):
                             call_back(info["name"], total_size, now_size)
             return LanZouCloud.SUCCESS
         except (requests.RequestException, KeyboardInterrupt):
