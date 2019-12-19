@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'Ui_lanzou.ui'
+# Form implementation generated from reading ui file 'lanzou-gui/lanzou.ui'
 #
 # Created by: PyQt5 UI code generator 5.13.2
 #
@@ -44,18 +44,15 @@ class Ui_MainWindow(object):
         self.verticalLayout_share.addLayout(self.gridLayout)
         self.horizontalLayout_share = QtWidgets.QHBoxLayout()
         self.horizontalLayout_share.setObjectName("horizontalLayout_share")
-        self.btn_select_all = QtWidgets.QPushButton(self.share_tab)
-        self.btn_select_all.setObjectName("btn_select_all")
-        self.horizontalLayout_share.addWidget(self.btn_select_all)
+        self.btn_share_select_all = QtWidgets.QPushButton(self.share_tab)
+        self.btn_share_select_all.setObjectName("btn_share_select_all")
+        self.horizontalLayout_share.addWidget(self.btn_share_select_all)
         self.label_dl_path = QtWidgets.QLabel(self.share_tab)
         self.label_dl_path.setObjectName("label_dl_path")
         self.horizontalLayout_share.addWidget(self.label_dl_path)
-        self.line_dl_path = QtWidgets.QLineEdit(self.share_tab)
-        self.line_dl_path.setObjectName("line_dl_path")
-        self.horizontalLayout_share.addWidget(self.line_dl_path)
-        self.btn_dl = QtWidgets.QPushButton(self.share_tab)
-        self.btn_dl.setObjectName("btn_dl")
-        self.horizontalLayout_share.addWidget(self.btn_dl)
+        self.btn_share_dl = QtWidgets.QPushButton(self.share_tab)
+        self.btn_share_dl.setObjectName("btn_share_dl")
+        self.horizontalLayout_share.addWidget(self.btn_share_dl)
         self.verticalLayout_share.addLayout(self.horizontalLayout_share)
         self.horizontalLayout_7.addLayout(self.verticalLayout_share, 0, 0, 1, 1)
         self.tabWidget.addTab(self.share_tab, "")
@@ -87,9 +84,7 @@ class Ui_MainWindow(object):
         self.btn_disk_select_all = QtWidgets.QPushButton(self.disk_tab)
         self.btn_disk_select_all.setObjectName("btn_disk_select_all")
         self.horizontalLayout_disk_2.addWidget(self.btn_disk_select_all)
-        spacerItem = QtWidgets.QSpacerItem(
-            40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum
-        )
+        spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout_disk_2.addItem(spacerItem)
         self.btn_disk_delect = QtWidgets.QPushButton(self.disk_tab)
         self.btn_disk_delect.setObjectName("btn_disk_delect")
@@ -113,9 +108,7 @@ class Ui_MainWindow(object):
         self.line_up_files = QtWidgets.QLineEdit(self.upload_tab)
         self.line_up_files.setObjectName("line_up_files")
         self.gridLayout_up.addWidget(self.line_up_files, 1, 0, 1, 3)
-        spacerItem1 = QtWidgets.QSpacerItem(
-            20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding
-        )
+        spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.gridLayout_up.addItem(spacerItem1, 5, 1, 1, 1)
         self.label_up_cloud_path = QtWidgets.QLabel(self.upload_tab)
         self.label_up_cloud_path.setAlignment(QtCore.Qt.AlignCenter)
@@ -124,9 +117,7 @@ class Ui_MainWindow(object):
         self.btn_upload = QtWidgets.QPushButton(self.upload_tab)
         self.btn_upload.setObjectName("btn_upload")
         self.gridLayout_up.addWidget(self.btn_upload, 6, 1, 1, 1)
-        spacerItem2 = QtWidgets.QSpacerItem(
-            20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding
-        )
+        spacerItem2 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.gridLayout_up.addItem(spacerItem2, 2, 1, 1, 1)
         self.line_up_cloud_path = QtWidgets.QLineEdit(self.upload_tab)
         self.line_up_cloud_path.setObjectName("line_up_cloud_path")
@@ -189,26 +180,20 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
         self.label_share_url.setText(_translate("MainWindow", "蓝奏链接"))
         self.btn_extract.setText(_translate("MainWindow", "提取"))
-        self.btn_select_all.setText(_translate("MainWindow", "全选"))
+        self.btn_share_select_all.setText(_translate("MainWindow", "全选"))
         self.label_dl_path.setText(_translate("MainWindow", "文件下载路径"))
-        self.btn_dl.setText(_translate("MainWindow", "下载选中文件"))
-        self.tabWidget.setTabText(
-            self.tabWidget.indexOf(self.share_tab), _translate("MainWindow", "蓝奏云链接提取")
-        )
+        self.btn_share_dl.setText(_translate("MainWindow", "下载选中文件"))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.share_tab), _translate("MainWindow", "蓝奏云链接提取"))
         self.label_disk_location.setText(_translate("MainWindow", "位置"))
         self.btn_location.setText(_translate("MainWindow", "跳转"))
         self.btn_disk_select_all.setText(_translate("MainWindow", "全选"))
         self.btn_disk_delect.setText(_translate("MainWindow", "删除"))
         self.btn_disk_dl.setText(_translate("MainWindow", "下载"))
-        self.tabWidget.setTabText(
-            self.tabWidget.indexOf(self.disk_tab), _translate("MainWindow", "我的蓝奏云")
-        )
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.disk_tab), _translate("MainWindow", "我的蓝奏云"))
         self.label_up_select_file.setText(_translate("MainWindow", "选择文件"))
         self.label_up_cloud_path.setText(_translate("MainWindow", "上传路径"))
         self.btn_upload.setText(_translate("MainWindow", "上传"))
-        self.tabWidget.setTabText(
-            self.tabWidget.indexOf(self.upload_tab), _translate("MainWindow", "上传文件")
-        )
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.upload_tab), _translate("MainWindow", "上传文件"))
         self.acount.setTitle(_translate("MainWindow", "登录"))
         self.files.setTitle(_translate("MainWindow", "文件"))
         self.help.setTitle(_translate("MainWindow", "帮助"))
