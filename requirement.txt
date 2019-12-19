@@ -1,4 +1,3 @@
 PyQt5
 requests
 requests_toolbelt
-configparser
