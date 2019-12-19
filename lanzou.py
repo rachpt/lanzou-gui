@@ -271,11 +271,15 @@ class LanZouCloud(object):
             else:
                 return {"code": LanZouCloud.PASSWORD_ERROR, "info": ""}
         else:
-            f_name = re.findall(r"var filename = '(.*)';", html)[0]
+            f_name = re.findall(r'<div style="[^"]+">([^><]*?)</div>', html)
+            if f_name:
+                f_name = f_name[0]
+            else:
+                f_name = re.findall(r"var filename = '(.*)';", html)[0]
             f_size = re.findall(r'文件大小：</span>([\.0-9 MKBmkbGg]+)<br', html)[0]
             f_date = re.findall(r'上传时间：</span>([-0-9]+)<br', html)[0]
             f_desc = re.findall(r'文件描述：</span><br>([^<]+)</td>', html)[0].strip()
-            info = {f_name: (share_url, f_size, f_date, f_desc, pwd)}
+            info = {f_name: (share_url, f_size, f_date, "", pwd, f_desc)}
             return {"code": LanZouCloud.SUCCESS, "info": info}
 
     def get_share_folder_info(self, share_url, dir_pwd=""):
@@ -292,6 +296,8 @@ class LanZouCloud(object):
         desc = re.findall(r'id="filename">([^<]+)</span', html)
         if desc:
             desc = str(desc[0])
+        else:
+            desc = ""
         if "请输入密码" in html:
             if len(dir_pwd) == 0:
                 return {"code": LanZouCloud.LACK_PASSWORD, "info": ""}
@@ -312,7 +318,7 @@ class LanZouCloud(object):
         elif r["zt"] != 1:
             return {"code": LanZouCloud.FAILED, "info": ""}
         # 获取文件信息成功后...
-        info = {f["name_all"]: (self._host_url + "/" + f["id"], f["size"], f["time"], desc, "") for f in r["text"]}
+        info = {f["name_all"]: (self._host_url + "/" + f["id"], f["size"], f["time"], "", dir_pwd, desc) for f in r["text"]}
         return {"code": LanZouCloud.SUCCESS, "info": info}
 
     def get_direct_url(self, share_url, pwd=""):

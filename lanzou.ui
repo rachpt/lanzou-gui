@@ -21,7 +21,7 @@
     <item>
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="share_tab">
        <attribute name="title">
@@ -146,7 +146,7 @@
              </spacer>
             </item>
             <item>
-             <widget class="QPushButton" name="btn_disk_delect">
+             <widget class="QPushButton" name="btn_disk_delete">
               <property name="text">
                <string>删除</string>
               </property>
@@ -245,7 +245,7 @@
      <x>0</x>
      <y>0</y>
      <width>640</width>
-     <height>30</height>
+     <height>32</height>
     </rect>
    </property>
    <widget class="QMenu" name="acount">
@@ -262,7 +262,7 @@
     </property>
     <addaction name="upload"/>
     <addaction name="download"/>
-    <addaction name="delect"/>
+    <addaction name="delete"/>
     <addaction name="share"/>
    </widget>
    <widget class="QMenu" name="help">
@@ -308,7 +308,7 @@
     <string>下载</string>
    </property>
   </action>
-  <action name="delect">
+  <action name="delete">
    <property name="text">
     <string>删除</string>
    </property>
