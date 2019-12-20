@@ -9,6 +9,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from Ui_lanzou import Ui_MainWindow
+from Ui_share import Ui_Dialog
 
 from lanzou import LanZouCloud
 
@@ -29,6 +30,7 @@ def update_settings(_config, up_info):
 
 class LoginDialog(QDialog):
     """登录对话框"""
+
     def __init__(self, config):
         super().__init__()
         self._config = config
@@ -96,6 +98,7 @@ class LoginDialog(QDialog):
 
 class UploadDialog(QDialog):
     """文件上传对话框"""
+
     def __init__(self, config):
         super().__init__()
         self._config = config
@@ -137,38 +140,24 @@ class UploadDialog(QDialog):
         self.close()
 
 
-class InfoDialog(QDialog):
-    def __init__(self, info=""):
-        super().__init__()
-        self.info = info
+class InfoDialog(QDialog, Ui_Dialog):
+    def __init__(self, infos, parent=None):
+        super().__init__(parent)
+        self.setupUi(self)
+        self.infos = infos
         self.initUI()
-        self.btn_upload.clicked.connect(self.clicked_upload)
-        self.btn_cancel.clicked.connect(self.clicked_cancel)
 
     def initUI(self):
-        self.setWindowTitle("上传文件")
-        self.logo = QLabel()
+        self.setWindowTitle("文件信息")
         self.logo.setPixmap(QPixmap("./icon/q9.gif"))
         self.logo.setAlignment(Qt.AlignCenter)
-        self.name_lb = QLabel("&Files")
-        self.name_ed = QLineEdit()
-        self.name_lb.setBuddy(self.name_ed)
-
-        self.pwd_lb = QLabel("&Path")
-        self.pwd_ed = QLineEdit()
-        self.pwd_lb.setBuddy(self.pwd_ed)
-
-        self.btn_upload = QPushButton("&Upload")
-        self.btn_cancel = QPushButton("&Cancel")
-        main_layout = QGridLayout()
-        main_layout.addWidget(self.logo, 0, 0, 2, 3)
-        main_layout.addWidget(self.name_lb, 2, 0)
-        main_layout.addWidget(self.name_ed, 2, 1, 1, 2)
-        main_layout.addWidget(self.pwd_lb, 3, 0)
-        main_layout.addWidget(self.pwd_ed, 3, 1, 1, 2)
-        main_layout.addWidget(self.btn_upload, 4, 1)
-        main_layout.addWidget(self.btn_cancel, 4, 2)
-        self.setLayout(main_layout)
+        self.tx_name.setText(self.infos[0])
+        self.tx_size.setText(self.infos[1])
+        self.tx_time.setText(self.infos[2])
+        self.tx_dl_count.setText(self.infos[3])
+        self.tx_share_url.setText(self.infos[4])
+        self.tx_pwd.setText(self.infos[5])
+        self.tx_dl_link.setText(self.infos[6])
 
 
 class MyLineEdit(QLineEdit):
@@ -197,10 +186,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.extract_share_ui()
         self.disk_ui()
         self.autologin_dialog()
-
         self.btn_disk_dl.clicked.connect(self.disk_call_downloader)
         self.table_disk.doubleClicked.connect(self.chang_dir)
         self.login_dialog.btn_ok.clicked.connect(self.autologin_dialog)
+        self.create_left_menus()
 
     def init_menu(self):
         self.login.triggered.connect(self.login_dialog.show)
@@ -220,7 +209,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.how.setIcon(QIcon("./icon/help.ico"))
         self.about.setShortcut("Ctrl+A")
         self.about.setIcon(QIcon("./icon/about.ico"))
-    
+
     def login_menu(self):
         self.toolbar.addAction(self.logout)
         self.upload_dialog = UploadDialog(self._config)
@@ -374,7 +363,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         folder_ico = QIcon("./icon/folder_open.gif")
         if self._work_id != -1:
             self.model_disk.appendRow(
-                [QStandardItem(folder_ico, ".."), QStandardItem(""), QStandardItem(""), QStandardItem(""), QStandardItem(""), QStandardItem(""), QStandardItem("")]
+                [
+                    QStandardItem(folder_ico, ".."),
+                    QStandardItem(""),
+                    QStandardItem(""),
+                    QStandardItem(""),
+                    QStandardItem(""),
+                    QStandardItem(""),
+                    QStandardItem(""),
+                ]
             )
         for folder, _id in self._folder_list.items():
             self.model_disk.appendRow(
@@ -449,46 +446,86 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         table.setContextMenuPolicy(Qt.CustomContextMenu)  # 允许右键产生子菜单
         table.customContextMenuRequested.connect(self.generateMenu)  # 右键菜单
+        table.customContextMenuRequested.connect(self.left_menu_show_notice)  # 提示
+        # self.left_menu_share_url.triggered.connect(self.left_menu_show_notice)
         table.hideColumn(7)
         table.hideColumn(6)
         table.hideColumn(5)
         table.hideColumn(4)
         table.hideColumn(3)
 
+    def left_menu_show_notice(self):
+        self.statusbar.showMessage("获取数据中，稍等片刻……", 2000)
+
+    def create_left_menus(self):
+        self.left_menus = QMenu()
+        self.left_menu_share_url = self.left_menus.addAction("外链分享地址")
+        self.left_menu_share_url.setIcon(QIcon("./icon/share.ico"))
+        self.left_menu_move = self.left_menus.addAction("移动")
+        self.left_menu_move.setIcon(QIcon("./icon/move.ico"))
+        self.left_menu_set_pwd = self.left_menus.addAction("设置访问密码")
+        self.left_menu_set_pwd.setIcon(QIcon("./icon/password.ico"))
+        self.left_menu_add_desc = self.left_menus.addAction("添加描述")
+        self.left_menu_add_desc.setIcon(QIcon("./icon/desc.ico"))
+        self.left_menu_dl_count = self.left_menus.addAction("下载次数")
+        self.left_menu_dl_count.setIcon(QIcon("./icon/count.ico"))
+
     def generateMenu(self, pos):
         row_num = -1
         for i in self.sender().selectionModel().selection().indexes():
             row_num = i.row()
         if self.sender().model().item(row_num, 0).text() != "..":
-            menu = QMenu()
-            _share_url = menu.addAction("外链分享地址")
-            _share_url.setIcon(QIcon("./icon/share.ico"))
-            _move = menu.addAction("移动")
-            _move.setIcon(QIcon("./icon/move.ico"))
-            _set_pwd = menu.addAction("设置访问密码")
-            _set_pwd.setIcon(QIcon("./icon/password.ico"))
-            _add_desc = menu.addAction("添加描述")
-            _add_desc.setIcon(QIcon("./icon/desc.ico"))
-            _dl_count = menu.addAction("下载次数")
-            _dl_count.setIcon(QIcon("./icon/count.ico"))
-            action = menu.exec_(self.sender().mapToGlobal(pos))
-            if action == _share_url:
-                print('您选了选项一，当前行文字内容是：', self.sender().model().item(row_num, 0).text(),
-                    self.sender().model().item(row_num, 3).text(), self.sender().model().item(row_num, 4).text())
+            action = self.left_menus.exec_(self.sender().mapToGlobal(pos))
+            if action == self.left_menu_share_url:
+                infos = []
+                for i in range(7):
+                    infos.append(self.sender().model().item(row_num, i).text())
+                self.get_share_infomation(infos)
+                self.statusbar.clearMessage()
 
-            elif action == _move:
-                print('您选了选项二，当前行文字内容是：', self.model_disk.item(row_num, 0).text(),
-                    self.model_disk.item(row_num, 1).text(), self.model_disk.item(row_num, 2).text())
-
-            elif action == _set_pwd:
+            elif action == self.left_menu_move:
+                print(
+                    "您选了选项二，当前行文字内容是：",
+                    self.model_disk.item(row_num, 0).text(),
+                    self.model_disk.item(row_num, 1).text(),
+                    self.model_disk.item(row_num, 2).text(),
+                )
+            elif action == self.left_menu_set_pwd:
                 pass
-            elif action == _add_desc:
+            elif action == self.left_menu_add_desc:
                 pass
-            elif action == _dl_count:
-                print('您选了选项三，当前行文字内容是：', self.model_disk.item(row_num, 0).text(),
-                    self.model_disk.item(row_num, 1).text(), self.model_disk.item(row_num, 2).text())
+            elif action == self.left_menu_dl_count:
+                print(
+                    "您选了选项三，当前行文字内容是：",
+                    self.model_disk.item(row_num, 0).text(),
+                    self.model_disk.item(row_num, 1).text(),
+                    self.model_disk.item(row_num, 2).text(),
+                )
             else:
                 return
+
+    def get_share_infomation(self, infos):
+        """显示分享信息"""
+        if self._work_name == "Recovery":
+            print("ERROR : 回收站模式下无法使用此操作")
+            return None
+        _infos = infos[0:3]
+        _infos.append(infos[4])
+        if self._file_list.get(infos[0], None):
+            share_info = self._disk.get_share_info(infos[3])
+            d_url = self._disk.get_direct_url2(infos[3])
+            _infos.append(share_info["share_url"])
+            _infos.append("{}".format(share_info["passwd"] or "无"))
+            _infos.append("{}".format(d_url["direct_url"] or "无"))
+        elif self._folder_list.get(infos[0], None):
+            share_info = self._disk.get_share_info(self._folder_list.get(infos[0]))
+            _infos.append(share_info["share_url"])
+            _infos.append("{}".format(share_info["passwd"] or "无"))
+            _infos.append("无")
+        else:
+            print("ERROR : 文件(夹)不存在:{}".format(infos[0]))
+        self.info_dialog = InfoDialog(_infos)
+        self.info_dialog.show()
 
     def show_file(self):
         self.list_file_folder()
