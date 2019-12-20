@@ -277,7 +277,7 @@ class LanZouCloud(object):
             else:
                 f_name = re.findall(r"var filename = '(.*)';", html)[0]
             f_size = re.findall(r'文件大小：</span>([\.0-9 MKBmkbGg]+)<br', html)[0]
-            f_date = re.findall(r'上传时间：</span>([-0-9]+)<br', html)[0]
+            f_date = re.findall(r'上传时间：</span>([-0-9 天月前]+)<br', html)[0]
             f_desc = re.findall(r'文件描述：</span><br>([^<]+)</td>', html)[0].strip()
             info = {f_name: (share_url, f_size, f_date, "", pwd, f_desc)}
             return {"code": LanZouCloud.SUCCESS, "info": info}
