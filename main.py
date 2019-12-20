@@ -156,8 +156,12 @@ class InfoDialog(QDialog, Ui_Dialog):
         self.tx_time.setText(self.infos[2])
         self.tx_dl_count.setText(self.infos[3])
         self.tx_share_url.setText(self.infos[4])
+        self.tx_share_url.setMinimumHeight(26)
+        self.tx_share_url.setMaximumHeight(26)
         self.tx_pwd.setText(self.infos[5])
         self.tx_dl_link.setText(self.infos[6])
+        self.tx_dl_link.setMinimumHeight(60)
+        self.tx_dl_link.setMaximumHeight(60)
 
 
 class MyLineEdit(QLineEdit):
@@ -188,11 +192,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.autologin_dialog()
         self.btn_disk_dl.clicked.connect(self.disk_call_downloader)
         self.table_disk.doubleClicked.connect(self.chang_dir)
-        self.login_dialog.btn_ok.clicked.connect(self.autologin_dialog)
+        
         self.create_left_menus()
 
     def init_menu(self):
-        self.login.triggered.connect(self.login_dialog.show)
+        self.login.triggered.connect(self.show_login_dialog)
         self.logout.triggered.connect(self.menu_logout)
         self.login.setShortcut("Ctrl+L")
         self.login.setIcon(QIcon("./icon/login.ico"))
@@ -236,7 +240,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # self._stopped = True
         # self._mutex = QMutex()
         self.load_settings()
-        self.login_dialog = LoginDialog(self._config)
+    
+    def show_login_dialog(self):
+        """显示登录对话框"""
+        login_dialog = LoginDialog(self._config)
+        login_dialog.btn_ok.clicked.connect(self.autologin_dialog)
+        login_dialog.setWindowModality(Qt.ApplicationModal)
+        login_dialog.exec()
 
     def load_settings(self):
         try:
@@ -315,8 +325,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def autologin_dialog(self):
         """登录网盘"""
-        while self.login_dialog.isActiveWindow():
-            sleep(0.5)
         self.load_settings()
         self._disk.logout()
         self.toolbar.removeAction(self.logout)
@@ -446,16 +454,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         table.setContextMenuPolicy(Qt.CustomContextMenu)  # 允许右键产生子菜单
         table.customContextMenuRequested.connect(self.generateMenu)  # 右键菜单
-        table.customContextMenuRequested.connect(self.left_menu_show_notice)  # 提示
-        # self.left_menu_share_url.triggered.connect(self.left_menu_show_notice)
         table.hideColumn(7)
         table.hideColumn(6)
         table.hideColumn(5)
         table.hideColumn(4)
         table.hideColumn(3)
-
-    def left_menu_show_notice(self):
-        self.statusbar.showMessage("获取数据中，稍等片刻……", 2000)
 
     def create_left_menus(self):
         self.left_menus = QMenu()
@@ -481,7 +484,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 for i in range(7):
                     infos.append(self.sender().model().item(row_num, i).text())
                 self.get_share_infomation(infos)
-                self.statusbar.clearMessage()
 
             elif action == self.left_menu_move:
                 print(
@@ -524,8 +526,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             _infos.append("无")
         else:
             print("ERROR : 文件(夹)不存在:{}".format(infos[0]))
-        self.info_dialog = InfoDialog(_infos)
-        self.info_dialog.show()
+        info_dialog = InfoDialog(_infos)
+        info_dialog.setWindowModality(Qt.ApplicationModal)
+        info_dialog.exec()
 
     def show_file(self):
         self.list_file_folder()
