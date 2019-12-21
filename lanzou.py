@@ -20,7 +20,7 @@ class LanZouCloud(object):
 
     def __init__(self):
         self._session = requests.Session()
-        self._file_id_length = 7  # 目前文件id长度
+        self._file_id_length = 8  # 目前文件id长度8, 文件夹小于等于7位
         self._guise_suffix = ".dll"  # 不支持的文件伪装后缀
         self._fake_file_prefix = "__fake__"  # 假文件前缀
         self._timeout = 2000  # 每个请求的超时 ms(不包含下载响应体的用时)
@@ -453,7 +453,7 @@ class LanZouCloud(object):
         try:
             result = self._post(self._doupload_url, post_data).json()
             return (
-                LanZouCloud.SUCCESS if result["info"] == "设置成功" else LanZouCloud.FAILED
+                LanZouCloud.SUCCESS if result["info"] == "设置成功" or result["info"] == "修改成功" else LanZouCloud.FAILED
             )
         except requests.RequestException:
             return LanZouCloud.FAILED
@@ -800,3 +800,12 @@ class LanZouCloud(object):
             if self.download_file2(f_id[0], save_path, call_back) == LanZouCloud.FAILED:
                 return LanZouCloud.FAILED
         return self._unrar(list(info.keys()), save_path)
+
+    def get_all_folders(self, file_id=0):
+        all_dirs = self._post(
+                self._doupload_url, data={"task": 19, "file_id": file_id}
+            ).json()  # 获取ID
+        if all_dirs["zt"] == 1:
+            return all_dirs["info"]
+        else:
+            return LanZouCloud.FAILED

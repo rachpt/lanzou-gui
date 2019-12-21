@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>398</width>
+    <width>390</width>
     <height>310</height>
    </rect>
   </property>
@@ -40,6 +40,9 @@
            </property>
            <property name="alignment">
             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+           <property name="buddy">
+            <cstring>tx_name</cstring>
            </property>
           </widget>
          </item>
@@ -81,6 +84,9 @@
            <property name="alignment">
             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
            </property>
+           <property name="buddy">
+            <cstring>tx_share_url</cstring>
+           </property>
           </widget>
          </item>
          <item>
@@ -90,6 +96,9 @@
            </property>
            <property name="alignment">
             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+           <property name="buddy">
+            <cstring>tx_pwd</cstring>
            </property>
           </widget>
          </item>
@@ -101,6 +110,9 @@
            <property name="alignment">
             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
            </property>
+           <property name="buddy">
+            <cstring>tx_dl_link</cstring>
+           </property>
           </widget>
          </item>
         </layout>
@@ -110,6 +122,16 @@
          <property name="horizontalSpacing">
           <number>10</number>
          </property>
+         <item row="5" column="0">
+          <widget class="QLineEdit" name="tx_share_url"/>
+         </item>
+         <item row="3" column="0">
+          <widget class="QLabel" name="tx_time">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
          <item row="1" column="0">
           <widget class="QLabel" name="tx_size">
            <property name="text">
@@ -117,12 +139,11 @@
            </property>
           </widget>
          </item>
-         <item row="0" column="0" colspan="2">
-          <widget class="QLabel" name="tx_name">
-           <property name="text">
-            <string/>
-           </property>
-          </widget>
+         <item row="0" column="0">
+          <widget class="QLineEdit" name="tx_name"/>
+         </item>
+         <item row="8" column="0">
+          <widget class="QTextBrowser" name="tx_dl_link"/>
          </item>
          <item row="4" column="0">
           <widget class="QLabel" name="tx_dl_count">
@@ -132,24 +153,7 @@
           </widget>
          </item>
          <item row="6" column="0">
-          <widget class="QLabel" name="tx_pwd">
-           <property name="text">
-            <string/>
-           </property>
-          </widget>
-         </item>
-         <item row="5" column="0">
-          <widget class="QTextBrowser" name="tx_share_url"/>
-         </item>
-         <item row="8" column="0">
-          <widget class="QTextBrowser" name="tx_dl_link"/>
-         </item>
-         <item row="3" column="0">
-          <widget class="QLabel" name="tx_time">
-           <property name="text">
-            <string/>
-           </property>
-          </widget>
+          <widget class="QLineEdit" name="tx_pwd"/>
          </item>
         </layout>
        </item>
