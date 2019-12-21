@@ -64,7 +64,7 @@
           </widget>
          </item>
          <item>
-          <widget class="QLabel" name="dl_count">
+          <widget class="QLabel" name="lb_dl_count">
            <property name="text">
             <string>下载次数：</string>
            </property>
@@ -100,13 +100,6 @@
            </property>
            <property name="alignment">
             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLabel" name="lb_none">
-           <property name="text">
-            <string/>
            </property>
           </widget>
          </item>

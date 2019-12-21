@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'lanzou-gui/share.ui'
+# Form implementation generated from reading ui file '/home/rachpt/Documents/work_sp/lanzou-gui/share.ui'
 #
 # Created by: PyQt5 UI code generator 5.13.2
 #
@@ -38,10 +38,10 @@ class Ui_Dialog(object):
         self.lb_time.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
         self.lb_time.setObjectName("lb_time")
         self.verticalLayout.addWidget(self.lb_time)
-        self.dl_count = QtWidgets.QLabel(Dialog)
-        self.dl_count.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
-        self.dl_count.setObjectName("dl_count")
-        self.verticalLayout.addWidget(self.dl_count)
+        self.lb_dl_count = QtWidgets.QLabel(Dialog)
+        self.lb_dl_count.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
+        self.lb_dl_count.setObjectName("lb_dl_count")
+        self.verticalLayout.addWidget(self.lb_dl_count)
         self.lb_share_url = QtWidgets.QLabel(Dialog)
         self.lb_share_url.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
         self.lb_share_url.setObjectName("lb_share_url")
@@ -54,10 +54,6 @@ class Ui_Dialog(object):
         self.lb_dl_link.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
         self.lb_dl_link.setObjectName("lb_dl_link")
         self.verticalLayout.addWidget(self.lb_dl_link)
-        self.lb_none = QtWidgets.QLabel(Dialog)
-        self.lb_none.setText("")
-        self.lb_none.setObjectName("lb_none")
-        self.verticalLayout.addWidget(self.lb_none)
         self.horizontalLayout.addLayout(self.verticalLayout)
         self.gridLayout = QtWidgets.QGridLayout()
         self.gridLayout.setHorizontalSpacing(10)
@@ -109,7 +105,7 @@ class Ui_Dialog(object):
         self.lb_name.setText(_translate("Dialog", "文件名："))
         self.lb_size.setText(_translate("Dialog", "文件大小："))
         self.lb_time.setText(_translate("Dialog", "上传时间："))
-        self.dl_count.setText(_translate("Dialog", "下载次数："))
+        self.lb_dl_count.setText(_translate("Dialog", "下载次数："))
         self.lb_share_url.setText(_translate("Dialog", "分享链接："))
         self.lb_pwd.setText(_translate("Dialog", "提取码："))
         self.lb_dl_link.setText(_translate("Dialog", "下载直链："))

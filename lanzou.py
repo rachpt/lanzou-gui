@@ -176,14 +176,21 @@ class LanZouCloud(object):
                 # 删除文件列表的伪装后缀名
                 if i["name_all"].endswith(self._guise_suffix):
                     i["name_all"] = i["name_all"].replace(self._guise_suffix, "")
-                file_list[i["name_all"]] = {
-                    "id": int(i["id"]),
-                    "name": i["name_all"],
-                    "time": i["time"],  # 上传时间
+                file_id = int(i["id"])
+                desc_data = {"task": 12, "file_id": file_id}  # 文件描述
+                pwd_data = {"task": 22, "file_id": file_id}  # 文件提取码，外链
+                result_desc = self._post(self._doupload_url, desc_data).json()
+                result_pwd = self._post(self._doupload_url, pwd_data).json()
+                url = result_pwd["info"]["is_newd"] + "/" + result_pwd["info"]["f_id"]
+                file_list[file_id] = {
+                    "id": file_id,  # 数字ID号
+                    "name": i["name_all"],  # 文件全名
                     "size": i["size"],  # 文件大小
+                    "time": i["time"],  # 上传时间
                     "downs": int(i["downs"]),  # 下载次数
-                    "has_pwd": True if int(i["onof"]) == 1 else False,  # 是否存在提取码
-                    "has_des": True if int(i["is_des"]) == 1 else False,  # 是否存在描述
+                    "pwd": result_pwd["info"]["pwd"] if int(i["onof"]) == 1 else "",  # 外链提取码
+                    "desc": result_desc["info"],  # 文件描述
+                    "url": url,  # 文件分享地址链接: i[a-z0-9]{6}
                 }
             page += 1
         return file_list
@@ -196,8 +203,9 @@ class LanZouCloud(object):
                 i["size"],
                 i["time"],
                 i["downs"],
-                i["has_pwd"],
-                i["has_des"],
+                i["pwd"],
+                i["desc"],
+                i["url"],
             )
             for i in self.get_file_list(folder_id).values()
         }
@@ -206,6 +214,7 @@ class LanZouCloud(object):
     def get_dir_list(self, folder_id=-1):
         """获取子文件夹列表"""
         folder_list = {}
+        folders_info = {}
         try:
             url = (
                 self._mydisk_url
@@ -216,7 +225,30 @@ class LanZouCloud(object):
                 r"&nbsp;(.+?)</a>&nbsp;.+folkey\((.+?)\)", self._session.get(url).text
             ):
                 folder_list[k.replace("&amp;", "&")] = int(v)  # 文件夹名 : id
-            return folder_list
+            for i in folder_list.keys():
+                folder_id = int(folder_list[i])
+                post_data = {"task": 18, "folder_id": folder_id}  # 文件描述
+                result = self._post(self._doupload_url, post_data).json()
+                url = result["info"]["new_url"]
+                folders_info[url] = {
+                    "id": folder_id,  # 数字ID号
+                    "name": i,  # 文件夹名
+                    "time": "",  # 上传时间
+                    "size": "",  # 文件大小
+                    "downs": "",  # 下载次数
+                    "pwd": result["info"]["pwd"] if int(result["info"]["onof"]) == 1 else "",  # 外链提取码
+                    "desc": result["info"]["des"],  # 文件描述
+                    "url": url,  # 文件分享地址链接: b[a-z0-9]{7,8}
+                }
+            infos = {i["name"]: (
+                i["id"],
+                i["size"],
+                i["time"],
+                i["downs"],
+                i["pwd"],
+                i["desc"],
+                i["url"]) for i in folders_info.values()}
+            return {key: infos.get(key) for key in sorted(infos.keys())}
         except requests.RequestException:
             return {}
 
@@ -266,7 +298,7 @@ class LanZouCloud(object):
                 post_data[k] = v
             link_info = self._post(self._host_url + "/ajaxm.php", post_data).json()
             if link_info["zt"] == 1:
-                info = {link_info["inf"]: (share_url, f_size, f_date, f_desc, pwd)}
+                info = {link_info["inf"]: ("", f_size, f_date, "", pwd, f_desc, share_url)}
                 return {"code": LanZouCloud.SUCCESS, "info": info}
             else:
                 return {"code": LanZouCloud.PASSWORD_ERROR, "info": ""}
@@ -279,7 +311,7 @@ class LanZouCloud(object):
             f_size = re.findall(r'文件大小：</span>([\.0-9 MKBmkbGg]+)<br', html)[0]
             f_date = re.findall(r'上传时间：</span>([-0-9 天月前]+)<br', html)[0]
             f_desc = re.findall(r'文件描述：</span><br>([^<]+)</td>', html)[0].strip()
-            info = {f_name: (share_url, f_size, f_date, "", pwd, f_desc)}
+            info = {f_name: ("", f_size, f_date, "", pwd, f_desc, share_url)}
             return {"code": LanZouCloud.SUCCESS, "info": info}
 
     def get_share_folder_info(self, share_url, dir_pwd=""):

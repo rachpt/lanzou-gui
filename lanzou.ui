@@ -263,7 +263,6 @@
     <addaction name="upload"/>
     <addaction name="download"/>
     <addaction name="delete"/>
-    <addaction name="share"/>
    </widget>
    <widget class="QMenu" name="help">
     <property name="title">
@@ -311,11 +310,6 @@
   <action name="delete">
    <property name="text">
     <string>删除</string>
-   </property>
-  </action>
-  <action name="share">
-   <property name="text">
-    <string>分享</string>
    </property>
   </action>
   <action name="how">

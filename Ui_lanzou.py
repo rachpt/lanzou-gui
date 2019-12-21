@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'lanzou-gui/lanzou.ui'
+# Form implementation generated from reading ui file '/home/rachpt/Documents/work_sp/lanzou-gui/lanzou.ui'
 #
 # Created by: PyQt5 UI code generator 5.13.2
 #
@@ -152,8 +152,6 @@ class Ui_MainWindow(object):
         self.download.setObjectName("download")
         self.delete = QtWidgets.QAction(MainWindow)
         self.delete.setObjectName("delete")
-        self.share = QtWidgets.QAction(MainWindow)
-        self.share.setObjectName("share")
         self.how = QtWidgets.QAction(MainWindow)
         self.how.setObjectName("how")
         self.about = QtWidgets.QAction(MainWindow)
@@ -164,7 +162,6 @@ class Ui_MainWindow(object):
         self.files.addAction(self.upload)
         self.files.addAction(self.download)
         self.files.addAction(self.delete)
-        self.files.addAction(self.share)
         self.help.addAction(self.how)
         self.help.addAction(self.about)
         self.menubar.addAction(self.acount.menuAction())
@@ -203,6 +200,5 @@ class Ui_MainWindow(object):
         self.upload.setText(_translate("MainWindow", "上传"))
         self.download.setText(_translate("MainWindow", "下载"))
         self.delete.setText(_translate("MainWindow", "删除"))
-        self.share.setText(_translate("MainWindow", "分享"))
         self.how.setText(_translate("MainWindow", "使用说明"))
         self.about.setText(_translate("MainWindow", "关于"))
