@@ -132,6 +132,5 @@ dmypy.json
 config.ini
 config.pkl
 .directory
-.vscode/
 .idea/
 *.log
