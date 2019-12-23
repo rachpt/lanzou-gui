@@ -98,46 +98,126 @@ class LoginDialog(QDialog):
 
 class UploadDialog(QDialog):
     """文件上传对话框"""
+    new_infos = pyqtSignal(object)
 
-    def __init__(self, config):
+    def __init__(self):
         super().__init__()
-        self._config = config
-        self._user = ""
-        self._pwd = ""
+        self.cwd = os.getcwd()
+        self.selected = []
+        self.max_len = 400
         self.initUI()
-        self.btn_upload.clicked.connect(self.clicked_upload)
-        self.btn_cancel.clicked.connect(self.clicked_cancel)
+        self.set_size()
 
     def initUI(self):
         self.setWindowTitle("上传文件")
         self.logo = QLabel()
         self.logo.setPixmap(QPixmap("./icon/logo3.gif"))
+        self.logo.setStyleSheet("background-color:rgb(0,153,255);")
         self.logo.setAlignment(Qt.AlignCenter)
-        self.name_lb = QLabel("&Files")
-        self.name_ed = QLineEdit()
-        self.name_lb.setBuddy(self.name_ed)
 
-        self.pwd_lb = QLabel("&Path")
-        self.pwd_ed = QLineEdit()
-        self.pwd_lb.setBuddy(self.pwd_ed)
+        # btn 1
+        self.btn_chooseDir = QPushButton("选择文件夹", self)  
+        self.btn_chooseDir.setObjectName("btn_chooseDir")  
+        self.btn_chooseDir.setIcon(QIcon("./icon/folder_open.gif"))
 
-        self.btn_upload = QPushButton("&Upload")
-        self.btn_cancel = QPushButton("&Cancel")
-        main_layout = QGridLayout()
-        main_layout.addWidget(self.logo, 0, 0, 2, 3)
-        main_layout.addWidget(self.name_lb, 2, 0)
-        main_layout.addWidget(self.name_ed, 2, 1, 1, 2)
-        main_layout.addWidget(self.pwd_lb, 3, 0)
-        main_layout.addWidget(self.pwd_ed, 3, 1, 1, 2)
-        main_layout.addWidget(self.btn_upload, 4, 1)
-        main_layout.addWidget(self.btn_cancel, 4, 2)
-        self.setLayout(main_layout)
+        # btn 2
+        self.btn_chooseMutiFile = QPushButton("选择多文件", self)  
+        self.btn_chooseMutiFile.setObjectName("btn_chooseMutiFile")  
+        self.btn_chooseMutiFile.setIcon(QIcon("./icon/file.ico"))
 
-    def clicked_cancel(self):
-        self.close()
+        # btn 3
+        self.btn_deleteSelect = QPushButton("删除", self)  
+        self.btn_deleteSelect.setObjectName("btn_deleteSelect")  
+        self.btn_deleteSelect.setIcon(QIcon("./icon/delete.ico"))
 
-    def clicked_upload(self):
-        self.close()
+        # 列表
+        self.list_view = QListView(self)
+        self.list_view.setViewMode(QListView.ListMode)
+        self.slm = QStandardItem()
+        self.model = QStandardItemModel()
+        self.list_view.setModel(self.model)
+        self.model.removeRows(0, self.model.rowCount())  # 清除旧的选择
+        self.list_view.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.list_view.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.list_view.setSelectionMode(QAbstractItemView.ExtendedSelection)
+
+        self.buttonBox = QDialogButtonBox()
+        self.buttonBox.setOrientation(Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+
+        grid = QGridLayout()
+        grid.setSpacing(10)
+        grid.addWidget(self.logo, 1, 0, 1, 3)
+        grid.addWidget(self.btn_chooseDir, 2, 0)
+        grid.addWidget(self.btn_chooseMutiFile, 2, 2)
+        grid.addWidget(self.list_view, 3, 0, 2, 3)
+        grid.addWidget(self.btn_deleteSelect, 5, 0)
+        grid.addWidget(self.buttonBox, 5, 1, 1, 2)
+        self.setLayout(grid)
+
+        self.setMinimumWidth(350)
+
+        # 设置信号
+        self.btn_chooseDir.clicked.connect(self.slot_btn_chooseDir)
+        self.btn_chooseMutiFile.clicked.connect(self.slot_btn_chooseMutiFile)
+        self.btn_deleteSelect.clicked.connect(self.slot_btn_deleteSelect)
+
+        self.buttonBox.accepted.connect(self.slot_btn_ok)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.clear_old)
+        self.buttonBox.rejected.connect(self.reject)
+
+    def set_size(self):
+        rows = self.model.rowCount()
+        for i in range(rows):
+            m_len = int(len(self.model.item(i, 0).text()) * 8)
+            if m_len > self.max_len:
+                self.max_len = m_len
+        self.resize(self.max_len, 250+rows*28)
+
+    def clear_old(self):
+        self.selected = []
+        self.model.removeRows(0, self.model.rowCount())
+        self.set_size()
+
+    def slot_btn_ok(self):
+        if self.selected:
+            self.new_infos.emit(self.selected)
+            self.clear_old()
+    def slot_btn_deleteSelect(self):
+        _indexs = self.list_view.selectionModel().selection().indexes()
+        if not _indexs:
+            return
+        indexs = []
+        for i in _indexs:  # 获取所选行号
+            indexs.append(i.row())
+        indexs = set(indexs)
+        for i in sorted(indexs, reverse=True):
+            self.selected.remove(self.model.item(i, 0).text())
+            self.model.removeRow(i)
+        self.set_size()
+
+
+    def slot_btn_chooseDir(self):
+        dir_choose = QFileDialog.getExistingDirectory(self, "选择文件夹", self.cwd) # 起始路径
+
+        if dir_choose == "":
+            return
+        if dir_choose not in self.selected:
+            self.selected.append(dir_choose)
+            self.model.appendRow(QStandardItem(QIcon("./icon/folder_open.gif"), dir_choose))
+            self.set_size()
+
+    def slot_btn_chooseMutiFile(self):
+        files, _ = QFileDialog.getOpenFileNames(self, "选择多文件", self.cwd, "All Files (*)")
+        if len(files) == 0:
+            return
+
+        for _file in files:
+            if _file not in self.selected:
+                self.selected.append(_file)
+                self.model.appendRow(QStandardItem(QIcon("./icon/file.ico"), _file))
+        self.set_size()
 
 
 class InfoDialog(QDialog, Ui_Dialog):
@@ -385,7 +465,7 @@ class DeleteDialog(QDialog):
         if os.path.isfile(ico_path):
             return QIcon(ico_path)
         else:
-            return QIcon("./icon/zip.gif")
+            return QIcon("./icon/file.ico")
 
     def initUI(self):
         self.setWindowTitle("确认删除")
@@ -457,6 +537,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.table_disk.doubleClicked.connect(self.chang_dir)
 
         self.create_left_menus()
+        self._disk.set_rar_tool("/usr/bin/rar")
 
     def init_menu(self):
         self.login.triggered.connect(self.show_login_dialog)
@@ -477,15 +558,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def login_menu(self):
         self.toolbar.addAction(self.logout)
-        self.upload_dialog = UploadDialog(self._config)
+        self.upload_dialog = UploadDialog()
         self.upload.triggered.connect(self.upload_dialog.show)
-        # self.download.triggered.connect(self.menu_logout)
-        self.upload.setShortcut("Ctrl+U")
+        self.upload_dialog.new_infos.connect(self.call_upload)
         self.upload.setIcon(QIcon("./icon/upload.ico"))
-        # self.upload.setIcon(QIcon("./icon/logout.ico"))
-        # self.logout.setShortcut("Ctrl+Q")
+        self.upload.setShortcut("Ctrl+U")
         self.toolbar.addAction(self.upload)
-        # self.toolbar.addAction(self.logout)
+        # self.download.triggered.connect(self.download_dialog.show)
+        # self.download.setIcon(QIcon("./icon/logout.ico"))
+        # self.download.setShortcut("Ctrl+J")
+        # self.toolbar.addAction(self.download)
 
     def init_variable(self):
         self._disk = LanZouCloud()
@@ -605,7 +687,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if os.path.isfile(ico_path):
             return QIcon(ico_path)
         else:
-            return QIcon("./icon/zip.gif")
+            return QIcon("./icon/file.ico")
 
     def list_file_folder(self):
         """列出文件"""
@@ -950,6 +1032,26 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.refresh_dir(folder_id)
 
         return callfunc
+
+    def call_upload(self, infos):
+        """上传文件(夹)"""
+        if self._work_name == 'Recovery':
+            print('ERROR : 回收站模式下无法使用此操作')
+            return None
+        for f in infos:
+            if not os.path.exists(f):
+                msg = 'ERROR : 文件不存在:{}'.format(f)
+                return None
+            if os.path.isdir(f):
+                msg = 'INFO : 文件夹批量上传:{}'.format(f)
+                self._disk.upload_dir(f, self._work_id, None)
+                self._refresh(self._work_id)
+            else:
+                self._disk.upload_file(f, self._work_id, None)
+        if infos:
+            self._refresh(self._work_id)
+            self.list_file_folder()
+            # self.refresh_dir(self._work_id)
 
     def show_full_path(self):
         """路径框显示当前路径"""

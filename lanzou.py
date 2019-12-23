@@ -290,7 +290,7 @@ class LanZouCloud(object):
         if "输入密码" in html:  # 文件设置了提取码时
             if len(pwd) == 0:
                 return {"code": LanZouCloud.LACK_PASSWORD, "name": ""}
-            post_str = re.findall(r"[^/]*data\s:\s\'(.*)\'", html)[0] + str(pwd)
+            post_str = re.findall(r"[^/]data\s:\s\'(.*)\'", html)[0] + str(pwd)
             f_size = re.findall(
                 r'class="n_filesize">[^<]*([\.0-9 MKBmkbGg]+)<div', html
             )[0]
@@ -376,7 +376,7 @@ class LanZouCloud(object):
         if "输入密码" in html:  # 文件设置了提取码时
             if len(pwd) == 0:
                 return {"code": LanZouCloud.LACK_PASSWORD, "name": "", "direct_url": ""}
-            post_str = re.findall(r"[^/]*data\s:\s\'(.*)\'", html)[0] + str(pwd)
+            post_str = re.findall(r"[^/]data\s:\s\'(.*)\'", html)[0] + str(pwd)
             # action=downprocess&sign=xxxxx&p=
             post_data = {}
             for i in post_str.split("&"):  # 转换成 dict
@@ -391,7 +391,7 @@ class LanZouCloud(object):
             else:
                 file_name = re.findall(r"var filename = '(.*)';", html)[0]
             html = self._get(self._host_url + para).text
-            post_data = re.findall(r"[^/]*data\s:\s(.*),", html)[0]
+            post_data = re.findall(r"[^/]data\s:\s(.*),", html)[0]
             # {'action': 'downprocess', 'sign': 'xxxxx'}
             post_data = eval(post_data)
             link_info = self._post(self._host_url + "/ajaxm.php", post_data).json()
@@ -707,6 +707,7 @@ class LanZouCloud(object):
         if not os.path.exists(save_path):
             os.makedirs(save_path)
         info = self.get_direct_url(share_url, pwd)
+        print(info, share_url, pwd)
         if info["code"] != LanZouCloud.SUCCESS:
             return info["code"]
         # 删除伪装后缀名
