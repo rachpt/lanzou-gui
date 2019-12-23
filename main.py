@@ -13,7 +13,7 @@ from Ui_share import Ui_Dialog
 
 from lanzou import LanZouCloud
 
-from downloader import Downloader, DownloadManger
+from downloader import Downloader, DownloadManager
 
 
 def update_settings(_config, up_info):
@@ -173,7 +173,7 @@ class InfoDialog(QDialog, Ui_Dialog):
             self.lb_dl_count.hide()
         self.tx_share_url.setText(self.infos[4])
         self.tx_share_url.setReadOnly(True)
-        line_h = 26  # 行高
+        line_h = 28  # 行高
         self.tx_share_url.setMinimumHeight(line_h)
         self.tx_share_url.setMaximumHeight(line_h)
         self.lb_share_url.setMinimumHeight(line_h)
@@ -189,7 +189,7 @@ class InfoDialog(QDialog, Ui_Dialog):
         self.tx_pwd.setText(self.infos[5])
         self.tx_pwd.setReadOnly(True)
         self.tx_dl_link.setText(self.infos[6])
-        min_width = int(len(self.infos[0]) * 7.4)
+        min_width = int(len(self.infos[0]) * 7.8)
         if self.infos[6] == "无":
             if min_width < 380:
                 min_width = 380
@@ -210,27 +210,33 @@ class InfoDialog(QDialog, Ui_Dialog):
 
 class RenameDialog(QDialog):
     new_infos = pyqtSignal(object)
+
     def __init__(self, infos, parent=None):
         super(RenameDialog, self).__init__(parent)
         self.infos = infos
         self.initUI()
 
     def initUI(self):
-        self.setWindowTitle("修改文件夹名与描述")
         self.lb_name = QLabel()
         self.lb_name.setText("文件夹名：")
         self.lb_name.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
         self.tx_name = QLineEdit()
-        self.tx_name.setText(self.infos[0])
-        if self.infos[1]:
-            # 文件无法重命名，有大小表示文件
-            self.tx_name.setFocusPolicy(Qt.NoFocus)
-            self.tx_name.setReadOnly(True)
         self.lb_desc = QLabel()
+        self.tx_desc = QTextEdit()
+        if self.infos:
+            self.setWindowTitle("修改文件夹名与描述")
+            self.tx_name.setText(self.infos[0])
+            self.tx_desc.setText(self.infos[6])
+            min_width = len(self.infos[0]) * 8
+            if self.infos[1]:
+                # 文件无法重命名，有大小表示文件
+                self.tx_name.setFocusPolicy(Qt.NoFocus)
+                self.tx_name.setReadOnly(True)
+        else:
+            min_width = 400
+            self.setWindowTitle("新建文件夹")
         self.lb_desc.setText("描　　述：")
         self.lb_desc.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
-        self.tx_desc = QTextEdit()
-        self.tx_desc.setText(self.infos[6])
 
         self.buttonBox = QDialogButtonBox()
         self.buttonBox.setOrientation(Qt.Horizontal)
@@ -244,34 +250,38 @@ class RenameDialog(QDialog):
         self.grid.addWidget(self.tx_desc, 2, 1, 5, 1)
         self.grid.addWidget(self.buttonBox, 7, 1, 1, 1)
         self.setLayout(self.grid)
-        min_width = len(self.infos[0]) * 8
         if min_width < 340:
             min_width = 340
         self.resize(min_width, 200)
         self.buttonBox.accepted.connect(self.btn_ok)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
-    
+
     def btn_ok(self):
         new_name = self.tx_name.text()
         new_desc = self.tx_desc.toPlainText()
-        if  new_name != self.infos[0] or new_desc != self.infos[6]:
-            self.new_infos.emit(((self.infos[0],new_name),(self.infos[6],new_desc)))
+        if not self.infos and new_name:
+            self.new_infos.emit((new_name, new_desc))
+            return
+        if new_name != self.infos[0] or new_desc != self.infos[6]:
+            self.new_infos.emit(((self.infos[0], new_name), (self.infos[6], new_desc)))
 
 
 class SetPwdDialog(QDialog):
     new_infos = pyqtSignal(object)
+
     def __init__(self, infos, parent=None):
         super(SetPwdDialog, self).__init__(parent)
         self.infos = infos
         self.initUI()
+
     def initUI(self):
         self.setWindowTitle("修改文件/文件夹名提取码")
         self.lb_oldpwd = QLabel()
         self.lb_oldpwd.setText("当前提取码：")
         self.lb_oldpwd.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
         self.tx_oldpwd = QLineEdit()
-        self.tx_oldpwd.setText(self.infos[5] if self.infos[5] else "无")
+        self.tx_oldpwd.setText(self.infos[5] or "无")
         # 只读
         self.tx_oldpwd.setFocusPolicy(Qt.NoFocus)
         self.tx_oldpwd.setReadOnly(True)
@@ -298,21 +308,22 @@ class SetPwdDialog(QDialog):
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
         self.setMinimumWidth(280)
-    
+
     def btn_ok(self):
         new_pwd = self.tx_newpwd.text()
-        if  new_pwd != self.infos[5]:
+        if new_pwd != self.infos[5]:
             self.new_infos.emit((self.infos[3], new_pwd))
 
 
 class MoveFileDialog(QDialog):
     new_infos = pyqtSignal(object)
+
     def __init__(self, infos, all_dirs, parent=None):
         super(MoveFileDialog, self).__init__(parent)
         self.infos = infos
         self.dirs = all_dirs
-        self.selected = ''
         self.initUI()
+
     def initUI(self):
         self.setWindowTitle("移动文件")
         self.lb_name = QLabel()
@@ -325,11 +336,17 @@ class MoveFileDialog(QDialog):
         self.tx_name.setReadOnly(True)
         self.lb_new_path = QLabel()
         self.lb_new_path.setText("目标文件夹：")
-        self.lb_new_path.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
+        self.lb_new_path.setAlignment(
+            Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter
+        )
         self.tx_new_path = QComboBox()
-        self.tx_new_path.addItem("id：{}，name：{}".format(-1, "根目录"))
+        f_icon = QIcon("./icon/folder_open.gif")
+        self.tx_new_path.addItem(f_icon, "id：{}，name：{}".format(-1, "根目录"))
         for i in self.dirs:
-            self.tx_new_path.addItem("id：{}，name：{}".format(i["folder_id"], i["folder_name"]))
+            f_name = i["folder_name"]
+            if len(f_name) > 1000:  # 防止文件夹名字过长？
+                f_name = f_name[:998] + "..."
+            self.tx_new_path.addItem(f_icon, "id：{}，name：{}".format(i["folder_id"], f_name))
 
         self.buttonBox = QDialogButtonBox()
         self.buttonBox.setOrientation(Qt.Horizontal)
@@ -343,17 +360,72 @@ class MoveFileDialog(QDialog):
         self.grid.addWidget(self.tx_new_path, 2, 1)
         self.grid.addWidget(self.buttonBox, 3, 0, 1, 2)
         self.setLayout(self.grid)
-        self.tx_new_path.activated[str].connect(self.selected_item)
         self.buttonBox.accepted.connect(self.btn_ok)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
         self.setMinimumWidth(280)
 
-    def selected_item(self, text):
-        self.selected = text.split("，")[0].split("：")[1]
+    def btn_ok(self):
+        selected = self.tx_new_path.currentText().split("，")[0].split("：")[1]
+        self.new_infos.emit((self.infos[3], selected, self.infos[0]))
+
+
+class DeleteDialog(QDialog):
+    new_infos = pyqtSignal(object)
+
+    def __init__(self, infos, parent=None):
+        super(DeleteDialog, self).__init__(parent)
+        self.infos = infos
+        self.out = []
+        self.initUI()
+
+    def set_file_icon(self, name):
+        suffix = name.split(".")[-1]
+        ico_path = "./icon/{}.gif".format(suffix)
+        if os.path.isfile(ico_path):
+            return QIcon(ico_path)
+        else:
+            return QIcon("./icon/zip.gif")
+
+    def initUI(self):
+        self.setWindowTitle("确认删除")
+        self.layout = QVBoxLayout()
+        self.list_view = QListView()
+        self.list_view.setViewMode(QListView.ListMode)
+        # 列表
+        self.slm = QStandardItem()
+        self.model = QStandardItemModel()
+        max_len = 10
+        count = 0
+        for i in self.infos:
+            if i[2]:  # 有大小，是文件
+                self.model.appendRow(QStandardItem(self.set_file_icon(i[0]), i[0]))
+            else:
+                self.model.appendRow(QStandardItem(QIcon("./icon/folder_open.gif"), i[0]))
+            self.out.append((i[1], i[2]))
+            count += 1
+            if max_len < len(i[0]):
+                max_len = len(i[0])
+        self.list_view.setModel(self.model)
+
+        self.lb_name = QLabel("尝试删除以下{}个文件(夹)：".format(count))
+        self.buttonBox = QDialogButtonBox()
+        self.buttonBox.setOrientation(Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        
+        self.layout.addWidget(self.lb_name)
+        self.layout.addWidget(self.list_view)
+        self.layout.addWidget(self.buttonBox)
+        self.setLayout(self.layout)
+
+        self.buttonBox.accepted.connect(self.btn_ok)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+        self.setMinimumWidth(400)
+        self.resize(int(max_len*8), int(count*34+60))
 
     def btn_ok(self):
-        self.new_infos.emit((self.infos[3], self.selected, self.infos[0]))
+        self.new_infos.emit(self.out)
 
 
 class MyLineEdit(QLineEdit):
@@ -382,7 +454,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.extract_share_ui()
         self.disk_ui()
         self.autologin_dialog()
-        self.btn_disk_dl.clicked.connect(self.disk_call_downloader)
         self.table_disk.doubleClicked.connect(self.chang_dir)
 
         self.create_left_menus()
@@ -422,11 +493,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._folder_list = {}
         self._file_list = {}
         self._path_list = {}
+        self._path_list_old = {}
+        self.locs = {}
         self._parent_id = -1
         self._parent_name = ""
         self._work_name = ""
         self._work_id = -1
-        self._full_path = ""
         # self._stopped = True
         # self._mutex = QMutex()
         self.load_settings()
@@ -448,10 +520,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             with open(self._config, "wb") as _file:
                 dump(self.settings, _file)
 
-    def _refresh(self, dir_id=-1):
+    def _refresh(self, dir_id=-1, r_files=True, r_folders=True):
         """刷新当前文件夹和路径信息"""
-        self._file_list = self._disk.get_file_list2(dir_id)  # {name-[id,...]}
-        self._folder_list = self._disk.get_dir_list(dir_id)
+        if r_files:
+            self._file_list = self._disk.get_file_list2(dir_id)  # {name-[id,...]}
+        if r_folders:
+            self._folder_list = self._disk.get_dir_list(dir_id)
         self._path_list = self._disk.get_full_path(dir_id)
         self._work_name = list(self._path_list.keys())[-1]
         self._work_id = self._path_list.get(self._work_name, -1)
@@ -462,46 +536,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def show_download_process(self, msg):
         self.statusbar.showMessage(str(msg), 8000)
 
-    def disk_call_downloader(self):
+    def call_downloader(self):
+        indexs = []
+        tasks = []
         _indexs = self.table_disk.selectionModel().selection().indexes()
-        indexs = []
-        for i in _indexs:
+        for i in _indexs:  # 获取所选行号
             indexs.append(i.row())
         indexs = set(indexs)
-        tasks = []
-        isurl = None
         save_path = self.settings["path"]
         for index in indexs:
-            name = self.model_disk.item(index, 0).text()
-            if name == "...":
+            name = self.model_disk.item(index, 0).text()  # 用于folder创建文件夹
+            url = self.model_disk.item(index, 7).text()  # 分享链接
+            pwd = self.model_disk.item(index, 5).text()  # 提取码，没有为空串
+            if name == "..":
                 continue
-            isfolder = self._folder_list.get(name, None)
-            isfile = self._file_list.get(name, None)
-            tasks.append([isfile, isfolder, isurl, name, save_path])
-        self.download_manger_disk = DownloadManger(self._disk, tasks, self)
-        self.download_manger_disk.download_mgr_msg.connect(self.show_download_process)
-        self.download_manger_disk.downloaders_msg.connect(self.show_download_process)
-        self.download_manger_disk.start()
-
-    def share_call_downloader(self):
-        _indexs = self.table_share.selectionModel().selection().indexes()
-        indexs = []
-        for i in _indexs:
-            indexs.append(i.row())
-        indexs = set(indexs)
-        tasks = []
-        isfolder = None
-        isfile = None
-        save_path = self.settings["path"]
-        for index in indexs:
-            name = self.model_share.item(index, 0).text()
-            _info = self.share_file_infos["info"][name]
-            isurl = (_info[0], _info[4])  # (url, size, date, desc, pwd)
-            tasks.append([isfile, isfolder, isurl, name, save_path])
-        self.download_manger_share = DownloadManger(self._disk, tasks, self)
-        self.download_manger_share.download_mgr_msg.connect(self.show_download_process)
-        self.download_manger_share.downloaders_msg.connect(self.show_download_process)
-        self.download_manger_share.start()
+            tasks.append([name, url, pwd, save_path])
+        self.download_manager = DownloadManager(self._disk, tasks, self)
+        self.download_manager.download_mgr_msg.connect(self.show_download_process)
+        self.download_manager.downloaders_msg.connect(self.show_download_process)
+        self.download_manager.start()
 
     def menu_logout(self):
         self._disk.logout()
@@ -537,9 +590,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             # 设置当前显示 tab
             self.tabWidget.setCurrentIndex(1)
             # 刷新文件列表
-            self._refresh(self._work_id)
-            self.list_file_folder()
+            self.refresh_dir(self._work_id)
         except Exception as exp:
+            print(exp)
             self.tabWidget.setCurrentIndex(0)
             self.tabWidget.removeTab(2)
             self.tabWidget.removeTab(1)
@@ -557,7 +610,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def list_file_folder(self):
         """列出文件"""
         self.model_disk.removeRows(0, self.model_disk.rowCount())
-        self.show_full_path()
         folder_ico = QIcon("./icon/folder_open.gif")
         pwd_ico = QIcon("./icon/keys.ico")
         if self._work_id != -1:
@@ -648,7 +700,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             model = self.model_disk
             table = self.table_disk
 
-        model.setHorizontalHeaderLabels(["文件名/夹", "大小", "时间", "ID", "下载数", "密码", "描述", "链接"])
+        model.setHorizontalHeaderLabels(
+            ["文件名/夹", "大小", "时间", "ID", "下载数", "密码", "描述", "链接"]
+        )
         table.setModel(model)
         # 是否显示网格线
         table.setShowGrid(False)
@@ -673,9 +727,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         table.horizontalHeader().resizeSection(6, 90)
         # 设置第一列宽度自动调整，充满屏幕
         table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-        # 表格填充
-        # table.horizontalHeader().setStretchLastSection(True)
-        # table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         table.setContextMenuPolicy(Qt.CustomContextMenu)  # 允许右键产生子菜单
         table.customContextMenuRequested.connect(self.generateMenu)  # 右键菜单
         table.hideColumn(8)
@@ -691,72 +742,143 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.left_menu_share_url.setIcon(QIcon("./icon/share.ico"))
         self.left_menu_rename_set_desc = self.left_menus.addAction("修改文件夹名与描述")
         self.left_menu_rename_set_desc.setIcon(QIcon("./icon/desc.ico"))
-        self.left_menu_move = self.left_menus.addAction("移动")
-        self.left_menu_move.setIcon(QIcon("./icon/move.ico"))
         self.left_menu_set_pwd = self.left_menus.addAction("设置访问密码")
         self.left_menu_set_pwd.setIcon(QIcon("./icon/password.ico"))
-
+        self.left_menu_move = self.left_menus.addAction("移动")
+        self.left_menu_move.setIcon(QIcon("./icon/move.ico"))
 
     def rename_set_desc(self, infos):
-        """重命名"""
+        """重命名与修改简介"""
         name = infos[0][0]
         new_name = infos[0][1]
         desc = infos[1][0]
         new_desc = infos[1][1]
-        if self._work_name == 'Recovery':
-            print('ERROR : 回收站模式下无法使用此操作')
+        if self._work_name == "Recovery":
+            print("ERROR : 回收站模式下无法使用此操作")
             return None
         fid = self._folder_list.get(name, None)[0]
         if fid is None:
-            print('ERROR : 文件夹不存在:{}'.format(name))
+            print("ERROR : 文件夹不存在:{}".format(name))
         else:
             res = self._disk.rename_dir(fid, str(new_name), str(new_desc))
             if res == LanZouCloud.SUCCESS:
                 self.statusbar.showMessage("修改成功！", 4000)
             elif res == LanZouCloud.FAILED:
                 self.statusbar.showMessage("失败：文件夹id数大于7位 或者 网络错误！", 4000)
-            self._refresh(self._work_id)
+            self._refresh(self._work_id, False, True)  # 只更新文件夹列表
             self.list_file_folder()
 
     def set_passwd(self, infos):
         """设置文件(夹)提取码"""
         fid = infos[0]
         if not fid:
-            print('ERROR : 文件(夹)不存在:{}'.format(infos[0]))
+            print("ERROR : 文件(夹)不存在:{}".format(infos[0]))
             return None
         new_pass = infos[1]
         if 2 <= len(new_pass) <= 6 or new_pass == "":
             res = self._disk.set_share_passwd(fid, new_pass)
-            print(res)
             if res == LanZouCloud.SUCCESS:
                 self.statusbar.showMessage("提取码变更成功！♬", 3000)
             else:
                 self.statusbar.showMessage("提取码变更失败❀╳❀:{}".format(res), 4000)
-            self._refresh(self._work_id)
-            self.list_file_folder()
+            self.refresh_dir(self._work_id)
         else:
             self.statusbar.showMessage("提取码为2-6位字符,关闭请输入空！", 4000)
 
     def move_file(self, info):
-        old_fid = info[0]
-        new_fid = info[1]
-        if self._disk.move_file(old_fid, new_fid) == LanZouCloud.SUCCESS:
-            self._refresh(self._work_id)
+        """移动文件至新的文件夹"""
+        file_id = info[0]
+        folder_id = info[1]
+        print(file_id, folder_id)
+        if self._disk.move_file(file_id, folder_id) == LanZouCloud.SUCCESS:
+            # 此处仅更新文件夹，并显示
+            self._refresh(self._work_id, False, True)
             self.list_file_folder()
             self.statusbar.showMessage("{} 移动成功！".format(info[2]), 4000)
         else:
             self.statusbar.showMessage("移动文件{}失败！".format(info[2]), 4000)
 
-    def generateMenu(self, pos):
-        row_num = -1
-        for i in self.sender().selectionModel().selection().indexes():
-            row_num = i.row()
-        _model = self.sender().model()
-        # 通过 第二列 size 判断是文件还是文件夹，从而设置不同的显示菜单名
-        if _model.item(row_num, 1).text():
-            self.left_menu_rename_set_desc.setText("修改文件描述")
+    def call_mkdir(self):
+        """弹出新建文件夹对话框"""
+        mkdir_dialog = RenameDialog(None)
+        mkdir_dialog.new_infos.connect(self.mkdir)
+        mkdir_dialog.exec()
+        
+    def mkdir(self, infos):
+        """创建文件夹"""
+        if self._work_name == 'Recovery':
+            print('ERROR : 回收站模式下无法使用此操作')
+            return None
+        name = infos[0]
+        desc = infos[1]
+        if name in self._folder_list.keys():
+            self.statusbar.showMessage("文件夹已存在：{}".format(name), 7000)
         else:
-            self.left_menu_rename_set_desc.setText("修改文件夹名与描述")
+            res = self._disk.mkdir(self._work_id, name, desc)
+            if res == LanZouCloud.MKDIR_ERROR:
+                self.statusbar.showMessage("创建文件夹失败：{}".format(name), 7000)
+            else:
+                sleep(1)  # 不暂停一下无法获取新建文件夹
+                self.statusbar.showMessage("成功创建文件夹：{}".format(name), 7000)
+                # 此处仅更新文件夹，并显示
+                self._refresh(self._work_id, False, True)
+                self.list_file_folder()
+
+    def remove_files(self, infos):
+        if not infos:
+            return
+        for i in infos:
+            if i[1]:
+                isfile = True
+                isfolder = False
+            else:
+                isfile = False
+                isfolder = True
+            self._disk.delete(i[0], isfile, isfolder)
+        self.refresh_dir(self._work_id)
+
+    def call_remove_files(self):
+        indexs = []
+        infos = []
+        _indexs = self.table_disk.selectionModel().selection().indexes()
+        if not _indexs:
+            return
+        for i in _indexs:  # 获取所选行号
+            indexs.append(i.row())
+        indexs = set(indexs)
+        for index in indexs:
+            name = self.model_disk.item(index, 0).text()  # 用于提示删除的文件名
+            id = self.model_disk.item(index, 3).text()  # 文件(夹)id
+            file = self.model_disk.item(index, 1).text()  # 标示文件
+            if name == "..":
+                continue
+            infos.append([name, id, file])
+        delete_dialog = DeleteDialog(infos)
+        delete_dialog.new_infos.connect(self.remove_files)
+        delete_dialog.exec()
+
+    def generateMenu(self, pos):
+        """右键菜单"""
+        row_num = self.sender().selectionModel().selection().indexes()
+        if not row_num:  # 如果没有选中行，什么也不做
+            return
+        row_num = row_num[0].row()
+        _model = self.sender().model()
+        # 通过 第4列文件 ID 判断是登录界面还是提取界面
+        if _model.item(row_num, 3).text():
+            self.left_menu_rename_set_desc.setEnabled(True)
+            self.left_menu_set_pwd.setEnabled(True)
+            # 通过第2列 size 判断是否为文件夹，文件夹不能移动，设置不同的显示菜单名
+            if _model.item(row_num, 1).text():
+                self.left_menu_rename_set_desc.setText("修改文件描述")
+                self.left_menu_move.setEnabled(True)
+            else:
+                self.left_menu_rename_set_desc.setText("修改文件夹名与描述")
+                self.left_menu_move.setDisabled(True)
+        else:
+            self.left_menu_rename_set_desc.setDisabled(True)
+            self.left_menu_move.setDisabled(True)
+            self.left_menu_set_pwd.setDisabled(True)
         if _model.item(row_num, 0).text() != "..":
             action = self.left_menus.exec_(self.sender().mapToGlobal(pos))
             infos = []
@@ -765,7 +887,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if action == self.left_menu_share_url:
                 self.get_share_infomation(infos)
             elif action == self.left_menu_move:
-                all_dirs = self._disk.get_all_folders(infos[3]) 
+                all_dirs = self._disk.get_all_folders(infos[3])
                 move_file_dialog = MoveFileDialog(infos, all_dirs)
                 move_file_dialog.new_infos.connect(self.move_file)
                 move_file_dialog.exec()
@@ -777,8 +899,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 rename_dialog = RenameDialog(infos)
                 rename_dialog.new_infos.connect(self.rename_set_desc)
                 rename_dialog.exec()
-            else:
-                return
 
     def get_share_infomation(self, infos):
         """显示分享信息"""
@@ -786,63 +906,70 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             print("ERROR : 回收站模式下无法使用此操作")
             return None
         # infos: 文件名，大小，日期，ID/url，下载次数(dl_count)，提取码(pwd)，描述(desc)，链接(share-url)
-        _infos = infos[0:3]
-        _infos.append(infos[4])
-        if re.match(r"[\d]+", infos[3]):
-            # 登录 文件信息
-            if self._file_list.get(infos[0], None):
-                # 下载直链
-                d_url = self._disk.get_direct_url2(infos[3])
-                _infos.append(infos[7])  # 分享链接
-                _infos.append(infos[5] if infos[5] else "无")  # 提取码
-                _infos.append("{}".format(d_url["direct_url"] or "无"))
-            elif self._folder_list.get(infos[0], None):
-                _infos.append(infos[7])  # 分享链接
-                _infos.append(infos[5] if infos[5] else "无")  # 提取码
-                _infos.append("无")
-            else:
-                print("ERROR : 文件(夹)不存在:{}".format(infos[0]))
-        else:
-            # 分享链接文件信息
-            _infos.append(infos[7])  # share url
-            d_url = self._disk.get_direct_url(infos[7], infos[5])
-            _infos.append(infos[6] if infos[6] else "无")  # 提取码
-            _infos.append("{}".format(d_url["direct_url"] or "无"))  # 下载直链
+        print(infos)
+        _infos = infos[0:3]  # 文件名+大小+日期
+        _infos.append(infos[4])  # 下载次数
+        _infos.append(infos[7])  # 分享链接
+        _infos.append(infos[5] or "无")  # 提取码
+
+        # 通过分享链接 获取文件下载直链
+        d_url = self._disk.get_direct_url(infos[7], infos[5])
+        _infos.append("{}".format(d_url["direct_url"] or "无"))  # 下载直链
 
         info_dialog = InfoDialog(_infos)
         info_dialog.setWindowModality(Qt.ApplicationModal)
         info_dialog.exec()
 
     def chang_dir(self, dir_name):
+        """双击切换工作目录"""
         # 文件名
         dir_name = self.model_disk.item(dir_name.row(), 0).text()
-        """切换工作目录"""
         if self._work_name == "Recovery" and dir_name not in [".", ".."]:
             print("ERROR : 回收站模式下仅支持 > cd ..")
             return None
         if dir_name == "..":  # 返回上级路径
-            self._refresh(self._parent_id)
-            self.list_file_folder()
+            self.refresh_dir(self._parent_id)
         elif dir_name == ".":
             pass
         elif dir_name in self._folder_list.keys():
             folder_id = self._folder_list[dir_name][0]
-            self._refresh(folder_id)
-            self.list_file_folder()
+            self.refresh_dir(folder_id)
         else:
             pass
             # print("ERROR : 该文件夹不存在: {}".format(dir_name))
 
+    def refresh_dir(self, folder_id=-1):
+        """更新目录列表"""
+        self._refresh(folder_id)
+        self.list_file_folder()
+        self.show_full_path()
+
+    def call_change_dir(self, folder_id=-1):
+        """按钮调用"""
+        def callfunc():
+            self.refresh_dir(folder_id)
+
+        return callfunc
+
     def show_full_path(self):
         """路径框显示当前路径"""
-        if self._work_name == "/":
-            self._full_path = "/"
-        elif self._work_name != "/" and self._parent_name == "/":
-            self._full_path = "/{}".format(self._work_name)
-        else:
-            text = "{}/{}".format(self._parent_name, self._work_name)
-            self._full_path = self._full_path.split(self._parent_name)[0] + text
-        self.line_location.setText(self._full_path)
+        index = 1
+        for name in self._path_list_old.items():
+            self.locs[index].clicked.disconnect()
+            self.disk_loc.removeWidget(self.locs[index])
+            self.locs[index].deleteLater()
+            self.locs[index] = None
+            del self.locs[index]
+            index += 1
+        index = 1
+        for name, id in self._path_list.items():
+            self.locs[index] = QPushButton(name, self.disk_tab)
+            self.disk_loc.insertWidget(index, self.locs[index])
+            # wd = self.locs[index].fontMetrics().width(name)
+            # self.locs[index].setMaxLength(name)  # 设置按钮宽度
+            self.locs[index].clicked.connect(self.call_change_dir(id))
+            index += 1
+        self._path_list_old = self._path_list
 
     def select_all_btn(self, page, action="reverse"):
         if page == "disk":
@@ -878,6 +1005,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btn_disk_select_all.setIcon(QIcon("./icon/select-all.ico"))
         self.btn_disk_select_all.clicked.connect(lambda: self.select_all_btn("disk"))
         self.table_disk.clicked.connect(lambda: self.select_all_btn("disk", "cancel"))
+        self.btn_disk_dl.clicked.connect(self.call_downloader)
+        self.btn_disk_mkdir.clicked.connect(self.call_mkdir)
+        self.btn_disk_delete.clicked.connect(self.call_remove_files)
 
     def list_share_url_file(self):
         self.btn_share_select_all.setDisabled(True)
@@ -957,7 +1087,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.line_share_url.setPlaceholderText("蓝奏云链接，如有提取码，放后面，空格或汉字等分割，回车键提取")
         self.line_share_url.returnPressed.connect(self.list_share_url_file)
         self.btn_extract.clicked.connect(self.list_share_url_file)
-        self.btn_share_dl.clicked.connect(self.share_call_downloader)
+        self.btn_share_dl.clicked.connect(self.call_downloader)
         self.btn_share_dl.setIcon(QIcon("./icon/downloader.ico"))
         self.btn_share_select_all.setIcon(QIcon("./icon/select-all.ico"))
         self.btn_share_select_all.clicked.connect(lambda: self.select_all_btn("share"))

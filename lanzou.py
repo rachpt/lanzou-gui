@@ -90,11 +90,16 @@ class LanZouCloud(object):
         except requests.RequestException:
             return LanZouCloud.FAILED
 
-    def delete(self, fid):
+    def delete(self, fid, isfile=False, isfolder=False):
         """把网盘的文件、无子文件夹的文件夹放到回收站"""
         if len(str(fid)) >= self._file_id_length:
             post_data = {"task": 6, "file_id": fid}
         else:
+            post_data = {"task": 3, "folder_id": fid}
+        # 如果明确是文件还是文件夹
+        if isfile:
+            post_data = {"task": 6, "file_id": fid}
+        if isfolder:
             post_data = {"task": 3, "folder_id": fid}
         try:
             result = self._post(self._doupload_url, post_data).json()
@@ -350,7 +355,12 @@ class LanZouCloud(object):
         elif r["zt"] != 1:
             return {"code": LanZouCloud.FAILED, "info": ""}
         # 获取文件信息成功后...
-        info = {f["name_all"]: (self._host_url + "/" + f["id"], f["size"], f["time"], "", dir_pwd, desc) for f in r["text"]}
+        info = {f["name_all"]: (self._host_url + "/" + f["id"],
+                                f["size"],
+                                f["time"],
+                                "",
+                                dir_pwd,
+                                desc) for f in r["text"]}
         return {"code": LanZouCloud.SUCCESS, "info": info}
 
     def get_direct_url(self, share_url, pwd=""):
@@ -407,9 +417,9 @@ class LanZouCloud(object):
 
     def get_share_info(self, fid):
         """获取文件(夹)提取码、分享链接"""
-        if len(str(fid)) >= self._file_id_length:
+        if len(str(fid)) >= self._file_id_length:  # 此处不准确，有7位的文件
             post_data = {"task": 22, "file_id": fid}
-        else:
+        else:  # 此处不准确，有7位的文件夹
             post_data = {"task": 18, "folder_id": fid}
         try:
             result = self._post(self._doupload_url, post_data).json()
@@ -472,12 +482,10 @@ class LanZouCloud(object):
         }
         try:
             result = self._post(self._doupload_url, post_data).json()  # 创建文件夹
-            if result["zt"] != 1:
+            if result["zt"] == 1:
+                return LanZouCloud.SUCCESS  # 创建成功
+            else:
                 return LanZouCloud.MKDIR_ERROR  # 创建失败
-            all_dir = self._post(
-                self._doupload_url, data={"task": 19, "file_id": 0}
-            ).json()  # 获取ID
-            return int(all_dir["info"][-1]["folder_id"])
         except (requests.RequestException, IndexError):
             return LanZouCloud.MKDIR_ERROR
 
@@ -801,7 +809,8 @@ class LanZouCloud(object):
                 return LanZouCloud.FAILED
         return self._unrar(list(info.keys()), save_path)
 
-    def get_all_folders(self, file_id=0):
+    def get_all_folders(self, file_id=-1):
+        """用于移动文件至新的文件夹"""
         all_dirs = self._post(
                 self._doupload_url, data={"task": 19, "file_id": file_id}
             ).json()  # 获取ID

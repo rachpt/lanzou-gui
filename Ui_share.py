@@ -27,31 +27,45 @@ class Ui_Dialog(object):
         self.verticalLayout = QtWidgets.QVBoxLayout()
         self.verticalLayout.setObjectName("verticalLayout")
         self.lb_name = QtWidgets.QLabel(Dialog)
-        self.lb_name.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
+        self.lb_name.setAlignment(
+            QtCore.Qt.AlignRight | QtCore.Qt.AlignTrailing | QtCore.Qt.AlignVCenter
+        )
         self.lb_name.setObjectName("lb_name")
         self.verticalLayout.addWidget(self.lb_name)
         self.lb_size = QtWidgets.QLabel(Dialog)
-        self.lb_size.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
+        self.lb_size.setAlignment(
+            QtCore.Qt.AlignRight | QtCore.Qt.AlignTrailing | QtCore.Qt.AlignVCenter
+        )
         self.lb_size.setObjectName("lb_size")
         self.verticalLayout.addWidget(self.lb_size)
         self.lb_time = QtWidgets.QLabel(Dialog)
-        self.lb_time.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
+        self.lb_time.setAlignment(
+            QtCore.Qt.AlignRight | QtCore.Qt.AlignTrailing | QtCore.Qt.AlignVCenter
+        )
         self.lb_time.setObjectName("lb_time")
         self.verticalLayout.addWidget(self.lb_time)
         self.lb_dl_count = QtWidgets.QLabel(Dialog)
-        self.lb_dl_count.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
+        self.lb_dl_count.setAlignment(
+            QtCore.Qt.AlignRight | QtCore.Qt.AlignTrailing | QtCore.Qt.AlignVCenter
+        )
         self.lb_dl_count.setObjectName("lb_dl_count")
         self.verticalLayout.addWidget(self.lb_dl_count)
         self.lb_share_url = QtWidgets.QLabel(Dialog)
-        self.lb_share_url.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
+        self.lb_share_url.setAlignment(
+            QtCore.Qt.AlignRight | QtCore.Qt.AlignTrailing | QtCore.Qt.AlignVCenter
+        )
         self.lb_share_url.setObjectName("lb_share_url")
         self.verticalLayout.addWidget(self.lb_share_url)
         self.lb_pwd = QtWidgets.QLabel(Dialog)
-        self.lb_pwd.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
+        self.lb_pwd.setAlignment(
+            QtCore.Qt.AlignRight | QtCore.Qt.AlignTrailing | QtCore.Qt.AlignVCenter
+        )
         self.lb_pwd.setObjectName("lb_pwd")
         self.verticalLayout.addWidget(self.lb_pwd)
         self.lb_dl_link = QtWidgets.QLabel(Dialog)
-        self.lb_dl_link.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
+        self.lb_dl_link.setAlignment(
+            QtCore.Qt.AlignRight | QtCore.Qt.AlignTrailing | QtCore.Qt.AlignVCenter
+        )
         self.lb_dl_link.setObjectName("lb_dl_link")
         self.verticalLayout.addWidget(self.lb_dl_link)
         self.horizontalLayout.addLayout(self.verticalLayout)

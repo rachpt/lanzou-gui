@@ -100,21 +100,35 @@
         <item>
          <layout class="QVBoxLayout" name="horizontalLayout_disk">
           <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_disk_1">
+           <layout class="QHBoxLayout" name="disk_locs">
             <item>
-             <widget class="QLabel" name="label_disk_location">
-              <property name="text">
-               <string>位置</string>
+             <layout class="QHBoxLayout" name="disk_loc">
+              <item>
+               <widget class="QLabel" name="label_disk_loc">
+                <property name="text">
+                 <string>位置</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <spacer name="horizontalSpacer">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
               </property>
-             </widget>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
             </item>
             <item>
-             <widget class="QLineEdit" name="line_location"/>
-            </item>
-            <item>
-             <widget class="QPushButton" name="btn_location">
+             <widget class="QPushButton" name="btn_disk_mkdir">
               <property name="text">
-               <string>跳转</string>
+               <string>新建文件夹</string>
               </property>
              </widget>
             </item>
@@ -245,7 +259,7 @@
      <x>0</x>
      <y>0</y>
      <width>640</width>
-     <height>32</height>
+     <height>30</height>
     </rect>
    </property>
    <widget class="QMenu" name="acount">
