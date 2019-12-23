@@ -1051,7 +1051,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if infos:
             self._refresh(self._work_id)
             self.list_file_folder()
-            # self.refresh_dir(self._work_id)
 
     def show_full_path(self):
         """路径框显示当前路径"""
@@ -1066,6 +1065,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         index = 1
         for name, id in self._path_list.items():
             self.locs[index] = QPushButton(name, self.disk_tab)
+            self.locs[index].setIcon(QIcon("./icon/folder_open.gif"))
             self.disk_loc.insertWidget(index, self.locs[index])
             # wd = self.locs[index].fontMetrics().width(name)
             # self.locs[index].setMaxLength(name)  # 设置按钮宽度
@@ -1108,6 +1108,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btn_disk_select_all.clicked.connect(lambda: self.select_all_btn("disk"))
         self.table_disk.clicked.connect(lambda: self.select_all_btn("disk", "cancel"))
         self.btn_disk_dl.clicked.connect(self.call_downloader)
+        self.btn_disk_mkdir.setIcon(QIcon("./icon/add-folder.ico"))
         self.btn_disk_mkdir.clicked.connect(self.call_mkdir)
         self.btn_disk_delete.clicked.connect(self.call_remove_files)
 
