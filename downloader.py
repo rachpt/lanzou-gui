@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import sys
 from random import random
 from PyQt5.QtCore import QThread, pyqtSignal, QMutex
@@ -13,9 +14,8 @@ class Downloader(QThread):
         self._stopped = True
         self._mutex = QMutex()
         self._disk = disk
-        self.isfile = ""
-        self.isfolder = ""
-        self.isurl = ""
+        self.url = ""
+        self.pwd = ""
         self.save_path = ""
 
     def stop(self):
@@ -49,35 +49,35 @@ class Downloader(QThread):
     def __del__(self):
         self.wait()
 
-    def setVal(self, isfile, isfolder, isurl, name, save_path):
-        self.isfile = isfile
-        self.isfolder = isfolder
-        self.isurl = isurl
+    def setVal(self, name, url, pwd, save_path):
         self.name = name
+        self.url = url
+        self.pwd = pwd
         self.save_path = save_path
         self.start()
 
     def run(self):
-        if self.isfolder:
-            self._disk.download_dir2(
-                self.isfolder, self.name, self.save_path, self.show_progress
-            )
-        elif self.isfile:
-            self._disk.download_file2(
-                self.isfile[0], self.save_path, self.show_progress
-            )
-        elif self.isurl:
+        # 下载文件
+        if self._disk.is_file_url(self.url):
             self._disk.download_file(
-                self.isurl[0], self.isurl[1], self.save_path, self.show_progress
+                self.url, self.pwd, self.save_path, self.show_progress
+            )
+        # 下载文件夹
+        elif self._disk.is_folder_url(self.url):
+            folder_path = self.save_path + os.sep + self.name
+            os.makedirs(folder_path)
+            self.save_path = folder_path
+            self._disk.download_dir(
+                self.url, self.pwd, self.save_path, self.show_progress
             )
 
 
-class DownloadManger(QThread):
+class DownloadManager(QThread):
     download_mgr_msg = pyqtSignal(str)
     downloaders_msg = pyqtSignal(str)
 
     def __init__(self, disk, tasks, parent=None, threads=3):
-        super(DownloadManger, self).__init__(parent)
+        super(DownloadManager, self).__init__(parent)
         self._disk = disk
         self.tasks = tasks
         self._thread = threads
@@ -100,7 +100,7 @@ class DownloadManger(QThread):
             self._count += 1
             dl_id = int(random() * 100000)
             downloader[dl_id] = Downloader(self._disk)
-            self.download_mgr_msg.emit("准备下载：{}".format(task[3]))
+            self.download_mgr_msg.emit("准备下载：{}".format(task[0]))
             downloader[dl_id].finished.connect(self.add_task)
             downloader[dl_id].download_proc.connect(self.ahead_msg)
-            downloader[dl_id].setVal(task[0], task[1], task[2], task[3], task[4])
+            downloader[dl_id].setVal(task[0], task[1], task[2], task[3])
