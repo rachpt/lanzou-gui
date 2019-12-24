@@ -27,57 +27,53 @@
        <attribute name="title">
         <string>蓝奏云链接提取</string>
        </attribute>
-       <layout class="QGridLayout" name="horizontalLayout_7">
-        <item row="0" column="0">
-         <layout class="QVBoxLayout" name="verticalLayout_share">
+       <layout class="QVBoxLayout" name="verticalLayout_4">
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_share_1">
           <item>
-           <layout class="QGridLayout" name="gridLayout">
-            <item row="0" column="0">
-             <widget class="QLabel" name="label_share_url">
-              <property name="text">
-               <string>蓝奏链接</string>
-              </property>
-             </widget>
-            </item>
-            <item row="0" column="1">
-             <widget class="QLineEdit" name="line_share_url"/>
-            </item>
-            <item row="0" column="2">
-             <widget class="QPushButton" name="btn_extract">
-              <property name="text">
-               <string>提取</string>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="0" colspan="3">
-             <widget class="QTableView" name="table_share"/>
-            </item>
-           </layout>
+           <widget class="QLabel" name="label_share_url">
+            <property name="text">
+             <string>蓝奏链接</string>
+            </property>
+           </widget>
           </item>
           <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_share">
-            <item>
-             <widget class="QPushButton" name="btn_share_select_all">
-              <property name="text">
-               <string>全选</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="label_dl_path">
-              <property name="text">
-               <string>文件下载路径</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPushButton" name="btn_share_dl">
-              <property name="text">
-               <string>下载选中文件</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
+           <widget class="QLineEdit" name="line_share_url"/>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_extract">
+            <property name="text">
+             <string>提取</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QTableView" name="table_share"/>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_share_2">
+          <item>
+           <widget class="QPushButton" name="btn_share_select_all">
+            <property name="text">
+             <string>全选</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_dl_path">
+            <property name="text">
+             <string>文件下载路径</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_share_dl">
+            <property name="text">
+             <string>下载选中文件</string>
+            </property>
+           </widget>
           </item>
          </layout>
         </item>
@@ -96,156 +92,138 @@
        <attribute name="title">
         <string>我的蓝奏云</string>
        </attribute>
-       <layout class="QHBoxLayout" name="horizontalLayout_5">
+       <layout class="QVBoxLayout" name="verticalLayout_3">
         <item>
-         <layout class="QVBoxLayout" name="horizontalLayout_disk">
+         <layout class="QHBoxLayout" name="disk_locs">
           <item>
-           <layout class="QHBoxLayout" name="disk_locs">
+           <layout class="QHBoxLayout" name="disk_loc">
             <item>
-             <layout class="QHBoxLayout" name="disk_loc">
-              <item>
-               <widget class="QLabel" name="label_disk_loc">
-                <property name="text">
-                 <string>位置</string>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </item>
-            <item>
-             <spacer name="horizontalSpacer">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>40</width>
-                <height>20</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
-            <item>
-             <widget class="QPushButton" name="btn_disk_mkdir">
+             <widget class="QLabel" name="label_disk_loc">
               <property name="text">
-               <string>新建文件夹</string>
+               <string>位置</string>
               </property>
              </widget>
             </item>
            </layout>
           </item>
           <item>
-           <widget class="QTableView" name="table_disk"/>
+           <spacer name="horizontalSpacer">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
           </item>
           <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_disk_2">
-            <item>
-             <widget class="QPushButton" name="btn_disk_select_all">
-              <property name="text">
-               <string>全选</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <spacer name="horizontalSpacer_disk">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>40</width>
-                <height>20</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
-            <item>
-             <widget class="QPushButton" name="btn_disk_delete">
-              <property name="text">
-               <string>删除</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPushButton" name="btn_disk_dl">
-              <property name="text">
-               <string>下载</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
+           <widget class="QPushButton" name="btn_disk_mkdir">
+            <property name="text">
+             <string>新建文件夹</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QTableView" name="table_disk"/>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_disk_2">
+          <item>
+           <widget class="QPushButton" name="btn_disk_select_all">
+            <property name="text">
+             <string>全选</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_disk">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_disk_delete">
+            <property name="text">
+             <string>删除</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_disk_dl">
+            <property name="text">
+             <string>下载</string>
+            </property>
+           </widget>
           </item>
          </layout>
         </item>
        </layout>
       </widget>
-      <widget class="QWidget" name="upload_tab">
+      <widget class="QWidget" name="rec_tab">
        <attribute name="title">
-        <string>上传文件</string>
+        <string>回收站</string>
        </attribute>
-       <layout class="QHBoxLayout" name="horizontalLayout_4">
+       <layout class="QVBoxLayout" name="verticalLayout">
         <item>
-         <layout class="QGridLayout" name="gridLayout_up">
-          <item row="0" column="1">
-           <widget class="QLabel" name="label_up_select_file">
+         <layout class="QHBoxLayout" name="horizontalLayout_rec">
+          <item>
+           <widget class="QPushButton" name="pushButton">
             <property name="text">
-             <string>选择文件</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignCenter</set>
+             <string>全选</string>
             </property>
            </widget>
           </item>
-          <item row="1" column="0" colspan="3">
-           <widget class="QLineEdit" name="line_up_files"/>
-          </item>
-          <item row="5" column="1">
-           <spacer name="verticalSpacer_2">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>40</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item row="3" column="1">
-           <widget class="QLabel" name="label_up_cloud_path">
+          <item>
+           <widget class="QPushButton" name="pushButton_2">
             <property name="text">
-             <string>上传路径</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignCenter</set>
+             <string>还原</string>
             </property>
            </widget>
           </item>
-          <item row="6" column="1">
-           <widget class="QPushButton" name="btn_upload">
+          <item>
+           <widget class="QPushButton" name="pushButton_3">
             <property name="text">
-             <string>上传</string>
+             <string>彻底删除</string>
             </property>
            </widget>
           </item>
-          <item row="2" column="1">
-           <spacer name="verticalSpacer_1">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
+          <item>
+           <widget class="QPushButton" name="pushButton_4">
+            <property name="text">
+             <string>清空回收站</string>
             </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>40</height>
-             </size>
-            </property>
-           </spacer>
+           </widget>
           </item>
-          <item row="4" column="0" colspan="3">
-           <widget class="QLineEdit" name="line_up_cloud_path"/>
+          <item>
+           <widget class="QPushButton" name="pushButton_5">
+            <property name="text">
+             <string>全部还原</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pushButton_6">
+            <property name="text">
+             <string>过期文件</string>
+            </property>
+           </widget>
           </item>
          </layout>
+        </item>
+        <item>
+         <widget class="QTableView" name="tableView_rec"/>
         </item>
        </layout>
       </widget>

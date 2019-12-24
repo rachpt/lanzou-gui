@@ -64,7 +64,7 @@ class LanZouCloud(object):
         else:
             return LanZouCloud.ZIP_ERROR
 
-    def login(self, username, passwd):
+    def login(self, username, passwd, cookie=None):
         """登录蓝奏云控制台"""
         login_data = {
             "action": "login",
@@ -72,12 +72,19 @@ class LanZouCloud(object):
             "username": username,
             "password": passwd,
         }
+        if cookie:
+            cookie = cookie.split(";")  # 字符串到列表
+            cookie = set([i.strip() for i in cookie])  # 去重，注意前后空格
+            cookie = {i.split("=")[0]: i.split("=")[1] for i in cookie}  # 字典
+            requests.utils.add_dict_to_cookiejar(self._session.cookies, cookie)
         try:
             index = self._session.get(self._account_url).text
             login_data["formhash"] = re.findall(
                 r'name="formhash" value="(.+?)"', index
             )[0]
             html = self._session.post(self._account_url, login_data).text
+            if "滑动验证失败" in html:
+                return "use-cookie"
             return LanZouCloud.SUCCESS if "登录成功" in html else LanZouCloud.FAILED
         except (requests.RequestException, IndexError):
             return LanZouCloud.FAILED
@@ -114,9 +121,8 @@ class LanZouCloud(object):
             index = self._get(
                 self._mydisk_url, params={"item": "recycle", "action": "files"}
             ).text
-            post_data["formhash"] = re.findall(r'name="formhash" value="(.+?)"', index)[
-                0
-            ]  # 设置表单 hash
+            # 设置表单 hash
+            post_data["formhash"] = re.findall(r'name="formhash" value="(.+?)"', index)[0]
             result = self._post(self._mydisk_url + "?item=recycle", post_data).text
             return LanZouCloud.SUCCESS if "清空回收站成功" in result else LanZouCloud.FAILED
         except (requests.RequestException, IndexError):
@@ -142,16 +148,16 @@ class LanZouCloud(object):
         except (requests.RequestException, re.error):
             return {"folder_list": {}, "file_list": {}}
 
-    def recovery(self, fid):
+    def recovery(self, fid, isFile=False, isFolder=False):
         """从回收站恢复文件"""
-        if len(str(fid)) >= self._file_id_length:
+        if isFile or len(str(fid)) >= self._file_id_length:
             para = {"item": "recycle", "action": "file_restore", "file_id": fid}
             post_data = {
                 "action": "file_restore",
                 "task": "file_restore",
                 "file_id": fid,
             }
-        else:
+        if isFolder or not para:
             para = {"item": "recycle", "action": "folder_restore", "folder_id": fid}
             post_data = {
                 "action": "folder_restore",
@@ -160,9 +166,8 @@ class LanZouCloud(object):
             }
         try:
             index = self._get(self._mydisk_url, params=para).text
-            post_data["formhash"] = re.findall(r'name="formhash" value="(.+?)"', index)[
-                0
-            ]  # 设置表单 hash
+            # 设置表单 hash
+            post_data["formhash"] = re.findall(r'name="formhash" value="(.+?)"', index)[0]
             result = self._post(self._mydisk_url + "?item=recycle", post_data).text
             return LanZouCloud.SUCCESS if "恢复成功" in result else LanZouCloud.FAILED
         except (IndexError, requests.RequestException):
@@ -619,11 +624,9 @@ class LanZouCloud(object):
             result = self._session.post(
                 "http://pc.woozooo.com/fileup.php", data=monitor, headers=tmp_header
             ).json()
-            print(result)
             if result["zt"] == 0:
                 return LanZouCloud.FAILED  # 上传失败
             file_id = result["text"][0]["id"]
-            print(file_id, "[fake_id]")
             # 蓝奏云禁止用户连续上传 100M 的文件，因此需要上传一个 100M 的文件，然后上传一个“假文件”糊弄过去
             # 这里检查上传的文件是否为“假文件”，是的话上传后就立刻删除
             if result["text"][0]["name_all"].startswith(self._fake_file_prefix):
@@ -706,7 +709,6 @@ class LanZouCloud(object):
             return LanZouCloud.MKDIR_ERROR
         for f in os.listdir(dir_path):
             if os.path.isfile(dir_path + os.sep + f):
-                print(dir_path + os.sep + f, dir_id)
                 if (
                     self.upload_file(dir_path + os.sep + f, dir_id, call_back)
                     != LanZouCloud.SUCCESS
@@ -721,7 +723,6 @@ class LanZouCloud(object):
         if not os.path.exists(save_path):
             os.makedirs(save_path)
         info = self.get_direct_url(share_url, pwd)
-        print(info, share_url, pwd)
         if info["code"] != LanZouCloud.SUCCESS:
             return info["code"]
         # 删除伪装后缀名

@@ -36,9 +36,11 @@ class LoginDialog(QDialog):
         self._config = config
         self._user = ""
         self._pwd = ""
+        self._cookie = ""
         self.initUI()
         self.name_ed.textChanged.connect(self.set_user)
         self.pwd_ed.textChanged.connect(self.set_pwd)
+        self.cookie_ed.textChanged.connect(self.set_cookie)
         self.btn_ok.clicked.connect(self.clicked_ok)
         self.btn_cancel.clicked.connect(self.clicked_cancel)
 
@@ -48,15 +50,18 @@ class LoginDialog(QDialog):
                 _info = load(_file)
             self._user = _info["user"]
             self._pwd = _info["pwd"]
+            self._cookie = _info["cookie"]
         except Exception:
             pass
         self.name_ed.setText(self._user)
         self.pwd_ed.setText(self._pwd)
+        self.cookie_ed.setPlainText(self._cookie)
 
     def initUI(self):
         self.setWindowTitle("登录蓝奏云")
         self.logo = QLabel()
         self.logo.setPixmap(QPixmap("./icon/logo3.gif"))
+        self.logo.setStyleSheet("background-color:rgb(0,153,255);")
         self.logo.setAlignment(Qt.AlignCenter)
         self.name_lb = QLabel("&User")
         self.name_ed = QLineEdit()
@@ -66,17 +71,24 @@ class LoginDialog(QDialog):
         self.pwd_ed = QLineEdit()
         self.pwd_ed.setEchoMode(QLineEdit.Password)
         self.pwd_lb.setBuddy(self.pwd_ed)
+        
+        self.cookie_lb = QLabel("&Cookie")
+        self.cookie_ed = QTextEdit()
+        self.cookie_ed.setPlaceholderText("如果由于滑动验证，无法使用用户名与密码登录，则需要输入cookie，自行使用浏览器获取，cookie会保持在本地，下次使用。其格式如下：\n\n key1=value1; key2=value2")
+        self.cookie_lb.setBuddy(self.cookie_ed)
 
         self.btn_ok = QPushButton("&OK")
         self.btn_cancel = QPushButton("&Cancel")
         main_layout = QGridLayout()
-        main_layout.addWidget(self.logo, 0, 0, 2, 3)
+        main_layout.addWidget(self.logo, 0, 0, 2, 4)
         main_layout.addWidget(self.name_lb, 2, 0)
-        main_layout.addWidget(self.name_ed, 2, 1, 1, 2)
+        main_layout.addWidget(self.name_ed, 2, 1, 1, 3)
         main_layout.addWidget(self.pwd_lb, 3, 0)
-        main_layout.addWidget(self.pwd_ed, 3, 1, 1, 2)
-        main_layout.addWidget(self.btn_ok, 4, 1)
-        main_layout.addWidget(self.btn_cancel, 4, 2)
+        main_layout.addWidget(self.pwd_ed, 3, 1, 1, 3)
+        main_layout.addWidget(self.cookie_lb, 4, 0)
+        main_layout.addWidget(self.cookie_ed, 4, 1, 2, 3)
+        main_layout.addWidget(self.btn_ok, 6, 2)
+        main_layout.addWidget(self.btn_cancel, 6, 3)
         self.setLayout(main_layout)
         self.default_var()
 
@@ -86,12 +98,15 @@ class LoginDialog(QDialog):
     def set_pwd(self, pwd):
         self._pwd = pwd
 
+    def set_cookie(self):
+        self._cookie = self.cookie_ed.toPlainText()
+
     def clicked_cancel(self):
         self.default_var()
         self.close()
 
     def clicked_ok(self):
-        up_info = {"user": self._user, "pwd": self._pwd}
+        up_info = {"user": self._user, "pwd": self._pwd, "cookie": self._cookie}
         update_settings(self._config, up_info)
         self.close()
 
@@ -116,18 +131,18 @@ class UploadDialog(QDialog):
         self.logo.setAlignment(Qt.AlignCenter)
 
         # btn 1
-        self.btn_chooseDir = QPushButton("选择文件夹", self)  
-        self.btn_chooseDir.setObjectName("btn_chooseDir")  
+        self.btn_chooseDir = QPushButton("选择文件夹", self)
+        self.btn_chooseDir.setObjectName("btn_chooseDir")
         self.btn_chooseDir.setIcon(QIcon("./icon/folder_open.gif"))
 
         # btn 2
-        self.btn_chooseMutiFile = QPushButton("选择多文件", self)  
-        self.btn_chooseMutiFile.setObjectName("btn_chooseMutiFile")  
+        self.btn_chooseMutiFile = QPushButton("选择多文件", self)
+        self.btn_chooseMutiFile.setObjectName("btn_chooseMutiFile")
         self.btn_chooseMutiFile.setIcon(QIcon("./icon/file.ico"))
 
         # btn 3
-        self.btn_deleteSelect = QPushButton("删除", self)  
-        self.btn_deleteSelect.setObjectName("btn_deleteSelect")  
+        self.btn_deleteSelect = QPushButton("删除", self)
+        self.btn_deleteSelect.setObjectName("btn_deleteSelect")
         self.btn_deleteSelect.setIcon(QIcon("./icon/delete.ico"))
 
         # 列表
@@ -184,6 +199,7 @@ class UploadDialog(QDialog):
         if self.selected:
             self.new_infos.emit(self.selected)
             self.clear_old()
+
     def slot_btn_deleteSelect(self):
         _indexs = self.list_view.selectionModel().selection().indexes()
         if not _indexs:
@@ -197,9 +213,8 @@ class UploadDialog(QDialog):
             self.model.removeRow(i)
         self.set_size()
 
-
     def slot_btn_chooseDir(self):
-        dir_choose = QFileDialog.getExistingDirectory(self, "选择文件夹", self.cwd) # 起始路径
+        dir_choose = QFileDialog.getExistingDirectory(self, "选择文件夹", self.cwd)  # 起始路径
 
         if dir_choose == "":
             return
@@ -495,7 +510,7 @@ class DeleteDialog(QDialog):
         self.buttonBox = QDialogButtonBox()
         self.buttonBox.setOrientation(Qt.Horizontal)
         self.buttonBox.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        
+
         self.layout.addWidget(self.lb_name)
         self.layout.addWidget(self.list_view)
         self.layout.addWidget(self.buttonBox)
@@ -621,19 +636,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def show_download_process(self, msg):
         self.statusbar.showMessage(str(msg), 8000)
 
-    def call_downloader(self):
+    def call_downloader(self, tab):
+        if tab == "disk":
+            listview = self.table_disk
+            model = self.model_disk
+        elif tab == "share":
+            listview = self.table_share
+            model = self.model_share
         indexs = []
         tasks = []
-        _indexs = self.table_disk.selectionModel().selection().indexes()
+        _indexs = listview.selectionModel().selection().indexes()
         for i in _indexs:  # 获取所选行号
             indexs.append(i.row())
         indexs = set(indexs)
         save_path = self.settings["path"]
         for index in indexs:
-            name = self.model_disk.item(index, 0).text()  # 用于folder创建文件夹
-            url = self.model_disk.item(index, 7).text()  # 分享链接
-            pwd = self.model_disk.item(index, 5).text()  # 提取码，没有为空串
-            if name == "..":
+            name = model.item(index, 0).text()  # 用于folder创建文件夹
+            url = model.item(index, 7).text()  # 分享链接
+            pwd = model.item(index, 5).text()  # 提取码，没有为空串
+            if tab == "disk" and name == "..":
                 continue
             tasks.append([name, url, pwd, save_path])
         self.download_manager = DownloadManager(self._disk, tasks, self)
@@ -646,7 +667,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.toolbar.removeAction(self.logout)
         self.tabWidget.setCurrentIndex(0)
         self.disk_tab.setEnabled(False)
-        self.upload_tab.setEnabled(False)
+        self.rec_tab.setEnabled(False)
         self.tabWidget.removeTab(2)
         self.tabWidget.removeTab(1)
         self.statusbar.showMessage("已经退出登录！", 5000)
@@ -659,19 +680,24 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         try:
             username = self.settings["user"]
             password = self.settings["pwd"]
+            cookie = self.settings["cookie"]
             if not username or not password:
                 self.statusbar.showMessage("登录失败: 没有用户或密码", 3000)
                 raise Exception("没有用户或密码")
-            if self._disk.login(username, password) != LanZouCloud.SUCCESS:
-                self.statusbar.showMessage("登录失败: 用户名或密码错误", 7000)
+            res = self._disk.login(username, password)
+            if res == "use-cookie":
+                self.statusbar.showMessage("使用用户名与密码登录失败", 5000)
+                if cookie:
+                    res = self._disk.login(username, password, cookie=cookie)
+            elif res != LanZouCloud.SUCCESS:
                 raise Exception("登录失败")
             self.statusbar.showMessage("登录成功！", 8000)
             self.login_menu()
 
             self.tabWidget.insertTab(1, self.disk_tab, "我的蓝奏云")
-            self.tabWidget.insertTab(2, self.upload_tab, "上传文件")
+            self.tabWidget.insertTab(2, self.rec_tab, "回收站")
             self.disk_tab.setEnabled(True)
-            self.upload_tab.setEnabled(True)
+            self.rec_tab.setEnabled(True)
             # 设置当前显示 tab
             self.tabWidget.setCurrentIndex(1)
             # 刷新文件列表
@@ -682,7 +708,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.tabWidget.removeTab(2)
             self.tabWidget.removeTab(1)
             self.disk_tab.setEnabled(False)
-            self.upload_tab.setEnabled(False)
+            self.rec_tab.setEnabled(False)
 
     def set_file_icon(self, name):
         suffix = name.split(".")[-1]
@@ -880,7 +906,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """移动文件至新的文件夹"""
         file_id = info[0]
         folder_id = info[1]
-        print(file_id, folder_id)
         if self._disk.move_file(file_id, folder_id) == LanZouCloud.SUCCESS:
             # 此处仅更新文件夹，并显示
             self.refresh_dir(self._work_id, False, True, False)
@@ -893,7 +918,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         mkdir_dialog = RenameDialog(None)
         mkdir_dialog.new_infos.connect(self.mkdir)
         mkdir_dialog.exec()
-        
+
     def mkdir(self, infos):
         """创建文件夹"""
         if self._work_name == 'Recovery':
@@ -995,7 +1020,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             print("ERROR : 回收站模式下无法使用此操作")
             return None
         # infos: 文件名，大小，日期，ID/url，下载次数(dl_count)，提取码(pwd)，描述(desc)，链接(share-url)
-        print(infos)
         _infos = infos[0:3]  # 文件名+大小+日期
         _infos.append(infos[4])  # 下载次数
         _infos.append(infos[7])  # 分享链接
@@ -1113,7 +1137,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btn_disk_select_all.setIcon(QIcon("./icon/select-all.ico"))
         self.btn_disk_select_all.clicked.connect(lambda: self.select_all_btn("disk"))
         self.table_disk.clicked.connect(lambda: self.select_all_btn("disk", "cancel"))
-        self.btn_disk_dl.clicked.connect(self.call_downloader)
+        self.btn_disk_dl.clicked.connect(lambda: self.call_downloader("disk"))
         self.btn_disk_mkdir.setIcon(QIcon("./icon/add-folder.ico"))
         self.btn_disk_mkdir.clicked.connect(self.call_mkdir)
         self.btn_disk_delete.clicked.connect(self.call_remove_files)
@@ -1196,7 +1220,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.line_share_url.setPlaceholderText("蓝奏云链接，如有提取码，放后面，空格或汉字等分割，回车键提取")
         self.line_share_url.returnPressed.connect(self.list_share_url_file)
         self.btn_extract.clicked.connect(self.list_share_url_file)
-        self.btn_share_dl.clicked.connect(self.call_downloader)
+        self.btn_share_dl.clicked.connect(lambda: self.call_downloader("share"))
         self.btn_share_dl.setIcon(QIcon("./icon/downloader.ico"))
         self.btn_share_select_all.setIcon(QIcon("./icon/select-all.ico"))
         self.btn_share_select_all.clicked.connect(lambda: self.select_all_btn("share"))
@@ -1205,7 +1229,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 添加文件下载路径选择器
         self.line_dl_path = MyLineEdit(self.share_tab)
         self.line_dl_path.setObjectName("line_dl_path")
-        self.horizontalLayout_share.insertWidget(2, self.line_dl_path)
+        self.horizontalLayout_share_2.insertWidget(2, self.line_dl_path)
         self.line_dl_path.setText(self.settings["path"])
         self.line_dl_path.clicked.connect(self.set_dl_path)
 
