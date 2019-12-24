@@ -681,15 +681,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             username = self.settings["user"]
             password = self.settings["pwd"]
             cookie = self.settings["cookie"]
-            if not username or not password:
+            if (not username or not password) and not cookie:
                 self.statusbar.showMessage("登录失败: 没有用户或密码", 3000)
                 raise Exception("没有用户或密码")
-            res = self._disk.login(username, password)
-            if res == "use-cookie":
-                self.statusbar.showMessage("使用用户名与密码登录失败", 5000)
-                if cookie:
-                    res = self._disk.login(username, password, cookie=cookie)
+            res = self._disk.login(username, password, cookie=cookie)
+            if res == LanZouCloud.LOGIN_ERROR:
+                self.statusbar.showMessage("无法使用用户名与密码登录，请使用Cookie！", 8000)
+                raise Exception("登录失败")
             elif res != LanZouCloud.SUCCESS:
+                self.statusbar.showMessage("登录失败，可能是用户名或密码错误！", 8000)
                 raise Exception("登录失败")
             self.statusbar.showMessage("登录成功！", 8000)
             self.login_menu()
