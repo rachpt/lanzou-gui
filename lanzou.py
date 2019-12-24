@@ -12,6 +12,7 @@ class LanZouCloud(object):
     SUCCESS = 0
     ID_ERROR = 1
     PASSWORD_ERROR = 2
+    LOGIN_ERROR = 9
     LACK_PASSWORD = 3
     ZIP_ERROR = 4
     MKDIR_ERROR = 5
@@ -77,14 +78,15 @@ class LanZouCloud(object):
             cookie = set([i.strip() for i in cookie])  # 去重，注意前后空格
             cookie = {i.split("=")[0]: i.split("=")[1] for i in cookie}  # 字典
             requests.utils.add_dict_to_cookiejar(self._session.cookies, cookie)
+            r = self._session.get(self._mydisk_url, allow_redirects=False)
+            if r.status_code == "200":
+                return LanZouCloud.SUCCESS
         try:
             index = self._session.get(self._account_url).text
-            login_data["formhash"] = re.findall(
-                r'name="formhash" value="(.+?)"', index
-            )[0]
+            login_data["formhash"] = re.findall(r'name="formhash" value="(.+?)"', index)[0]
             html = self._session.post(self._account_url, login_data).text
             if "滑动验证失败" in html:
-                return "use-cookie"
+                return LanZouCloud.LOGIN_ERROR
             return LanZouCloud.SUCCESS if "登录成功" in html else LanZouCloud.FAILED
         except (requests.RequestException, IndexError):
             return LanZouCloud.FAILED
@@ -360,12 +362,13 @@ class LanZouCloud(object):
         elif r["zt"] != 1:
             return {"code": LanZouCloud.FAILED, "info": ""}
         # 获取文件信息成功后...
-        info = {f["name_all"]: (self._host_url + "/" + f["id"],
+        info = {f["name_all"]: ("",
                                 f["size"],
                                 f["time"],
                                 "",
                                 dir_pwd,
-                                desc) for f in r["text"]}
+                                desc,
+                                self._host_url + "/" + f["id"]) for f in r["text"]}
         return {"code": LanZouCloud.SUCCESS, "info": info}
 
     def get_direct_url(self, share_url, pwd=""):
