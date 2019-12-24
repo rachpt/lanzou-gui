@@ -79,7 +79,7 @@ class LanZouCloud(object):
             cookie = {i.split("=")[0]: i.split("=")[1] for i in cookie}  # 字典
             requests.utils.add_dict_to_cookiejar(self._session.cookies, cookie)
             r = self._session.get(self._mydisk_url, allow_redirects=False)
-            if r.status_code == "200":
+            if r.status_code == requests.codes.ok:
                 return LanZouCloud.SUCCESS
         try:
             index = self._session.get(self._account_url).text
