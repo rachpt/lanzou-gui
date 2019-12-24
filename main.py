@@ -356,13 +356,16 @@ class SetPwdDialog(QDialog):
         self.initUI()
 
     def initUI(self):
-        self.setWindowTitle("修改文件/文件夹名提取码")
+        if self.infos[1]:  # 通过size列判断是否为文件
+            self.setWindowTitle("修改文件提取码")
+        else:
+            self.setWindowTitle("修改文件夹名提取码")
         self.lb_oldpwd = QLabel()
         self.lb_oldpwd.setText("当前提取码：")
         self.lb_oldpwd.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
         self.tx_oldpwd = QLineEdit()
         self.tx_oldpwd.setText(self.infos[5] or "无")
-        # 只读
+        # 当前提取码 只读
         self.tx_oldpwd.setFocusPolicy(Qt.NoFocus)
         self.tx_oldpwd.setReadOnly(True)
         self.lb_newpwd = QLabel()
@@ -392,7 +395,7 @@ class SetPwdDialog(QDialog):
     def btn_ok(self):
         new_pwd = self.tx_newpwd.text()
         if new_pwd != self.infos[5]:
-            self.new_infos.emit((self.infos[3], new_pwd))
+            self.new_infos.emit((self.infos[3], new_pwd, self.infos[1]))  # 最后一位用于标示文件还是文件夹
 
 
 class MoveFileDialog(QDialog):
@@ -847,8 +850,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.statusbar.showMessage("修改成功！", 4000)
             elif res == LanZouCloud.FAILED:
                 self.statusbar.showMessage("失败：文件夹id数大于7位 或者 网络错误！", 4000)
-            self._refresh(self._work_id, False, True)  # 只更新文件夹列表
-            self.list_file_folder()
+            # 只更新文件夹列表
+            self.refresh_dir(self._work_id, r_files=False, r_folders=True, r_path=False)
 
     def set_passwd(self, infos):
         """设置文件(夹)提取码"""
@@ -858,12 +861,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return None
         new_pass = infos[1]
         if 2 <= len(new_pass) <= 6 or new_pass == "":
-            res = self._disk.set_share_passwd(fid, new_pass)
+            if infos[2]:
+                isFile = True
+                isFolder = False
+            else:
+                isFile = False
+                isFolder = True
+            res = self._disk.set_share_passwd(fid, new_pass, isFile=isFile, isFolder=isFolder)
             if res == LanZouCloud.SUCCESS:
                 self.statusbar.showMessage("提取码变更成功！♬", 3000)
             else:
                 self.statusbar.showMessage("提取码变更失败❀╳❀:{}".format(res), 4000)
-            self.refresh_dir(self._work_id)
+            self.refresh_dir(self._work_id, r_files=isFile, r_folders=isFolder, r_path=False)
         else:
             self.statusbar.showMessage("提取码为2-6位字符,关闭请输入空！", 4000)
 
@@ -874,8 +883,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         print(file_id, folder_id)
         if self._disk.move_file(file_id, folder_id) == LanZouCloud.SUCCESS:
             # 此处仅更新文件夹，并显示
-            self._refresh(self._work_id, False, True)
-            self.list_file_folder()
+            self.refresh_dir(self._work_id, False, True, False)
             self.statusbar.showMessage("{} 移动成功！".format(info[2]), 4000)
         else:
             self.statusbar.showMessage("移动文件{}失败！".format(info[2]), 4000)
@@ -903,8 +911,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 sleep(1)  # 不暂停一下无法获取新建文件夹
                 self.statusbar.showMessage("成功创建文件夹：{}".format(name), 7000)
                 # 此处仅更新文件夹，并显示
-                self._refresh(self._work_id, False, True)
-                self.list_file_folder()
+                self.refresh_dir(self._work_id, False, True, False)
 
     def remove_files(self, infos):
         if not infos:
@@ -1020,11 +1027,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             pass
             # print("ERROR : 该文件夹不存在: {}".format(dir_name))
 
-    def refresh_dir(self, folder_id=-1):
+    def refresh_dir(self, folder_id=-1, r_files=True, r_folders=True, r_path=True):
         """更新目录列表"""
-        self._refresh(folder_id)
+        self._refresh(folder_id, r_files, r_folders)
         self.list_file_folder()
-        self.show_full_path()
+        if r_path:
+            self.show_full_path()
 
     def call_change_dir(self, folder_id=-1):
         """按钮调用"""
@@ -1045,12 +1053,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if os.path.isdir(f):
                 msg = 'INFO : 文件夹批量上传:{}'.format(f)
                 self._disk.upload_dir(f, self._work_id, None)
-                self._refresh(self._work_id)
             else:
                 self._disk.upload_file(f, self._work_id, None)
         if infos:
-            self._refresh(self._work_id)
-            self.list_file_folder()
+            self.refresh_dir(self._work_id, True, True, False)
 
     def show_full_path(self):
         """路径框显示当前路径"""

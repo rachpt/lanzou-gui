@@ -24,7 +24,7 @@ class LanZouCloud(object):
         self._guise_suffix = ".dll"  # 不支持的文件伪装后缀
         self._fake_file_prefix = "__fake__"  # 假文件前缀
         self._timeout = 2000  # 每个请求的超时 ms(不包含下载响应体的用时)
-        self._max_size = 100  # 单个文件大小上限 MB
+        self._max_size = 99  # 单个文件大小上限 MB
         self._rar_path = None  # 解压工具路径
         self._host_url = "https://www.lanzous.com"
         self._doupload_url = "https://pc.woozooo.com/doupload.php"
@@ -443,23 +443,22 @@ class LanZouCloud(object):
                 "passwd": "",
             }  # 网络问题没拿到数据
 
-    def set_share_passwd(self, fid, passwd=""):
+    def set_share_passwd(self, fid, passwd="", isFile=False, isFolder=False):
         """设置网盘文件的提取码"""
         passwd_status = 0 if passwd == "" else 1
+        post_data = {
+            "file_id": fid,
+            "shows": passwd_status,
+            "shownames": passwd,
+        }
         if len(str(fid)) >= self._file_id_length:
-            post_data = {
-                "task": 23,
-                "file_id": fid,
-                "shows": passwd_status,
-                "shownames": passwd,
-            }
+            post_data.update({"task": 23})  # 文件
         else:
-            post_data = {
-                "task": 16,
-                "folder_id": fid,
-                "shows": passwd_status,
-                "shownames": passwd,
-            }
+            post_data.update({"task": 16})
+        if isFile:
+            post_data.update({"task": 23})  # 文件
+        if isFolder:
+            post_data.update({"task": 16})
         try:
             result = self._post(self._doupload_url, post_data).json()
             return (
@@ -468,12 +467,15 @@ class LanZouCloud(object):
         except requests.RequestException:
             return LanZouCloud.FAILED
 
-    def mkdir(self, parent_id, folder_name, description=""):
+    def mkdir(self, parent_id, folder_name, description="", return_id=False):
         """创建文件夹(同时设置描述)"""
         folder_name = re.sub(r"[#$%^!*<>)(+=`\'\"/:;,?]", "", folder_name)  # 去除非法字符
         folder_list = self.get_dir_list(parent_id)
         if folder_name in folder_list.keys():
-            return folder_list.get(folder_name)
+            if return_id:
+                return folder_list.get(folder_name)[0]  # folder ID 在第一位
+            else:
+                return LanZouCloud.SUCCESS  # 已有同名文件夹
         post_data = {
             "task": 2,
             "parent_id": parent_id or -1,
@@ -483,7 +485,12 @@ class LanZouCloud(object):
         try:
             result = self._post(self._doupload_url, post_data).json()  # 创建文件夹
             if result["zt"] == 1:
-                return LanZouCloud.SUCCESS  # 创建成功
+                if return_id:
+                    # 获取ID
+                    all_dir = self._post(self._doupload_url, data={"task": 19, "file_id": 0}).json()
+                    return int(all_dir['info'][-1]['folder_id'])
+                else:
+                    return LanZouCloud.SUCCESS  # 创建成功
             else:
                 return LanZouCloud.MKDIR_ERROR  # 创建失败
         except (requests.RequestException, IndexError):
@@ -612,15 +619,17 @@ class LanZouCloud(object):
             result = self._session.post(
                 "http://pc.woozooo.com/fileup.php", data=monitor, headers=tmp_header
             ).json()
+            print(result)
             if result["zt"] == 0:
                 return LanZouCloud.FAILED  # 上传失败
             file_id = result["text"][0]["id"]
+            print(file_id, "[fake_id]")
             # 蓝奏云禁止用户连续上传 100M 的文件，因此需要上传一个 100M 的文件，然后上传一个“假文件”糊弄过去
             # 这里检查上传的文件是否为“假文件”，是的话上传后就立刻删除
             if result["text"][0]["name_all"].startswith(self._fake_file_prefix):
-                self.delete(file_id)
+                self.delete(file_id, isfile=True)
             else:
-                self.set_share_passwd(file_id)  # 正常的文件上传后默认关闭提取码
+                self.set_share_passwd(file_id, isFile=True)  # 正常的文件上传后默认关闭提取码
             return LanZouCloud.SUCCESS
         except (requests.RequestException, KeyboardInterrupt):
             return LanZouCloud.FAILED
@@ -630,9 +639,13 @@ class LanZouCloud(object):
         # 单个文件不超过 100MB 时直接上传
         if os.path.getsize(file_path) <= self._max_size * 1048576:
             return self._upload_a_file(file_path, folder_id, call_back)
-        # 超过 100MB 的文件，分卷压缩后上传
+        if os.name != "nt":  # 非window系统优先使用环境变量中的rar
+            for cmdpath in os.environ['PATH'].split(':'):
+                if os.path.isdir(cmdpath) and "rar" in os.listdir(cmdpath):
+                    self._rar_path = "rar"
         if self._rar_path is None:
             return LanZouCloud.ZIP_ERROR
+        # 超过 100MB 的文件，分卷压缩后上传
         rar_level = 0  # 压缩等级(0-5)，0 不压缩
         part_sum = os.path.getsize(file_path) // (self._max_size * 1048576) + 1
         file_name = ".".join(
@@ -660,7 +673,7 @@ class LanZouCloud(object):
         folder_name = ".".join(
             file_list[0].split(".")[:-2]
         )  # 文件名去除".part**.rar"作为网盘新建的文件夹名
-        dir_id = self.mkdir(folder_id, folder_name, "分卷压缩文件")
+        dir_id = self.mkdir(folder_id, folder_name, "分卷压缩文件", return_id=True)
         if dir_id == LanZouCloud.MKDIR_ERROR:
             return LanZouCloud.MKDIR_ERROR  # 创建文件夹失败就退出
         for f in file_list:
@@ -688,11 +701,12 @@ class LanZouCloud(object):
         if not os.path.isdir(dir_path):
             return LanZouCloud.FAILED
         dir_name = dir_path.split(os.sep)[-1]
-        dir_id = self.mkdir(folder_id, dir_name, "批量上传")
+        dir_id = self.mkdir(folder_id, dir_name, "批量上传", return_id=True)
         if dir_id == LanZouCloud.MKDIR_ERROR:
             return LanZouCloud.MKDIR_ERROR
         for f in os.listdir(dir_path):
             if os.path.isfile(dir_path + os.sep + f):
+                print(dir_path + os.sep + f, dir_id)
                 if (
                     self.upload_file(dir_path + os.sep + f, dir_id, call_back)
                     != LanZouCloud.SUCCESS
