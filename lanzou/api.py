@@ -4,6 +4,7 @@ import re
 from random import sample
 from shutil import rmtree
 
+from time import sleep
 import requests
 from requests_toolbelt import MultipartEncoder, MultipartEncoderMonitor
 from urllib3 import disable_warnings
@@ -414,8 +415,8 @@ class LanZouCloud(object):
         if self._rar_path is None: return LanZouCloud.ZIP_ERROR
         rar_level = 0  # 压缩等级(0-5)，0 不压缩, 5 最好压缩(耗时长)
         part_sum = os.path.getsize(file_path) // (self._max_size * 1048576) + 1
-
-        file_name = file_path.split(os.sep)[-1].split('.')  # 文件名去掉无后缀，用作分卷文件的名字
+        file_name = file_path.split('/')[-1]  # 在windows上 pyqt 得到的路径是 `/` 分割的而非 `\`
+        file_name = file_name.split(os.sep)[-1].split('.')  # 文件名去掉无后缀，用作分卷文件的名字
         file_name = file_name[0] if len(file_name) == 1 else '.'.join(file_name[:-1])  # 处理没有后缀的文件
         logger.debug(f'file name: {file_name}')
 
@@ -428,7 +429,8 @@ class LanZouCloud(object):
             command = f"{self._rar_path} {cmd_args}"  # linux 平台使用 rar 命令压缩
         try:
             logger.debug(f'rar command: {command}')
-            os.popen(command).readlines()
+            os.system(command)  # pyinstaller 打包 有问题，先这样，后面再优化
+            # os.popen(command).readlines()
         except os.error:
             return LanZouCloud.ZIP_ERROR
 
@@ -635,22 +637,33 @@ class LanZouCloud(object):
             desc = str(desc[0])
         else:
             desc = ""
+        page = 1
         if "请输入密码" in html:
             if len(dir_pwd) == 0:
                 return {"code": LanZouCloud.LACK_PASSWORD, "info": ""}
-            post_data = {"lx": lx, "pg": 1, "k": k, "t": t, "fid": fid, "pwd": dir_pwd}
+            post_data = {"lx": lx, "pg": page, "uid": "1115426", "k": k, "t": t, "fid": fid, "pwd": dir_pwd}
         else:
-            post_data = {"lx": lx, "pg": 1, "k": k, "t": t, "fid": fid}
-        try:
-            # 这里不用封装好的post函数是为了支持未登录的用户通过 URL 下载
-            r = requests.post(self._host_url + "/filemoreajax.php", data=post_data, headers=self._headers).json()
-        except requests.RequestException:
-            return {"code": LanZouCloud.FAILED, "info": ""}
-        if r["zt"] == 3:
-            return {"code": LanZouCloud.PASSWORD_ERROR, "info": ""}
-        elif r["zt"] != 1:
-            return {"code": LanZouCloud.FAILED, "info": ""}
-        # 获取文件信息成功后...
-        infos = {f["name_all"]: [None, f["name_all"], f["size"], f["time"], "", dir_pwd, desc,
-                                  self._host_url + "/" + f["id"]] for f in r["text"]}
+            post_data = {"lx": lx, "pg": page, "uid": "1115426", "k": k, "t": t, "fid": fid}
+        infos = {}
+        while True:
+            try:
+                # 这里不用封装好的post函数是为了支持未登录的用户通过 URL 下载
+                r = requests.post(self._host_url + "/filemoreajax.php", data=post_data, headers=self._headers).json()
+            except requests.RequestException:
+                return {"code": LanZouCloud.FAILED, "info": ""}
+            print(r["info"], page)
+            if r["info"] == "没有了": break  # 已经拿到全部文件的信息
+            if r["info"] == "请刷新，重试":
+                sleep(0.6)  # 间隔大于一秒才能获得下一个页面
+                continue
+            if r["zt"] == 3:
+                return {"code": LanZouCloud.PASSWORD_ERROR, "info": ""}
+            elif r["zt"] != 1:
+                return {"code": LanZouCloud.FAILED, "info": ""}
+            # 获取文件信息成功后...
+            infos.update({f["name_all"]: [None, f["name_all"], f["size"], f["time"], "", dir_pwd, desc,
+                                    self._host_url + "/" + f["id"]] for f in r["text"]})
+            page += 1
+            # sleep(1.1)
+            post_data["pg"] = page
         return {"code": LanZouCloud.SUCCESS, "info": infos}
