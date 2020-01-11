@@ -186,12 +186,12 @@ class LanZouCloud(object):
         folder_list = {}
         try:
             url = self._mydisk_url + '?item=files&action=index&folder_node=1&folder_id=' + str(folder_id)
-            pattern = r'&nbsp;(.+?)</a>&nbsp;.+folkey\((.+?)\).*(style="display:initial")?.*>(.*)?</font>'
+            pattern = r'&nbsp;(.+?)</a>&nbsp;.+folkey\((.+?)\).*id="folk[0-9]+"([^>]+)?></span>.*>(.*)?</font>'
             for k, v, have_key, desc in re.findall(pattern, self._session.get(url).text):
                 have_key = True if have_key else False
                 desc = desc[1:-1] if desc else ''
                 name = k.replace('&amp;', '&')
-                folder_list[name] = [int(v), name, "", "", "", have_key, desc]  # 文件夹名 : [id, key, desc]
+                folder_list[name] = [int(v), name, "", "", "", have_key, desc]  # 文件夹名 : [id, ..., key, desc]
             return folder_list
         except requests.RequestException:
             return {}
@@ -571,13 +571,16 @@ class LanZouCloud(object):
                 return LanZouCloud.FAILED
         return self._unrar(list(file_list.keys()), save_path)
 
-    def get_all_folders(self, file_id=-1):
+    def get_all_folders_list(self, file_id=-1):
         """用于移动文件至新的文件夹"""
-        all_dirs = self._post(self._doupload_url, data={"task": 19, "file_id": file_id}).json()  # 获取ID
-        if all_dirs["zt"] == 1:
-            return all_dirs["info"]
-        else:
-            return ""
+        try:
+            res = self._post(self._doupload_url, data={"task": 19, "file_id": file_id}).json()
+            if res['zt'] == 1:
+                return res['info']  # [{'folder_name': 'name', 'folder_id': 'id'}, ...]
+            else:
+                return []  # 空
+        except requests.RequestException:
+            return []
 
     def get_share_file_info(self, share_url, pwd=""):
         """获取分享文件信息"""
