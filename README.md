@@ -5,7 +5,7 @@
 <h1 align="center">- 蓝奏云 GUI -</h1>
 
 <p align="center">
-<img src="https://img.shields.io/badge/version-0.0.2-blue?logo=iCloud">
+<img src="https://img.shields.io/badge/version-0.0.3-blue?logo=iCloud">
 <img src="https://img.shields.io/badge/support-Windows-blue?logo=Windows">
 <img src="https://img.shields.io/badge/support-Linux-yellow?logo=Linux">
 <img src="https://img.shields.io/badge/support-MacOS-green?logo=apple">
@@ -19,7 +19,7 @@
 
 
 # 一些说明
-- 目前并发下载任务为3，下载多个文件时最多同时下载3个，单个文件还是单线程的，后期会开放设置；
+- 目前并发下载任务为3，多个文件时最多同时3个下载，单个文件还是单线程的，后期会开放设置；
 - 上传功能还不是很完善，不能后台上传，也就是说，只有所有文件上传完成后，你才能继续其他的事情；
 - 理想的文件上传功能是直接拖拽文件到软件界面，然而目前还不能（欢迎熟悉PyQt5的同学PR）；
 
