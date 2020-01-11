@@ -33,7 +33,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.table_disk.doubleClicked.connect(self.chang_dir)
 
         self.create_left_menus()
-        self._disk.set_rar_tool("/usr/bin/rar")
+        if os.name == 'nt':
+            self._disk.set_rar_tool("./rar.exe")
+        else:
+            self._disk.set_rar_tool("/usr/bin/rar")
 
     def init_menu(self):
         self.login.triggered.connect(self.show_login_dialog)
