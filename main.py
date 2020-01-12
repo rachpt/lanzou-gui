@@ -12,18 +12,20 @@ from Ui_lanzou import Ui_MainWindow
 
 from lanzou.api import LanZouCloud
 
-from downloader import Downloader, DownloadManager
+from downloader import Downloader, DownloadManager, GetSharedInfo
 from dialogs import (update_settings, LoginDialog, UploadDialog, InfoDialog, RenameDialog,
                      SetPwdDialog, MoveFileDialog, DeleteDialog, MyLineEdit)
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
+    __version__ = '0.0.4'
+
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
         self.setupUi(self)
         self.init_variable()
         self.init_menu()
-        self.setWindowTitle("蓝奏云客户端")
+        self.setWindowTitle("蓝奏云客户端 - {}".format(self.__version__))
         self.setWindowIcon(QIcon("./icon/lanzou-logo2.png"))
 
         self.center()
@@ -37,6 +39,35 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self._disk.set_rar_tool("./rar.exe")
         else:
             self._disk.set_rar_tool("/usr/bin/rar")
+
+        # print(QApplication.style().objectName())
+        self.setObjectName("MainWindow")
+        qssStyle = '''
+            QPushButton {
+                background-color: pink;
+            }
+            #tabWidget {
+                background-color: rgba(255, 255, 255, 100);
+            }
+            #table_share {
+                background-color: rgba(255, 255, 255, 150);
+            }
+            #table_disk {
+                background-color: rgba(255, 255, 255, 150);
+            }
+            #rec_tab {
+                background-color: rgba(255, 255, 255, 150);
+            }
+            #MainWindow {
+                border-image:url(./background.png);
+            }
+            #statusbar {
+                font: 14px;
+                color: white;
+            }
+        '''
+        self.setStyleSheet(qssStyle)
+        self.tabWidget.setStyleSheet("QTabBar{ background-color: #AEEEEE; }")
 
     def init_menu(self):
         self.login.triggered.connect(self.show_login_dialog)
@@ -159,7 +190,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.rec_tab.setEnabled(False)
         self.tabWidget.removeTab(2)
         self.tabWidget.removeTab(1)
-        self.statusbar.showMessage("已经退出登录！", 5000)
+        self.statusbar.showMessage("已经退出登录！", 4000)
 
     def autologin_dialog(self):
         """登录网盘"""
@@ -180,7 +211,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if res != LanZouCloud.SUCCESS:
                 self.statusbar.showMessage("登录失败，可能是用户名或密码错误！", 8000)
                 raise Exception("登录失败")
-            self.statusbar.showMessage("登录成功！", 8000)
+            self.statusbar.showMessage("登录成功！", 5000)
             self.login_menu()
 
             self.tabWidget.insertTab(1, self.disk_tab, "我的蓝奏云")
@@ -212,7 +243,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.model_disk.removeRows(0, self.model_disk.rowCount())  # 清理旧的内容
         file_count = len(self._file_list.keys())
         folder_count = len(self._folder_list.keys())
-        name_header = ["文件夹{}个".format(folder_count),] if folder_count else []
+        name_header = ["文件夹{}个".format(folder_count), ] if folder_count else []
         if file_count:
             name_header.append("文件{}个".format(file_count))
         self.model_disk.setHorizontalHeaderLabels(["/".join(name_header), "大小", "时间"])
@@ -264,9 +295,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         table.setSortingEnabled(True)
         table.setMouseTracking(False)
         # 设置表头的背景色为绿色
-        table.horizontalHeader().setStyleSheet(
-            "QHeaderView::section{background:lightgray}"
-        )
+        table.horizontalHeader().setStyleSheet("QHeaderView::section{background:lightgray}")
         # 设置 不可选择单个单元格，只可选择一行。
         table.setSelectionBehavior(QAbstractItemView.SelectRows)
         # 设置第二三列的宽度
@@ -570,50 +599,61 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btn_disk_mkdir.clicked.connect(self.call_mkdir)
         self.btn_disk_delete.clicked.connect(self.call_remove_files)
 
-    def list_share_url_file(self):
-        self.btn_share_select_all.setDisabled(True)
-        self.btn_share_dl.setDisabled(True)
-        self.table_share.setDisabled(True)
+    def show_status(self, msg, duration=0):
+        self.statusbar.showMessage(msg, duration)
+        QCoreApplication.processEvents()  # 重绘界面
+
+    def call_get_shared_info_worker(self):
         line_share_text = self.line_share_url.text().strip()
-        patn = re.findall(r"(https?://www.lanzous.com/[bi][a-z0-9]+)[^0-9a-z]*([a-z0-9]+)?", line_share_text)
-        if patn:
-            share_url = patn[0][0]
-            pwd = patn[0][1]
+        pat = re.findall(r"(https?://(www.)?lanzous.com/[bi][a-z0-9]+)[^0-9a-z]*([a-z0-9]+)?", line_share_text)
+        if pat:
+            share_url = pat[0][0]
+            pwd = pat[0][1]
         else:
             share_url = line_share_text
             pwd = ""
-
-        self.model_share.removeRows(0, self.model_share.rowCount())
         if self._disk.is_file_url(share_url):  # 链接为文件
-            self.share_file_infos = self._disk.get_share_file_info(share_url, pwd)
+            is_file = True
+            is_folder = False
+            self.show_status("正在获取文件链接信息……")
         elif self._disk.is_folder_url(share_url):  # 链接为文件夹
-            self.share_file_infos = self._disk.get_share_folder_info(share_url, pwd)
+            is_folder = True
+            is_file = False
+            self.show_status("正在获取文件夹链接信息，可能需要几秒钟，请稍后……")
         else:
-            self.statusbar.showMessage("{} 为非法链接！".format(share_url), 0)
-            self.share_file_infos = {}
+            self.show_status("{} 为非法链接！".format(share_url))
             return
+        self.model_share.removeRows(0, self.model_share.rowCount())
+        QCoreApplication.processEvents()  # 重绘界面
 
-        if self.share_file_infos["code"] == LanZouCloud.FILE_CANCELLED:
-            self.statusbar.showMessage("文件不存在！", 0)
-        elif self.share_file_infos["code"] == LanZouCloud.URL_INVALID:
-            self.statusbar.showMessage("链接非法！", 0)
-        elif self.share_file_infos["code"] == LanZouCloud.PASSWORD_ERROR:
-            self.statusbar.showMessage("提取码 [{}] 错误！".format(pwd), 0)
-        elif self.share_file_infos["code"] == LanZouCloud.LACK_PASSWORD:
-            self.statusbar.showMessage("请在链接后面跟上提取码，空格分割！", 0)
-        elif self.share_file_infos["code"] == LanZouCloud.FAILED:
-            self.statusbar.showMessage("网络错误！", 0)
-        elif self.share_file_infos["code"] == LanZouCloud.SUCCESS:
-            file_count = len(self.share_file_infos["info"].keys())
+        self.get_shared_info_thread.set_values(self._disk, share_url, pwd, is_file, is_folder)
+        self.get_shared_info_thread.code.connect(self.show_status)
+        self.get_shared_info_thread.infos.connect(self.list_share_url_file)
+        self.get_shared_info_thread.finished.connect(lambda: self.btn_extract.setEnabled(True))
+        self.get_shared_info_thread.finished.connect(lambda: self.line_share_url.setEnabled(True))
+        self.get_shared_info_thread.start()
+
+    def call_get_shared_info(self):
+        if not self.get_shared_info_thread.isRunning():  # 防止阻塞主进程
+            self.line_share_url.setEnabled(False)
+            self.btn_extract.setEnabled(False)
+            self.call_get_shared_info_worker()
+
+    def list_share_url_file(self, infos):
+        if infos["code"] == LanZouCloud.SUCCESS:
+            file_count = len(infos["info"].keys())
             self.model_share.setHorizontalHeaderLabels(["文件{}个".format(file_count), "大小", "时间"])
-            self.statusbar.showMessage("提取信息成功！", 0)
-            for infos in self.share_file_infos["info"].values():
+            for infos in infos["info"].values():
                 name = QStandardItem(self.set_file_icon(infos[1]), infos[1])
                 name.setData(infos)
                 self.model_share.appendRow([name, QStandardItem(infos[2]), QStandardItem(infos[3])])
             self.table_share.setDisabled(False)
             self.btn_share_select_all.setDisabled(False)
             self.btn_share_dl.setDisabled(False)
+        else:
+            self.btn_share_select_all.setDisabled(True)
+            self.btn_share_dl.setDisabled(True)
+            self.table_share.setDisabled(True)
 
     def set_dl_path(self):
         """设置下载路径"""
@@ -635,9 +675,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.table_share.setDisabled(True)
         self.model_share = QStandardItemModel(1, 3)
         self.config_tableview("share")
+        self.get_shared_info_thread = GetSharedInfo()
         self.line_share_url.setPlaceholderText("蓝奏云链接，如有提取码，放后面，空格或汉字等分割，回车键提取")
-        self.line_share_url.returnPressed.connect(self.list_share_url_file)
-        self.btn_extract.clicked.connect(self.list_share_url_file)
+        self.line_share_url.returnPressed.connect(self.call_get_shared_info)
+        self.btn_extract.clicked.connect(self.call_get_shared_info)
         self.btn_share_dl.clicked.connect(lambda: self.call_downloader("share"))
         self.btn_share_dl.setIcon(QIcon("./icon/downloader.ico"))
         self.btn_share_select_all.setIcon(QIcon("./icon/select-all.ico"))
@@ -650,6 +691,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.horizontalLayout_share_2.insertWidget(2, self.line_dl_path)
         self.line_dl_path.setText(self.settings["path"])
         self.line_dl_path.clicked.connect(self.set_dl_path)
+
+        self.btn_share_select_all.setDisabled(True)
+        self.btn_share_dl.setDisabled(True)
+        self.table_share.setDisabled(True)
+
+    def keyPressEvent(self, e):
+        if e.key() == Qt.Key_A:
+            if e.modifiers() and Qt.ControlModifier:
+                self.select_all_btn("disk")
 
 
 if __name__ == "__main__":
