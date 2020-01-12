@@ -651,10 +651,9 @@ class LanZouCloud(object):
                 r = requests.post(self._host_url + "/filemoreajax.php", data=post_data, headers=self._headers).json()
             except requests.RequestException:
                 return {"code": LanZouCloud.FAILED, "info": ""}
-            print(r["info"], page)
-            if r["info"] == "没有了": break  # 已经拿到全部文件的信息
+            if r["info"] == "没有了": break  # 已经拿到全部文件的信息 zt == 4
             if r["info"] == "请刷新，重试":
-                sleep(0.6)  # 间隔大于一秒才能获得下一个页面
+                sleep(0.6)  # 间隔大于一秒才能获得下一个页面 zt == 2
                 continue
             if r["zt"] == 3:
                 return {"code": LanZouCloud.PASSWORD_ERROR, "info": ""}

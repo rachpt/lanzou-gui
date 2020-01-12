@@ -210,6 +210,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def list_file_folder(self):
         """列出文件"""
         self.model_disk.removeRows(0, self.model_disk.rowCount())  # 清理旧的内容
+        file_count = len(self._file_list.keys())
+        folder_count = len(self._folder_list.keys())
+        name_header = ["文件夹{}个".format(folder_count),] if folder_count else []
+        if file_count:
+            name_header.append("文件{}个".format(file_count))
+        self.model_disk.setHorizontalHeaderLabels(["/".join(name_header), "大小", "时间"])
         folder_ico = QIcon("./icon/folder_open.gif")
         pwd_ico = QIcon("./icon/keys.ico")
         # infos: ID/None，文件名，大小，日期，下载次数(dl_count)，提取码(pwd)，描述(desc)，|链接(share-url)，直链
@@ -246,7 +252,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             model = self.model_disk
             table = self.table_disk
 
-        model.setHorizontalHeaderLabels(["文件名/夹", "大小", "时间"])
+        model.setHorizontalHeaderLabels(["文件名", "大小", "时间"])
         table.setModel(model)
         # 是否显示网格线
         table.setShowGrid(False)
@@ -598,6 +604,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         elif self.share_file_infos["code"] == LanZouCloud.FAILED:
             self.statusbar.showMessage("网络错误！", 0)
         elif self.share_file_infos["code"] == LanZouCloud.SUCCESS:
+            file_count = len(self.share_file_infos["info"].keys())
+            self.model_share.setHorizontalHeaderLabels(["文件{}个".format(file_count), "大小", "时间"])
             self.statusbar.showMessage("提取信息成功！", 0)
             for infos in self.share_file_infos["info"].values():
                 name = QStandardItem(self.set_file_icon(infos[1]), infos[1])
