@@ -3,6 +3,7 @@ import os
 import re
 from random import sample
 from shutil import rmtree
+from subprocess import Popen, PIPE
 
 from time import sleep
 import requests
@@ -429,7 +430,8 @@ class LanZouCloud(object):
             command = f"{self._rar_path} {cmd_args}"  # linux 平台使用 rar 命令压缩
         try:
             logger.debug(f'rar command: {command}')
-            os.system(command)  # pyinstaller 打包 有问题，先这样，后面再优化
+            Popen(command, shell=True, stdout=PIPE, stderr=PIPE, stdin=PIPE)
+            # os.system(command)  # pyinstaller 打包 有问题，先这样，后面再优化
             # os.popen(command).readlines()
         except os.error:
             return LanZouCloud.ZIP_ERROR
@@ -519,7 +521,9 @@ class LanZouCloud(object):
             command = f'{self._rar_path} -y e {first_rar} {save_path}'  # Linux 平台
         try:
             logger.debug(f'unrar command: {command}')
-            os.popen(command).readlines()  # 解压出原文件
+            # 解压出原文件
+            Popen(command, shell=True, stdout=PIPE, stderr=PIPE, stdin=PIPE)
+            # os.popen(command).readlines() 
             for f_name in file_list:  # 删除分卷文件
                 logger.debug(f'delete rar file: {save_path + os.sep + f_name}')
                 os.remove(save_path + os.sep + f_name)

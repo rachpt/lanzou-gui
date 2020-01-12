@@ -12,7 +12,7 @@ from Ui_lanzou import Ui_MainWindow
 
 from lanzou.api import LanZouCloud
 
-from downloader import Downloader, DownloadManager, GetSharedInfo
+from workers import Downloader, DownloadManager, GetSharedInfo, UploadWorker
 from dialogs import (update_settings, LoginDialog, UploadDialog, InfoDialog, RenameDialog,
                      SetPwdDialog, MoveFileDialog, DeleteDialog, MyLineEdit)
 
@@ -33,6 +33,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.disk_ui()
         self.autologin_dialog()
         self.table_disk.doubleClicked.connect(self.chang_dir)
+        self.upload_worker = UploadWorker()
+        self.upload_worker.finished.connect(lambda: self.refresh_dir(self._work_id, True, True, False))
+        self.upload_worker.code.connect(self.show_status)
 
         self.create_left_menus()
         if os.name == 'nt':
@@ -111,8 +114,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._parent_name = ""
         self._work_name = ""
         self._work_id = -1
-        # self._stopped = True
-        # self._mutex = QMutex()
         self.load_settings()
 
     def show_login_dialog(self):
@@ -149,6 +150,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def show_download_process(self, msg):
         self.statusbar.showMessage(str(msg), 8000)
+        QCoreApplication.processEvents()  # 重绘界面
 
     def call_downloader(self, tab):
         if tab == "disk":
@@ -527,17 +529,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self._work_name == 'Recovery':
             print('ERROR : 回收站模式下无法使用此操作')
             return None
-        for f in infos:
-            if not os.path.exists(f):
-                msg = 'ERROR : 文件不存在:{}'.format(f)
-                return None
-            if os.path.isdir(f):
-                msg = 'INFO : 文件夹批量上传:{}'.format(f)
-                self._disk.upload_dir(f, self._work_id, None)
-            else:
-                self._disk.upload_file(f, self._work_id, None)
-        if infos:
-            self.refresh_dir(self._work_id, True, True, False)
+        self.upload_worker.set_values(self._disk, infos, self._work_id)
+        self.upload_worker.finished.connect(lambda: self.show_status("上传完成！", 7000))
+        self.upload_worker.start()
 
     def show_full_path(self):
         """路径框显示当前路径"""

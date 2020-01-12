@@ -152,3 +152,36 @@ class GetSharedInfo(QThread):
             _infos = self._disk.get_share_folder_info(self.share_url, self.pwd)
             self.is_successed(_infos)
         self.infos.emit(_infos)
+
+
+class UploadWorker(QThread):
+    code = pyqtSignal(str, int)
+
+    def __init__(self, parent=None):
+        super(UploadWorker, self).__init__(parent)
+        self._disk = object
+        self.infos = []
+        self._work_id = ""
+
+    def set_values(self, disk, infos, work_id):
+        self._disk = disk
+        self.infos = infos
+        self._work_id = work_id
+
+    def __del__(self):
+        self.wait()
+
+    def run(self):
+        for f in self.infos:
+            if not os.path.exists(f):
+                msg = 'ERROR : 文件不存在:{}'.format(f)
+                self.code.emit(msg, 0)
+                continue
+            if os.path.isdir(f):
+                msg = 'INFO : 批量上传文件夹:{}'.format(f)
+                self.code.emit(msg, 0)
+                self._disk.upload_dir(f, self._work_id, None)
+            else:
+                msg = 'INFO : 上传文件:{}'.format(f)
+                self.code.emit(msg, 0)
+                self._disk.upload_file(f, self._work_id, None)
