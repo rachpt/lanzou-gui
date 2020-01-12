@@ -4,6 +4,8 @@ import os
 import sys
 from random import random
 from PyQt5.QtCore import QThread, pyqtSignal, QMutex
+from lanzou.api import LanZouCloud
+from time import sleep
 
 
 class Downloader(QThread):
@@ -104,3 +106,49 @@ class DownloadManager(QThread):
             downloader[dl_id].finished.connect(self.add_task)
             downloader[dl_id].download_proc.connect(self.ahead_msg)
             downloader[dl_id].setVal(task[0], task[1], task[2], task[3])
+
+
+class GetSharedInfo(QThread):
+    infos = pyqtSignal(object)
+    code = pyqtSignal(str, int)
+
+    def __init__(self, parent=None):
+        super(GetSharedInfo, self).__init__(parent)
+        self._disk = object
+        self.share_url = ""
+        self.pwd = ""
+        self.is_file = ""
+        self.is_folder = ""
+
+    def set_values(self, disk, share_url, pwd, is_file, is_folder):
+        self._disk = disk
+        self.share_url = share_url
+        self.pwd = pwd
+        self.is_file = is_file
+        self.is_folder = is_folder
+
+    def __del__(self):
+        self.wait()
+
+    def is_successed(self, infos):
+        if infos["code"] == LanZouCloud.FILE_CANCELLED:
+            self.code.emit("文件不存在！", 0)
+        elif infos["code"] == LanZouCloud.URL_INVALID:
+            self.code.emit("链接非法！", 0)
+        elif infos["code"] == LanZouCloud.PASSWORD_ERROR:
+            self.code.emit("提取码 [{}] 错误！".format(self.pwd), 0)
+        elif infos["code"] == LanZouCloud.LACK_PASSWORD:
+            self.code.emit("请在链接后面跟上提取码，空格分割！", 0)
+        elif infos["code"] == LanZouCloud.FAILED:
+            self.code.emit("网络错误！{}".format(infos["info"]), 0)
+        elif infos["code"] == LanZouCloud.SUCCESS:
+            self.code.emit("提取成功！", 5000)
+
+    def run(self):
+        if self.is_file:  # 链接为文件
+            _infos = self._disk.get_share_file_info(self.share_url, self.pwd)
+            self.is_successed(_infos)
+        elif self.is_folder:  # 链接为文件夹
+            _infos = self._disk.get_share_folder_info(self.share_url, self.pwd)
+            self.is_successed(_infos)
+        self.infos.emit(_infos)
