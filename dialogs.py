@@ -42,6 +42,7 @@ class LoginDialog(QDialog):
         self._pwd = ""
         self._cookie = ""
         self.initUI()
+        self.set_qss()
         self.name_ed.textChanged.connect(self.set_user)
         self.pwd_ed.textChanged.connect(self.set_pwd)
         self.cookie_ed.textChanged.connect(self.set_cookie)
@@ -68,10 +69,12 @@ class LoginDialog(QDialog):
         self.logo.setStyleSheet("background-color:rgb(0,153,255);")
         self.logo.setAlignment(Qt.AlignCenter)
         self.name_lb = QLabel("&User")
+        self.name_lb.setAlignment(Qt.AlignCenter)
         self.name_ed = QLineEdit()
         self.name_lb.setBuddy(self.name_ed)
 
         self.pwd_lb = QLabel("&Password")
+        self.pwd_lb.setAlignment(Qt.AlignCenter)
         self.pwd_ed = QLineEdit()
         self.pwd_ed.setEchoMode(QLineEdit.Password)
         self.pwd_lb.setBuddy(self.pwd_ed)
@@ -91,12 +94,48 @@ class LoginDialog(QDialog):
         main_layout.addWidget(self.name_ed, 2, 1, 1, 3)
         main_layout.addWidget(self.pwd_lb, 3, 0)
         main_layout.addWidget(self.pwd_ed, 3, 1, 1, 3)
-        main_layout.addWidget(self.cookie_lb, 4, 0)
-        main_layout.addWidget(self.cookie_ed, 4, 1, 2, 3)
-        main_layout.addWidget(self.btn_ok, 6, 2)
-        main_layout.addWidget(self.btn_cancel, 6, 3)
+        # main_layout.addWidget(self.cookie_lb, 4, 0)  # cookie输入框
+        # main_layout.addWidget(self.cookie_ed, 4, 1, 2, 3)
+        main_layout.addWidget(self.btn_ok, 4, 2)
+        main_layout.addWidget(self.btn_cancel, 4, 3)
         self.setLayout(main_layout)
         self.default_var()
+
+    def set_qss(self):
+        qss_style = """
+        QLabel {
+            font-weight: bold;
+            font-size: 15px;
+        }
+        QLineEdit {
+            padding: 1px;
+            border-style: solid;
+            border: 2px solid gray;
+            border-radius: 8px;
+        }
+
+
+        QPushButton {
+            color: white;
+            background-color: QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #88d, stop: 0.1 #99e, stop: 0.49 #77c, stop: 0.5 #66b, stop: 1 #77c);
+            border-width: 1px;
+            border-color: #339;
+            border-style: solid;
+            border-radius: 7;
+            padding: 3px;
+            font-size: 10px;
+            padding-left: 5px;
+            padding-right: 5px;
+            min-width: 50px;
+            max-width: 50px;
+            min-height: 13px;
+            max-height: 13px;
+        }
+        """
+        #https://thesmithfam.org/blog/2009/09/10/qt-stylesheets-tutorial/
+        self.setStyleSheet(qss_style)
+        self.setMinimumWidth(300)
+        self.setWindowIcon(QIcon("./icon/login.ico"))
 
     def set_user(self, user):
         self._user = user
