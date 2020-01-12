@@ -47,19 +47,46 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.setObjectName("MainWindow")
         qssStyle = '''
             QPushButton {
-                background-color: pink;
-            }
-            #tabWidget {
-                background-color: rgba(255, 255, 255, 100);
+                background-color: rgba(255, 130, 71, 100);
             }
             #table_share {
+                background-color: rgba(255, 255, 255, 150);
+            }
+            #disk_tab {
                 background-color: rgba(255, 255, 255, 150);
             }
             #table_disk {
                 background-color: rgba(255, 255, 255, 150);
             }
-            #rec_tab {
+            #tableView_rec {
                 background-color: rgba(255, 255, 255, 150);
+            }
+            QTabWidget::pane {
+                border: 1px;
+                /* background:transparent;  # 完全透明 */
+                background-color: rgba(255, 255, 255, 100);
+            }
+            QTabWidget::tab-bar {
+                background:transparent;
+                subcontrol-position:center;
+            }
+            QTabBar::tab {
+                min-width:120px;
+                min-height:30px;
+                background:transparent;
+            }
+            QTabBar::tab:selected {
+                color: rgb(153, 50, 204);
+                background:transparent;
+                font-weight:bold;
+            }
+            QTabBar::tab:!selected {
+                color: rgb(28, 28, 28);
+                background:transparent;
+            }
+            QTabBar::tab:hover {
+                color: rgb(0, 0, 205);
+                background:transparent;
             }
             #MainWindow {
                 border-image:url(./background.png);
@@ -70,6 +97,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             }
         '''
         self.setStyleSheet(qssStyle)
+        # self.disk_tab.setStyleSheet("* {background-color: rgba(255, 255, 255, 150);}")
         self.tabWidget.setStyleSheet("QTabBar{ background-color: #AEEEEE; }")
 
     def init_menu(self):
@@ -689,6 +717,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btn_share_select_all.setDisabled(True)
         self.btn_share_dl.setDisabled(True)
         self.table_share.setDisabled(True)
+
+        # QSS
+        self.label_share_url.setStyleSheet("#label_share_url {color: rgb(255,255,60);}")
+        self.label_dl_path.setStyleSheet("#label_dl_path {color: rgb(255,255,60);}")
 
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_A:
