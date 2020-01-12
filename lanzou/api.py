@@ -61,12 +61,12 @@ class LanZouCloud(object):
 
     def is_file_url(self, share_url):
         """判断是否为文件的分享链接"""
-        pat = 'https?://www.lanzous.com/i[a-z0-9]{6,}/?'
+        pat = 'https?://(www.)?lanzous.com/i[a-z0-9]{6,}/?'
         return True if re.fullmatch(pat, share_url) else False
 
     def is_folder_url(self, share_url):
         """判断是否为文件夹的分享链接"""
-        pat = 'https?://www.lanzous.com/b[a-z0-9]{7,}/?'
+        pat = 'https?://(www.)?lanzous.com/b[a-z0-9]{7,}/?'
         return True if re.fullmatch(pat, share_url) else False
 
     def _remove_notes(self, html):
@@ -625,7 +625,10 @@ class LanZouCloud(object):
         """显示分享文件夹信息"""
         if self.is_file_url(share_url):
             return {"code": LanZouCloud.URL_INVALID, "info": ""}
-        html = requests.get(share_url, headers=self._headers).text
+        r = requests.get(share_url, headers=self._headers)
+        if r.status_code != requests.codes.OK:
+            return {"code": LanZouCloud.FAILED, "info": r.status_code}
+        html = r.text
         if "文件不存在" in html:
             return {"code": LanZouCloud.FILE_CANCELLED, "info": ""}
         lx = re.findall(r"'lx':'?(\d)'?,", html)[0]
@@ -641,19 +644,22 @@ class LanZouCloud(object):
         if "请输入密码" in html:
             if len(dir_pwd) == 0:
                 return {"code": LanZouCloud.LACK_PASSWORD, "info": ""}
-            post_data = {"lx": lx, "pg": page, "uid": "1115426", "k": k, "t": t, "fid": fid, "pwd": dir_pwd}
+            post_data = {"lx": lx, "pg": page, "k": k, "t": t, "fid": fid, "pwd": dir_pwd}
         else:
-            post_data = {"lx": lx, "pg": page, "uid": "1115426", "k": k, "t": t, "fid": fid}
+            post_data = {"lx": lx, "pg": page, "k": k, "t": t, "fid": fid}
         infos = {}
         while True:
             try:
                 # 这里不用封装好的post函数是为了支持未登录的用户通过 URL 下载
-                r = requests.post(self._host_url + "/filemoreajax.php", data=post_data, headers=self._headers).json()
+                r = requests.post(self._host_url + "/filemoreajax.php", data=post_data, headers=self._headers)
+                if r.status_code != requests.codes.OK:
+                    return {"code": LanZouCloud.FAILED, "info": r.status_code}
+                r = r.json()
             except requests.RequestException:
                 return {"code": LanZouCloud.FAILED, "info": ""}
             if r["info"] == "没有了": break  # 已经拿到全部文件的信息 zt == 4
             if r["info"] == "请刷新，重试":
-                sleep(0.6)  # 间隔大于一秒才能获得下一个页面 zt == 2
+                sleep(1.2)  # 间隔大于一秒才能获得下一个页面 zt == 2
                 continue
             if r["zt"] == 3:
                 return {"code": LanZouCloud.PASSWORD_ERROR, "info": ""}
@@ -663,6 +669,5 @@ class LanZouCloud(object):
             infos.update({f["name_all"]: [None, f["name_all"], f["size"], f["time"], "", dir_pwd, desc,
                                     self._host_url + "/" + f["id"]] for f in r["text"]})
             page += 1
-            # sleep(1.1)
             post_data["pg"] = page
         return {"code": LanZouCloud.SUCCESS, "info": infos}
