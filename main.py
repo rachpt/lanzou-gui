@@ -1,20 +1,76 @@
 #!/usr/bin/env python3
 
+import time
 import sys
 import os
 import re
 from time import sleep
 from pickle import dump, load
-from PyQt5.QtCore import *
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import *
-from Ui_lanzou import Ui_MainWindow
 
+from PyQt5.QtCore import Qt, QCoreApplication
+from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel
+from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QHeaderView, QMenu, QAction,
+                             QPushButton, QFileDialog, QDesktopWidget)
+
+from Ui_lanzou import Ui_MainWindow
 from lanzou.api import LanZouCloud
 
-from workers import Downloader, DownloadManager, GetSharedInfo, UploadWorker
+from workers import Downloader, DownloadManager, GetSharedInfo, UploadWorker, LoginLuncher
 from dialogs import (update_settings, LoginDialog, UploadDialog, InfoDialog, RenameDialog,
                      SetPwdDialog, MoveFileDialog, DeleteDialog, MyLineEdit)
+
+
+qssStyle = '''
+    QPushButton {
+        background-color: rgba(255, 130, 71, 100);
+    }
+    #table_share {
+        background-color: rgba(255, 255, 255, 150);
+    }
+    #disk_tab {
+        background-color: rgba(255, 255, 255, 150);
+    }
+    #table_disk {
+        background-color: rgba(255, 255, 255, 150);
+    }
+    #tableView_rec {
+        background-color: rgba(255, 255, 255, 150);
+    }
+    QTabWidget::pane {
+        border: 1px;
+        /* background:transparent;  # 完全透明 */
+        background-color: rgba(255, 255, 255, 100);
+    }
+    QTabWidget::tab-bar {
+        background:transparent;
+        subcontrol-position:center;
+    }
+    QTabBar::tab {
+        min-width:120px;
+        min-height:30px;
+        background:transparent;
+    }
+    QTabBar::tab:selected {
+        color: rgb(153, 50, 204);
+        background:transparent;
+        font-weight:bold;
+    }
+    QTabBar::tab:!selected {
+        color: rgb(28, 28, 28);
+        background:transparent;
+    }
+    QTabBar::tab:hover {
+        color: rgb(0, 0, 205);
+        background:transparent;
+    }
+    #MainWindow {
+        border-image:url(./background.png);
+    }
+    #statusbar {
+        font: 14px;
+        color: white;
+    }
+'''
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -28,107 +84,36 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.setWindowTitle("蓝奏云客户端 - {}".format(self.__version__))
         self.setWindowIcon(QIcon("./icon/lanzou-logo2.png"))
 
-        self.center()
-        self.extract_share_ui()
-        self.disk_ui()
-        self.autologin_dialog()
-        self.table_disk.doubleClicked.connect(self.chang_dir)
-        self.upload_worker = UploadWorker()
-        self.upload_worker.finished.connect(lambda: self.refresh_dir(self._work_id, True, True, False))
-        self.upload_worker.code.connect(self.show_status)
+        self.set_window_at_center()
+        self.init_extract_share_ui()
+        self.init_disk_ui()
+        self.call_login_luncher()
 
         self.create_left_menus()
-        if os.name == 'nt':
-            self._disk.set_rar_tool("./rar.exe")
-        else:
-            self._disk.set_rar_tool("/usr/bin/rar")
 
         # print(QApplication.style().objectName())
         self.setObjectName("MainWindow")
-        qssStyle = '''
-            QPushButton {
-                background-color: rgba(255, 130, 71, 100);
-            }
-            #table_share {
-                background-color: rgba(255, 255, 255, 150);
-            }
-            #disk_tab {
-                background-color: rgba(255, 255, 255, 150);
-            }
-            #table_disk {
-                background-color: rgba(255, 255, 255, 150);
-            }
-            #tableView_rec {
-                background-color: rgba(255, 255, 255, 150);
-            }
-            QTabWidget::pane {
-                border: 1px;
-                /* background:transparent;  # 完全透明 */
-                background-color: rgba(255, 255, 255, 100);
-            }
-            QTabWidget::tab-bar {
-                background:transparent;
-                subcontrol-position:center;
-            }
-            QTabBar::tab {
-                min-width:120px;
-                min-height:30px;
-                background:transparent;
-            }
-            QTabBar::tab:selected {
-                color: rgb(153, 50, 204);
-                background:transparent;
-                font-weight:bold;
-            }
-            QTabBar::tab:!selected {
-                color: rgb(28, 28, 28);
-                background:transparent;
-            }
-            QTabBar::tab:hover {
-                color: rgb(0, 0, 205);
-                background:transparent;
-            }
-            #MainWindow {
-                border-image:url(./background.png);
-            }
-            #statusbar {
-                font: 14px;
-                color: white;
-            }
-        '''
+
         self.setStyleSheet(qssStyle)
         # self.disk_tab.setStyleSheet("* {background-color: rgba(255, 255, 255, 150);}")
         self.tabWidget.setStyleSheet("QTabBar{ background-color: #AEEEEE; }")
 
     def init_menu(self):
-        self.login.triggered.connect(self.show_login_dialog)
-        self.logout.triggered.connect(self.menu_logout)
-        self.login.setShortcut("Ctrl+L")
+        self.login.triggered.connect(self.show_login_dialog)  # 登录
         self.login.setIcon(QIcon("./icon/login.ico"))
-        self.logout.setShortcut("Ctrl+Q")
-        self.logout.setIcon(QIcon("./icon/logout.ico"))
+        self.login.setShortcut("Ctrl+L")
         self.toolbar.addAction(self.login)
-        self.download.setShortcut("Ctrl+J")
+        self.logout.triggered.connect(self.call_logout)  # 登出
+        self.logout.setIcon(QIcon("./icon/logout.ico"))
+        self.download.setShortcut("Ctrl+J")  # 以下还未使用
         self.download.setIcon(QIcon("./icon/download.ico"))
         self.delete.setShortcut("Ctrl+D")
         self.delete.setIcon(QIcon("./icon/delete.ico"))
         self.how.setShortcut("Ctrl+H")
         self.how.setIcon(QIcon("./icon/help.ico"))
-        self.about.setShortcut("Ctrl+A")
+        # self.about.setShortcut("Ctrl+O")
         self.about.setIcon(QIcon("./icon/about.ico"))
-
-    def login_menu(self):
-        self.toolbar.addAction(self.logout)
-        self.upload_dialog = UploadDialog()
-        self.upload.triggered.connect(self.upload_dialog.show)
-        self.upload_dialog.new_infos.connect(self.call_upload)
         self.upload.setIcon(QIcon("./icon/upload.ico"))
-        self.upload.setShortcut("Ctrl+U")
-        self.toolbar.addAction(self.upload)
-        # self.download.triggered.connect(self.download_dialog.show)
-        # self.download.setIcon(QIcon("./icon/logout.ico"))
-        # self.download.setShortcut("Ctrl+J")
-        # self.toolbar.addAction(self.download)
 
     def init_variable(self):
         self._disk = LanZouCloud()
@@ -137,17 +122,36 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._file_list = {}
         self._path_list = {}
         self._path_list_old = {}
-        self.locs = {}
-        self._parent_id = -1
-        self._parent_name = ""
-        self._work_name = ""
-        self._work_id = -1
+        self._locs = {}
+        self._parent_id = -1  # --> ..
+        self._work_name = ""  # share disk rec, not use now
+        self._work_id = -1    # disk folder id
+        self._old_work_id = self._work_id  # 用于上传完成后判断是否需要更新disk界面
         self.load_settings()
+        if os.name == 'nt':
+            self._disk.set_rar_tool("./rar.exe")
+        else:
+            self._disk.set_rar_tool("/usr/bin/rar")
+        # 登录器
+        self.login_luncher = LoginLuncher(self._disk)
+        self.login_luncher.code.connect(self.login_update_ui)
+        # 下载器
+        self.download_manager = DownloadManager(self._disk)
+        self.download_manager.downloaders_msg.connect(self.show_status)
+        self.download_manager.download_mgr_msg.connect(self.show_status)
+        # 上传器，信号在登录更新界面设置
+        self.upload_dialog = UploadDialog()
+        # 设置 tab
+        self.tabWidget.setCurrentIndex(0)
+        self.tabWidget.removeTab(2)
+        self.tabWidget.removeTab(1)
+        self.disk_tab.setEnabled(False)
+        self.rec_tab.setEnabled(False)
 
     def show_login_dialog(self):
         """显示登录对话框"""
         login_dialog = LoginDialog(self._config)
-        login_dialog.btn_ok.clicked.connect(self.autologin_dialog)
+        login_dialog.clicked_ok.connect(self.call_login_luncher)
         login_dialog.setWindowModality(Qt.ApplicationModal)
         login_dialog.exec()
 
@@ -161,32 +165,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             with open(self._config, "wb") as _file:
                 dump(self.settings, _file)
 
-    def _refresh(self, dir_id=-1, r_files=True, r_folders=True):
-        """刷新当前文件夹和路径信息"""
-        if r_files:
-            info = {i['name']: [i['id'], i['name'], i['size'], i['time'], i['downs'], i['has_pwd'], i['has_des']]
-                    for i in self._disk.get_file_list(dir_id).values()}
-            self._file_list = {key: info.get(key) for key in sorted(info.keys())}  # {name-[id,...]}
-        if r_folders:
-            self._folder_list = self._disk.get_dir_list(dir_id)
-        self._path_list = self._disk.get_full_path(dir_id)
-        self._work_name = list(self._path_list.keys())[-1]
-        self._work_id = self._path_list.get(self._work_name, -1)
-        if dir_id != -1:
-            self._parent_name = list(self._path_list.keys())[-2]
-            self._parent_id = self._path_list.get(self._parent_name, -1)
-
-    def show_download_process(self, msg):
-        self.statusbar.showMessage(str(msg), 8000)
-        QCoreApplication.processEvents()  # 重绘界面
-
-    def call_downloader(self, tab):
-        if tab == "disk":
-            listview = self.table_disk
-            model = self.model_disk
-        elif tab == "share":
+    def call_downloader(self):
+        tab_page = self.tabWidget.currentIndex()
+        if tab_page == 0:
             listview = self.table_share
             model = self.model_share
+        elif tab_page == 1:
+            listview = self.table_disk
+            model = self.model_disk
         indexes = []
         tasks = []
         _indexes = listview.selectionModel().selection().indexes()
@@ -199,20 +185,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if not infos:
                 continue
             # 查询 分享链接 以及 提取码
-            if infos[0]:
+            if infos[0]:  # 从 disk 运行
                 if infos[2]:  # 文件
                     _info = self._disk.get_share_info(infos[0], is_file=True)
                 else:  # 文件夹
                     _info = self._disk.get_share_info(infos[0], is_file=False)
-                infos[5] = _info['passwd']
+                infos[5] = _info['passwd']  # 将bool值改成 字符串
                 infos.append(_info['share_url'])
             tasks.append([infos[1], infos[7], infos[5], save_path])
-        self.download_manager = DownloadManager(self._disk, tasks, self)
-        self.download_manager.download_mgr_msg.connect(self.show_download_process)
-        self.download_manager.downloaders_msg.connect(self.show_download_process)
+        self.download_manager.set_values(tasks, 3)
         self.download_manager.start()
 
-    def menu_logout(self):
+    def call_logout(self):
+        """菜单栏、工具栏登出"""
         self._disk.logout()
         self.toolbar.removeAction(self.logout)
         self.tabWidget.setCurrentIndex(0)
@@ -220,9 +205,50 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.rec_tab.setEnabled(False)
         self.tabWidget.removeTab(2)
         self.tabWidget.removeTab(1)
+        self.toolbar.removeAction(self.logout)  # 登出工具
+        self.logout.setShortcut("")
+        self.toolbar.removeAction(self.upload)  # 上传文件工具栏
+        self.upload.setShortcut("")
         self.statusbar.showMessage("已经退出登录！", 4000)
 
-    def autologin_dialog(self):
+    def login_update_ui(self, success, msg, duration):
+        """根据登录是否成功更新UI"""
+        if success:
+            self.show_status(msg, duration)
+            self.tabWidget.insertTab(1, self.disk_tab, "我的蓝奏云")
+            self.tabWidget.insertTab(2, self.rec_tab, "回收站")
+            self.disk_tab.setEnabled(True)
+            self.rec_tab.setEnabled(True)
+            # 更新快捷键与工具栏
+            self.toolbar.addAction(self.logout)  # 登出工具栏
+            self.logout.setShortcut("Ctrl+Q")    # 登出快捷键
+            self.toolbar.addAction(self.upload)  # 添加上传文件工具栏
+            self.upload.setShortcut("Ctrl+U")    # 上传快捷键
+            # 菜单栏槽
+            self.upload.triggered.connect(self.upload_dialog.show)
+            self.upload_dialog.new_infos.connect(self.call_upload)
+            # 设置当前显示 tab
+            self.tabWidget.setCurrentIndex(1)
+            QCoreApplication.processEvents()  # 重绘界面
+            # 刷新文件列表
+            self.refresh_dir(self._work_id)
+        else:
+            self.show_status(msg, duration)
+            self.tabWidget.setCurrentIndex(0)
+            self.tabWidget.removeTab(2)
+            self.tabWidget.removeTab(1)
+            self.disk_tab.setEnabled(False)
+            self.rec_tab.setEnabled(False)
+            # 更新快捷键与工具栏
+            self.toolbar.removeAction(self.logout)  # 登出工具
+            self.logout.setShortcut("")
+            self.toolbar.removeAction(self.upload)  # 上传文件工具栏
+            self.upload.setShortcut("")
+            # 菜单栏槽
+            self.upload.triggered.disconnect(self.upload_dialog.show)
+            self.upload_dialog.new_infos.disconnect(self.call_upload)
+
+    def call_login_luncher(self):
         """登录网盘"""
         self.load_settings()
         self._disk.logout()
@@ -231,34 +257,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             username = self.settings["user"]
             password = self.settings["pwd"]
             cookie = self.settings["cookie"]
-            if (not username or not password) and not cookie:
-                self.statusbar.showMessage("登录失败: 没有用户或密码", 3000)
-                raise Exception("没有用户或密码")
-            res = self._disk.login(username, password)
-            # if res == LanZouCloud.LOGIN_ERROR:
-            #     self.statusbar.showMessage("无法使用用户名与密码登录，请使用Cookie！", 8000)
-            #     raise Exception("登录失败")
-            if res != LanZouCloud.SUCCESS:
-                self.statusbar.showMessage("登录失败，可能是用户名或密码错误！", 8000)
-                raise Exception("登录失败")
-            self.statusbar.showMessage("登录成功！", 5000)
-            self.login_menu()
-
-            self.tabWidget.insertTab(1, self.disk_tab, "我的蓝奏云")
-            self.tabWidget.insertTab(2, self.rec_tab, "回收站")
-            self.disk_tab.setEnabled(True)
-            self.rec_tab.setEnabled(True)
-            # 设置当前显示 tab
-            self.tabWidget.setCurrentIndex(1)
-            # 刷新文件列表
-            self.refresh_dir(self._work_id)
+            self.login_luncher.set_values(username, password, cookie)
+            self.login_luncher.start()
         except Exception as exp:
             print(exp)
-            self.tabWidget.setCurrentIndex(0)
-            self.tabWidget.removeTab(2)
-            self.tabWidget.removeTab(1)
-            self.disk_tab.setEnabled(False)
-            self.rec_tab.setEnabled(False)
+            pass
 
     def set_file_icon(self, name):
         suffix = name.split(".")[-1]
@@ -268,8 +271,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             return QIcon("./icon/file.ico")
 
-    def list_file_folder(self):
-        """列出文件"""
+    def show_file_and_folder_lists(self):
+        """显示文件和文件夹列表"""
         self.model_disk.removeRows(0, self.model_disk.rowCount())  # 清理旧的内容
         file_count = len(self._file_list.keys())
         folder_count = len(self._folder_list.keys())
@@ -277,33 +280,60 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if file_count:
             name_header.append("文件{}个".format(file_count))
         self.model_disk.setHorizontalHeaderLabels(["/".join(name_header), "大小", "时间"])
-        folder_ico = QIcon("./icon/folder_open.gif")
+        folder_ico = QIcon("./icon/folder.gif")
         pwd_ico = QIcon("./icon/keys.ico")
         # infos: ID/None，文件名，大小，日期，下载次数(dl_count)，提取码(pwd)，描述(desc)，|链接(share-url)，直链
         if self._work_id != -1:
-            self.model_disk.appendRow([QStandardItem(folder_ico, ".."), QStandardItem(""), QStandardItem("")])
+            _back = QStandardItem(folder_ico, "..")
+            _back.setToolTip("双击返回上层文件夹，选中无效")
+            self.model_disk.appendRow([_back, QStandardItem(""), QStandardItem("")])
         for infos in self._folder_list.values():  # 文件夹
             name = QStandardItem(folder_ico, infos[1])
             name.setData(infos)
+            tips = ""
+            if infos[5] is not False:
+                tips = "有提取码"
+                if infos[6] is not False:
+                    tips = tips + "，描述：" + str(infos[6])
+            elif infos[6] is not False:
+                tips = "描述：" + str(infos[6])
+            name.setToolTip(tips)
             size_ = QStandardItem(pwd_ico, "") if infos[5] else QStandardItem("")  # 提取码+size
             self.model_disk.appendRow([name, size_, QStandardItem("")])
         for infos in self._file_list.values():  # 文件
             name = QStandardItem(self.set_file_icon(infos[1]), infos[1])
             name.setData(infos)
+            tips = ""
+            if infos[5] is not False:
+                tips = "有提取码"
+                if infos[6] is not False:
+                    tips = tips + "，描述：" + str(infos[6])
+            elif infos[6] is not False:
+                tips = "描述：" + str(infos[6])
+            name.setToolTip(tips)
             size_ = QStandardItem(pwd_ico, infos[2]) if infos[5] else QStandardItem(infos[2])  # 提取码+size
             self.model_disk.appendRow([name, size_, QStandardItem(infos[3])])
         for r in range(self.model_disk.rowCount()):
             self.model_disk.item(r, 1).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             self.model_disk.item(r, 2).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
-    def center(self):
-        screen = QDesktopWidget().screenGeometry()
-        size = self.geometry()
-
-        new_left = int((screen.width() - size.width()) / 2)
-        new_top = int((screen.height() - size.height()) / 2)
-
-        self.move(new_left, new_top)
+    def refresh_dir(self, folder_id=-1, r_files=True, r_folders=True, r_path=True):
+        """更新目录列表，包括列表和路径指示器"""
+        if r_files:
+            info = {i['name']: [i['id'], i['name'], i['size'], i['time'], i['downs'], i['has_pwd'], i['has_des']]
+                    for i in self._disk.get_file_list(folder_id).values()}
+            self._file_list = {key: info.get(key) for key in sorted(info.keys())}  # {name-[id,...]}
+        if r_folders:
+            self._folder_list = self._disk.get_dir_list(folder_id)
+        self._path_list = self._disk.get_full_path(folder_id)
+        current_folder = list(self._path_list.keys())[-1]
+        self._work_id = self._path_list.get(current_folder, -1)
+        if folder_id != -1:
+            parent_folder_name = list(self._path_list.keys())[-2]
+            self._parent_id = self._path_list.get(parent_folder_name, -1)
+        self.show_file_and_folder_lists()
+        if r_path:
+            self.show_full_path()
 
     def config_tableview(self, tab):
         if tab == "share":
@@ -505,13 +535,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             print("ERROR : 回收站模式下无法使用此操作")
             return None
         # infos: ID/None，文件名，大小，日期，下载次数(dl_count)，提取码(pwd)，描述(desc)，|链接(share-url)，直链
-        if infos[0]:
+        if infos[0]:  # 从 disk 运行
             if infos[2]:  # 文件
                 _info = self._disk.get_share_info(infos[0], is_file=True)
             else:  # 文件夹
                 _info = self._disk.get_share_info(infos[0], is_file=False)
-        infos[5] = _info['passwd']
-        infos.append(_info['share_url'])
+            infos[5] = _info['passwd']
+            infos.append(_info['share_url'])
         if infos[2]:  # 文件
             d_url = self._disk.get_direct_url(infos[-1], infos[5])
             infos.append("{}".format(d_url["direct_url"] or "无"))  # 下载直链
@@ -522,28 +552,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def chang_dir(self, dir_name):
         """双击切换工作目录"""
-        # 文件名
-        dir_name = self.model_disk.item(dir_name.row(), 0).text()
+        dir_name = self.model_disk.item(dir_name.row(), 0).text()  # 文件夹名
         if self._work_name == "Recovery" and dir_name not in [".", ".."]:
-            print("ERROR : 回收站模式下仅支持 > cd ..")
             return None
         if dir_name == "..":  # 返回上级路径
             self.refresh_dir(self._parent_id)
-        elif dir_name == ".":
-            pass
         elif dir_name in self._folder_list.keys():
             folder_id = self._folder_list[dir_name][0]
             self.refresh_dir(folder_id)
         else:
-            pass
-            # print("ERROR : 该文件夹不存在: {}".format(dir_name))
-
-    def refresh_dir(self, folder_id=-1, r_files=True, r_folders=True, r_path=True):
-        """更新目录列表"""
-        self._refresh(folder_id, r_files, r_folders)
-        self.list_file_folder()
-        if r_path:
-            self.show_full_path()
+            self.show_status("ERROR : 该文件夹不存在: {}".format(dir_name))
 
     def call_change_dir(self, folder_id=-1):
         """按钮调用"""
@@ -557,83 +575,100 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self._work_name == 'Recovery':
             print('ERROR : 回收站模式下无法使用此操作')
             return None
-        self.upload_worker.set_values(self._disk, infos, self._work_id)
-        self.upload_worker.finished.connect(lambda: self.show_status("上传完成！", 7000))
+        self._old_work_id = self._work_id  # 记录上传文件夹id
+        self.upload_worker.set_values(self._disk, infos, self._old_work_id)
         self.upload_worker.start()
 
     def show_full_path(self):
         """路径框显示当前路径"""
         index = 1
         for name in self._path_list_old.items():
-            self.locs[index].clicked.disconnect()
-            self.disk_loc.removeWidget(self.locs[index])
-            self.locs[index].deleteLater()
-            self.locs[index] = None
-            del self.locs[index]
+            self._locs[index].clicked.disconnect()
+            self.disk_loc.removeWidget(self._locs[index])
+            self._locs[index].deleteLater()
+            self._locs[index] = None
+            del self._locs[index]
             index += 1
         index = 1
         for name, id in self._path_list.items():
-            self.locs[index] = QPushButton(name, self.disk_tab)
-            self.locs[index].setIcon(QIcon("./icon/folder_open.gif"))
-            self.disk_loc.insertWidget(index, self.locs[index])
-            # wd = self.locs[index].fontMetrics().width(name)
-            # self.locs[index].setMaxLength(name)  # 设置按钮宽度
-            self.locs[index].clicked.connect(self.call_change_dir(id))
+            self._locs[index] = QPushButton(name, self.disk_tab)
+            self._locs[index].setIcon(QIcon("./icon/folder.gif"))
+            self._locs[index].setStyleSheet("QPushButton {border: none; background:transparent;}")
+            self.disk_loc.insertWidget(index, self._locs[index])
+            self._locs[index].clicked.connect(self.call_change_dir(id))
             index += 1
         self._path_list_old = self._path_list
 
-    def select_all_btn(self, page, action="reverse"):
-        if page == "disk":
-            btn = self.btn_disk_select_all
-            table = self.table_disk
-        elif page == "share":
+    def select_all_btn(self, action="reverse"):
+        """默认反转按钮状态"""
+        page = self.tabWidget.currentIndex()
+        if page == 0:
             btn = self.btn_share_select_all
             table = self.table_share
+        elif page == 1:
+            btn = self.btn_disk_select_all
+            table = self.table_disk
+        elif page == 2:
+            print(page)
+            return
         else:
             return
-        if action == "reverse":
-            if btn.text() == "全选":
+        if btn.isEnabled():
+            if action == "reverse":
+                if btn.text() == "全选":
+                    table.selectAll()
+                    btn.setText("取消")
+                    btn.setIcon(QIcon("./icon/select-none.ico"))
+                elif btn.text() == "取消":
+                    table.clearSelection()
+                    btn.setText("全选")
+                    btn.setIcon(QIcon("./icon/select-all.ico"))
+            elif action == "cancel":  # 点击列表其中一个就表示放弃全选
+                btn.setText("全选")
+                btn.setIcon(QIcon("./icon/select-all.ico"))
+            else:
                 table.selectAll()
                 btn.setText("取消")
                 btn.setIcon(QIcon("./icon/select-none.ico"))
-            elif btn.text() == "取消":
-                table.clearSelection()
-                btn.setText("全选")
-                btn.setIcon(QIcon("./icon/select-all.ico"))
-        elif action == "cancel":
-            btn.setText("全选")
-            btn.setIcon(QIcon("./icon/select-all.ico"))
-        else:
-            table.selectAll()
-            btn.setText("取消")
-            btn.setIcon(QIcon("./icon/select-none.ico"))
 
-    def disk_ui(self):
+    def finished_upload(self):
+        """上传完成调用"""
+        if self._old_work_id == self._work_id:
+            self.refresh_dir(self._work_id, True, True, False)
+        else:
+            self._old_work_id = self._work_id
+        self.show_status("上传完成！", 7000)
+
+    def init_disk_ui(self):
         self.model_disk = QStandardItemModel(1, 3)
         self.config_tableview("disk")
         self.btn_disk_delete.setIcon(QIcon("./icon/delete.ico"))
         self.btn_disk_dl.setIcon(QIcon("./icon/downloader.ico"))
         self.btn_disk_select_all.setIcon(QIcon("./icon/select-all.ico"))
-        self.btn_disk_select_all.clicked.connect(lambda: self.select_all_btn("disk"))
-        self.table_disk.clicked.connect(lambda: self.select_all_btn("disk", "cancel"))
-        self.btn_disk_dl.clicked.connect(lambda: self.call_downloader("disk"))
+        self.btn_disk_select_all.setToolTip("按下 Ctrl/Alt + A 全选或则取消全选")
+        self.btn_disk_select_all.clicked.connect(lambda: self.select_all_btn("reverse"))
+        self.table_disk.clicked.connect(lambda: self.select_all_btn("cancel"))
+        self.btn_disk_dl.clicked.connect(self.call_downloader)
         self.btn_disk_mkdir.setIcon(QIcon("./icon/add-folder.ico"))
         self.btn_disk_mkdir.clicked.connect(self.call_mkdir)
         self.btn_disk_delete.clicked.connect(self.call_remove_files)
+
+        self.table_disk.doubleClicked.connect(self.chang_dir)
+        # 上传器
+        self.upload_worker = UploadWorker()
+        self.upload_worker.finished.connect(self.finished_upload)
+        self.upload_worker.code.connect(self.show_status)
 
     def show_status(self, msg, duration=0):
         self.statusbar.showMessage(msg, duration)
         QCoreApplication.processEvents()  # 重绘界面
 
+    # shared url
     def call_get_shared_info_worker(self):
         line_share_text = self.line_share_url.text().strip()
-        pat = re.findall(r"(https?://(www.)?lanzous.com/[bi][a-z0-9]+)[^0-9a-z]*([a-z0-9]+)?", line_share_text)
-        if pat:
-            share_url = pat[0][0]
-            pwd = pat[0][1]
-        else:
-            share_url = line_share_text
-            pwd = ""
+        pat = r"(https?://(www\.)?lanzous.com/[bi][a-z0-9]+)[^0-9a-z]*([a-z0-9]+)?"
+        for share_url, _, pwd in re.findall(pat, line_share_text):
+            pass
         if self._disk.is_file_url(share_url):  # 链接为文件
             is_file = True
             is_folder = False
@@ -644,15 +679,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.show_status("正在获取文件夹链接信息，可能需要几秒钟，请稍后……")
         else:
             self.show_status("{} 为非法链接！".format(share_url))
+            self.btn_extract.setEnabled(True)
+            self.line_share_url.setEnabled(True)
             return
         self.model_share.removeRows(0, self.model_share.rowCount())
         QCoreApplication.processEvents()  # 重绘界面
 
         self.get_shared_info_thread.set_values(self._disk, share_url, pwd, is_file, is_folder)
-        self.get_shared_info_thread.code.connect(self.show_status)
-        self.get_shared_info_thread.infos.connect(self.list_share_url_file)
-        self.get_shared_info_thread.finished.connect(lambda: self.btn_extract.setEnabled(True))
-        self.get_shared_info_thread.finished.connect(lambda: self.line_share_url.setEnabled(True))
         self.get_shared_info_thread.start()
 
     def call_get_shared_info(self):
@@ -661,7 +694,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.btn_extract.setEnabled(False)
             self.call_get_shared_info_worker()
 
-    def list_share_url_file(self, infos):
+    def show_share_url_file_lists(self, infos):
         if infos["code"] == LanZouCloud.SUCCESS:
             file_count = len(infos["info"].keys())
             self.model_share.setHorizontalHeaderLabels(["文件{}个".format(file_count), "大小", "时间"])
@@ -671,13 +704,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.model_share.appendRow([name, QStandardItem(infos[2]), QStandardItem(infos[3])])
             self.table_share.setDisabled(False)
             self.btn_share_select_all.setDisabled(False)
+            self.btn_share_select_all.setToolTip("按下 Ctrl/Alt + A 全选或则取消全选")
             self.btn_share_dl.setDisabled(False)
         else:
             self.btn_share_select_all.setDisabled(True)
+            self.btn_share_select_all.setToolTip("")
             self.btn_share_dl.setDisabled(True)
             self.table_share.setDisabled(True)
 
-    def set_dl_path(self):
+    def set_download_path(self):
         """设置下载路径"""
         dl_path = QFileDialog.getExistingDirectory()
         if dl_path == self.settings["path"]:
@@ -691,44 +726,52 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.load_settings()
         self.line_dl_path.setText(self.settings["path"])
 
-    def extract_share_ui(self):
+    def init_extract_share_ui(self):
         self.btn_share_select_all.setDisabled(True)
         self.btn_share_dl.setDisabled(True)
         self.table_share.setDisabled(True)
         self.model_share = QStandardItemModel(1, 3)
         self.config_tableview("share")
         self.get_shared_info_thread = GetSharedInfo()
+        self.get_shared_info_thread.code.connect(self.show_status)  # 状态码
+        self.get_shared_info_thread.infos.connect(self.show_share_url_file_lists)  # 信息
+        self.get_shared_info_thread.finished.connect(lambda: self.btn_extract.setEnabled(True))
+        self.get_shared_info_thread.finished.connect(lambda: self.line_share_url.setEnabled(True))
         self.line_share_url.setPlaceholderText("蓝奏云链接，如有提取码，放后面，空格或汉字等分割，回车键提取")
         self.line_share_url.returnPressed.connect(self.call_get_shared_info)
         self.btn_extract.clicked.connect(self.call_get_shared_info)
-        self.btn_share_dl.clicked.connect(lambda: self.call_downloader("share"))
+        self.btn_share_dl.clicked.connect(self.call_downloader)
         self.btn_share_dl.setIcon(QIcon("./icon/downloader.ico"))
         self.btn_share_select_all.setIcon(QIcon("./icon/select-all.ico"))
-        self.btn_share_select_all.clicked.connect(lambda: self.select_all_btn("share"))
-        self.table_share.clicked.connect(lambda: self.select_all_btn("share", "cancel"))
+        self.btn_share_select_all.clicked.connect(lambda: self.select_all_btn("reverse"))
+        self.table_share.clicked.connect(lambda: self.select_all_btn("cancel"))
 
         # 添加文件下载路径选择器
         self.line_dl_path = MyLineEdit(self.share_tab)
         self.line_dl_path.setObjectName("line_dl_path")
         self.horizontalLayout_share_2.insertWidget(2, self.line_dl_path)
         self.line_dl_path.setText(self.settings["path"])
-        self.line_dl_path.clicked.connect(self.set_dl_path)
-
-        self.btn_share_select_all.setDisabled(True)
-        self.btn_share_dl.setDisabled(True)
-        self.table_share.setDisabled(True)
+        self.line_dl_path.clicked.connect(self.set_download_path)
 
         # QSS
         self.label_share_url.setStyleSheet("#label_share_url {color: rgb(255,255,60);}")
         self.label_dl_path.setStyleSheet("#label_dl_path {color: rgb(255,255,60);}")
 
     def keyPressEvent(self, e):
-        if e.key() == Qt.Key_A:
+        if e.key() == Qt.Key_A:  # Ctrl/Alt + A 全选
             if e.modifiers() and Qt.ControlModifier:
-                self.select_all_btn("disk")
+                self.select_all_btn()
+
+    def set_window_at_center(self):
+        screen = QDesktopWidget().screenGeometry()
+        size = self.geometry()
+        new_left = int((screen.width() - size.width()) / 2)
+        new_top = int((screen.height() - size.height()) / 2)
+        self.move(new_left, new_top)
 
 
 if __name__ == "__main__":
+    sys.setrecursionlimit(1000000)
     app = QApplication(sys.argv)
     form = MainWindow()
     form.show()

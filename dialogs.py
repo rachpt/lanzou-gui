@@ -1,8 +1,9 @@
 import os
 from pickle import dump, load
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
+from PyQt5.QtCore import Qt, pyqtSignal, QSize
+from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel, QPixmap, QLinearGradient
+from PyQt5.QtWidgets import (QAbstractItemView, QPushButton, QFileDialog, QLineEdit, QDialog, QLabel,
+                             QTextEdit, QGridLayout, QListView, QDialogButtonBox, QVBoxLayout, QComboBox)
 
 from Ui_share import Ui_Dialog
 
@@ -17,6 +18,44 @@ def update_settings(_config, up_info):
     _info.update(up_info)
     with open(_config, "wb") as _file:
         dump(_info, _file)
+
+
+dialog_qss_style = """
+QLabel {
+    font-weight: bold;
+    font-size: 12px;
+}
+QLineEdit {
+    padding: 1px;
+    border-style: solid;
+    border: 2px solid gray;
+    border-radius: 8px;
+}
+QTextEdit {
+    padding: 1px;
+    border-style: solid;
+    border: 2px solid gray;
+    border-radius: 8px;
+}
+QPushButton {
+    color: white;
+    background-color: QLinearGradient(x1: 0, y1: 0, x2: 0, y2: 1,stop: 0 #88d,
+        stop: 0.1 #99e, stop: 0.49 #77c, stop: 0.5 #66b, stop: 1 #77c);
+    border-width: 1px;
+    border-color: #339;
+    border-style: solid;
+    border-radius: 7;
+    padding: 3px;
+    font-size: 10px;
+    padding-left: 5px;
+    padding-right: 5px;
+    min-width: 60px;
+    max-width: 60px;
+    min-height: 14px;
+    max-height: 14px;
+}
+"""
+# https://thesmithfam.org/blog/2009/09/10/qt-stylesheets-tutorial/
 
 
 class MyLineEdit(QLineEdit):
@@ -35,6 +74,8 @@ class MyLineEdit(QLineEdit):
 class LoginDialog(QDialog):
     """登录对话框"""
 
+    clicked_ok = pyqtSignal()
+
     def __init__(self, config):
         super().__init__()
         self._config = config
@@ -42,12 +83,15 @@ class LoginDialog(QDialog):
         self._pwd = ""
         self._cookie = ""
         self.initUI()
-        self.set_qss()
+        self.setStyleSheet(dialog_qss_style)
+        self.setMinimumWidth(300)
+        # 信号
         self.name_ed.textChanged.connect(self.set_user)
         self.pwd_ed.textChanged.connect(self.set_pwd)
         self.cookie_ed.textChanged.connect(self.set_cookie)
-        self.btn_ok.clicked.connect(self.clicked_ok)
-        self.btn_cancel.clicked.connect(self.clicked_cancel)
+
+        self.buttonBox.accepted.connect(self._ok)
+        self.buttonBox.rejected.connect(self._cancel)
 
     def default_var(self):
         try:
@@ -64,6 +108,7 @@ class LoginDialog(QDialog):
 
     def initUI(self):
         self.setWindowTitle("登录蓝奏云")
+        self.setWindowIcon(QIcon("./icon/login.ico"))
         self.logo = QLabel()
         self.logo.setPixmap(QPixmap("./icon/logo3.gif"))
         self.logo.setStyleSheet("background-color:rgb(0,153,255);")
@@ -86,8 +131,10 @@ class LoginDialog(QDialog):
         self.cookie_ed.setPlaceholderText(notice)
         self.cookie_lb.setBuddy(self.cookie_ed)
 
-        self.btn_ok = QPushButton("&OK")
-        self.btn_cancel = QPushButton("&Cancel")
+        self.buttonBox = QDialogButtonBox()
+        self.buttonBox.setOrientation(Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+
         main_layout = QGridLayout()
         main_layout.addWidget(self.logo, 0, 0, 2, 4)
         main_layout.addWidget(self.name_lb, 2, 0)
@@ -96,46 +143,9 @@ class LoginDialog(QDialog):
         main_layout.addWidget(self.pwd_ed, 3, 1, 1, 3)
         # main_layout.addWidget(self.cookie_lb, 4, 0)  # cookie输入框
         # main_layout.addWidget(self.cookie_ed, 4, 1, 2, 3)
-        main_layout.addWidget(self.btn_ok, 4, 2)
-        main_layout.addWidget(self.btn_cancel, 4, 3)
+        main_layout.addWidget(self.buttonBox, 4, 2)
         self.setLayout(main_layout)
         self.default_var()
-
-    def set_qss(self):
-        qss_style = """
-        QLabel {
-            font-weight: bold;
-            font-size: 15px;
-        }
-        QLineEdit {
-            padding: 1px;
-            border-style: solid;
-            border: 2px solid gray;
-            border-radius: 8px;
-        }
-
-
-        QPushButton {
-            color: white;
-            background-color: QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #88d, stop: 0.1 #99e, stop: 0.49 #77c, stop: 0.5 #66b, stop: 1 #77c);
-            border-width: 1px;
-            border-color: #339;
-            border-style: solid;
-            border-radius: 7;
-            padding: 3px;
-            font-size: 10px;
-            padding-left: 5px;
-            padding-right: 5px;
-            min-width: 50px;
-            max-width: 50px;
-            min-height: 13px;
-            max-height: 13px;
-        }
-        """
-        #https://thesmithfam.org/blog/2009/09/10/qt-stylesheets-tutorial/
-        self.setStyleSheet(qss_style)
-        self.setMinimumWidth(300)
-        self.setWindowIcon(QIcon("./icon/login.ico"))
 
     def set_user(self, user):
         self._user = user
@@ -146,13 +156,14 @@ class LoginDialog(QDialog):
     def set_cookie(self):
         self._cookie = self.cookie_ed.toPlainText()
 
-    def clicked_cancel(self):
+    def _cancel(self):
         self.default_var()
         self.close()
 
-    def clicked_ok(self):
+    def _ok(self):
         up_info = {"user": self._user, "pwd": self._pwd, "cookie": self._cookie}
         update_settings(self._config, up_info)
+        self.clicked_ok.emit()
         self.close()
 
 
@@ -167,9 +178,11 @@ class UploadDialog(QDialog):
         self.max_len = 400
         self.initUI()
         self.set_size()
+        self.setStyleSheet(dialog_qss_style)
 
     def initUI(self):
         self.setWindowTitle("上传文件")
+        self.setWindowIcon(QIcon("./icon/upload.ico"))
         self.logo = QLabel()
         self.logo.setPixmap(QPixmap("./icon/logo3.gif"))
         self.logo.setStyleSheet("background-color:rgb(0,153,255);")
@@ -178,7 +191,7 @@ class UploadDialog(QDialog):
         # btn 1
         self.btn_chooseDir = QPushButton("选择文件夹", self)
         self.btn_chooseDir.setObjectName("btn_chooseDir")
-        self.btn_chooseDir.setIcon(QIcon("./icon/folder_open.gif"))
+        self.btn_chooseDir.setIcon(QIcon("./icon/folder.gif"))
 
         # btn 2
         self.btn_chooseMutiFile = QPushButton("选择多文件", self)
@@ -233,6 +246,7 @@ class UploadDialog(QDialog):
             m_len = int(len(self.model.item(i, 0).text()) * 4)
             if m_len > self.max_len:
                 self.max_len = m_len
+        rows = 10 if rows >= 10 else rows  # 限制最大高度
         self.resize(self.max_len, 250+rows*28)
 
     def clear_old(self):
@@ -246,14 +260,14 @@ class UploadDialog(QDialog):
             self.clear_old()
 
     def slot_btn_deleteSelect(self):
-        _indexs = self.list_view.selectionModel().selection().indexes()
-        if not _indexs:
+        _indexes = self.list_view.selectionModel().selection().indexes()
+        if not _indexes:
             return
-        indexs = []
-        for i in _indexs:  # 获取所选行号
-            indexs.append(i.row())
-        indexs = set(indexs)
-        for i in sorted(indexs, reverse=True):
+        indexes = []
+        for i in _indexes:  # 获取所选行号
+            indexes.append(i.row())
+        indexes = set(indexes)
+        for i in sorted(indexes, reverse=True):
             self.selected.remove(self.model.item(i, 0).text())
             self.model.removeRow(i)
         self.set_size()
@@ -265,7 +279,7 @@ class UploadDialog(QDialog):
             return
         if dir_choose not in self.selected:
             self.selected.append(dir_choose)
-            self.model.appendRow(QStandardItem(QIcon("./icon/folder_open.gif"), dir_choose))
+            self.model.appendRow(QStandardItem(QIcon("./icon/folder.gif"), dir_choose))
             self.set_size()
 
     def slot_btn_chooseMutiFile(self):
@@ -288,9 +302,11 @@ class InfoDialog(QDialog, Ui_Dialog):
         self.setupUi(self)
         self.infos = infos
         self.initUI()
+        self.setStyleSheet(dialog_qss_style)
 
     def initUI(self):
         self.setWindowTitle("文件信息" if self.infos[2] else "文件夹信息")
+        self.setWindowIcon(QIcon("./icon/share.ico"))
         self.logo.setPixmap(QPixmap("./icon/q9.gif"))
         self.logo.setAlignment(Qt.AlignCenter)
         self.logo.setStyleSheet("background-color:rgb(255,204,51);")
@@ -355,10 +371,12 @@ class RenameDialog(QDialog):
         super(RenameDialog, self).__init__(parent)
         self.infos = infos
         self.initUI()
+        self.setStyleSheet(dialog_qss_style)
 
     def initUI(self):
         self.lb_name = QLabel()
         self.lb_name.setText("文件夹名：")
+        self.setWindowIcon(QIcon("./icon/desc.ico"))
         self.lb_name.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
         self.tx_name = QLineEdit()
         self.lb_desc = QLabel()
@@ -366,7 +384,10 @@ class RenameDialog(QDialog):
         if self.infos:
             self.setWindowTitle("修改文件夹名与描述")
             self.tx_name.setText(str(self.infos[1]))
-            self.tx_desc.setText(str(self.infos[6]))
+            if self.infos[6]:
+                self.tx_desc.setText(str(self.infos[6]))
+            else:
+                self.tx_desc.setPlaceholderText("无")
             min_width = len(str(self.infos[1])) * 8
             if self.infos[2]:
                 # 文件无法重命名，由 infos[2] size表示文件
@@ -414,18 +435,22 @@ class SetPwdDialog(QDialog):
         super(SetPwdDialog, self).__init__(parent)
         self.infos = infos
         self.initUI()
+        self.setStyleSheet(dialog_qss_style)
 
     def initUI(self):
         if self.infos[2]:  # 通过size列判断是否为文件
             self.setWindowTitle("修改文件提取码")
         else:
             self.setWindowTitle("修改文件夹名提取码")
+        self.setWindowIcon(QIcon("./icon/password.ico"))
         self.lb_oldpwd = QLabel()
         self.lb_oldpwd.setText("当前提取码：")
         self.lb_oldpwd.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
         self.tx_oldpwd = QLineEdit()
-        _pwd = self.infos[5] or "无"
-        self.tx_oldpwd.setText(str(_pwd))
+        if self.infos[5]:
+            self.tx_oldpwd.setText(str(self.infos[5]))
+        else:
+            self.tx_oldpwd.setPlaceholderText("无")
         # 当前提取码 只读
         self.tx_oldpwd.setFocusPolicy(Qt.NoFocus)
         self.tx_oldpwd.setReadOnly(True)
@@ -467,9 +492,11 @@ class MoveFileDialog(QDialog):
         self.infos = infos
         self.dirs = all_dirs
         self.initUI()
+        self.setStyleSheet(dialog_qss_style)
 
     def initUI(self):
         self.setWindowTitle("移动文件")
+        self.setWindowIcon(QIcon("./icon/move.ico"))
         self.lb_name = QLabel()
         self.lb_name.setText("文件路径：")
         self.lb_name.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
@@ -484,7 +511,7 @@ class MoveFileDialog(QDialog):
             Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter
         )
         self.tx_new_path = QComboBox()
-        f_icon = QIcon("./icon/folder_open.gif")
+        f_icon = QIcon("./icon/folder.gif")
         # 莫名其妙，15 = 8*2 - 1
         self.tx_new_path.addItem(f_icon, "id：{:>15}，name：{}".format("-1", "根目录"))
         for i in self.dirs:
@@ -523,6 +550,7 @@ class DeleteDialog(QDialog):
         self.infos = infos
         self.out = []
         self.initUI()
+        self.setStyleSheet(dialog_qss_style)
 
     def set_file_icon(self, name):
         suffix = name.split(".")[-1]
@@ -534,6 +562,7 @@ class DeleteDialog(QDialog):
 
     def initUI(self):
         self.setWindowTitle("确认删除")
+        self.setWindowIcon(QIcon("./icon/delete.ico"))
         self.layout = QVBoxLayout()
         self.list_view = QListView()
         self.list_view.setViewMode(QListView.ListMode)
@@ -546,7 +575,7 @@ class DeleteDialog(QDialog):
             if i[2]:  # 有大小，是文件
                 self.model.appendRow(QStandardItem(self.set_file_icon(i[1]), i[1]))
             else:
-                self.model.appendRow(QStandardItem(QIcon("./icon/folder_open.gif"), i[1]))
+                self.model.appendRow(QStandardItem(QIcon("./icon/folder.gif"), i[1]))
             self.out.append((i[0], i[2]))  # id，文件标示
             count += 1
             if max_len < len(i[1]):  # 使用最大文件名长度
