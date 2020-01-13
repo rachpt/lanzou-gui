@@ -365,12 +365,13 @@ class LanZouCloud(object):
             file_name = file_name.replace('.part', f'.{self._rar_part_name}')
         logger.debug(f'Upload file {file_path} to folder ID#{folder_id} as "{file_name}"')
 
+        _file = open(file_path, 'rb')
         post_data = {
             "task": "1",
             "folder_id": str(folder_id),
             "id": "WU_FILE_0",
             "name": file_name,
-            "upload_file": (file_name, open(file_path, 'rb'), 'application/octet-stream')
+            "upload_file": (file_name, _file, 'application/octet-stream')
         }
 
         post_data = MultipartEncoder(post_data)
@@ -402,8 +403,12 @@ class LanZouCloud(object):
                 self.delete(file_id)
             else:
                 self.set_share_passwd(file_id)  # 正常的文件上传后默认关闭提取码
+            _file.close()
+            print("1111")
             return LanZouCloud.SUCCESS
         except (requests.RequestException, KeyboardInterrupt):
+            print("222")
+            _file.close()
             return LanZouCloud.FAILED
 
     def upload_file(self, file_path, folder_id=-1, call_back=None):
@@ -449,7 +454,9 @@ class LanZouCloud(object):
             # 现在上传真正的文件
             if self._upload_a_file('./tmp/' + f, dir_id, call_back) == LanZouCloud.FAILED:
                 return LanZouCloud.FAILED
-        rmtree('./tmp')
+        sleep(20)
+        print("7777++++111")
+        rmtree('./tmp')  # 此处有bug !!!
         return LanZouCloud.SUCCESS
 
     def upload_dir(self, dir_path, folder_id=-1, call_back=None):
@@ -472,7 +479,7 @@ class LanZouCloud(object):
         if not self.is_file_url(share_url):
             return LanZouCloud.URL_INVALID
         if not os.path.exists(save_path):
-            os.makedirs(save_path)
+            os.makedirs(save_path, exist_ok=True)
         info = self.get_direct_url(share_url, pwd)
         logger.debug(f'File direct url info: {info}')
         if info['code'] != LanZouCloud.SUCCESS:

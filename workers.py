@@ -105,7 +105,6 @@ class DownloadManager(QThread):
 
     def ahead_msg(self, msg):
         if self._old_msg != msg:
-            print(msg)
             self.downloaders_msg.emit(msg, 10000)
             self._old_msg = msg
 
@@ -129,7 +128,6 @@ class DownloadManager(QThread):
                     self.sleep(1)
                 self._count += 1
                 task = self.tasks.pop()
-                print(task[0])
                 dl_id = int(random() * 100000)
                 downloader[dl_id] = Downloader(self._disk)
                 self.download_mgr_msg.emit("准备下载：{}".format(task[0]), 8000)

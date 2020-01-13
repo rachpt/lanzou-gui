@@ -105,6 +105,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.toolbar.addAction(self.login)
         self.logout.triggered.connect(self.call_logout)  # 登出
         self.logout.setIcon(QIcon("./icon/logout.ico"))
+        self.logout.setShortcut("Ctrl+Q")    # 登出快捷键
         self.download.setShortcut("Ctrl+J")  # 以下还未使用
         self.download.setIcon(QIcon("./icon/download.ico"))
         self.delete.setShortcut("Ctrl+D")
@@ -114,6 +115,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # self.about.setShortcut("Ctrl+O")
         self.about.setIcon(QIcon("./icon/about.ico"))
         self.upload.setIcon(QIcon("./icon/upload.ico"))
+        self.upload.setShortcut("Ctrl+U")    # 上传快捷键
 
     def init_variable(self):
         self._disk = LanZouCloud()
@@ -141,6 +143,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.download_manager.download_mgr_msg.connect(self.show_status)
         # 上传器，信号在登录更新界面设置
         self.upload_dialog = UploadDialog()
+        self.upload_dialog.new_infos.connect(self.call_upload)
         # 设置 tab
         self.tabWidget.setCurrentIndex(0)
         self.tabWidget.removeTab(2)
@@ -154,6 +157,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         login_dialog.clicked_ok.connect(self.call_login_luncher)
         login_dialog.setWindowModality(Qt.ApplicationModal)
         login_dialog.exec()
+
+    def show_upload_dialog(self):
+        """显示上传文件对话框"""
+        self.upload_dialog.exec()
 
     def load_settings(self):
         try:
@@ -206,9 +213,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tabWidget.removeTab(2)
         self.tabWidget.removeTab(1)
         self.toolbar.removeAction(self.logout)  # 登出工具
-        self.logout.setShortcut("")
+        self.logout.setEnabled(False)
         self.toolbar.removeAction(self.upload)  # 上传文件工具栏
-        self.upload.setShortcut("")
+        self.upload.setEnabled(False)
+        self.upload.triggered.disconnect(self.show_upload_dialog)
         self.statusbar.showMessage("已经退出登录！", 4000)
 
     def login_update_ui(self, success, msg, duration):
@@ -220,13 +228,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.disk_tab.setEnabled(True)
             self.rec_tab.setEnabled(True)
             # 更新快捷键与工具栏
-            self.toolbar.addAction(self.logout)  # 登出工具栏
-            self.logout.setShortcut("Ctrl+Q")    # 登出快捷键
+            self.toolbar.addAction(self.logout)  # 添加登出工具栏
             self.toolbar.addAction(self.upload)  # 添加上传文件工具栏
-            self.upload.setShortcut("Ctrl+U")    # 上传快捷键
             # 菜单栏槽
-            self.upload.triggered.connect(self.upload_dialog.show)
-            self.upload_dialog.new_infos.connect(self.call_upload)
+            self.logout.setEnabled(True)
+            self.upload.setEnabled(True)
+            self.upload.triggered.connect(self.show_upload_dialog)
             # 设置当前显示 tab
             self.tabWidget.setCurrentIndex(1)
             QCoreApplication.processEvents()  # 重绘界面
@@ -240,13 +247,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.disk_tab.setEnabled(False)
             self.rec_tab.setEnabled(False)
             # 更新快捷键与工具栏
-            self.toolbar.removeAction(self.logout)  # 登出工具
-            self.logout.setShortcut("")
+            self.toolbar.removeAction(self.logout)  # 登出工具栏
             self.toolbar.removeAction(self.upload)  # 上传文件工具栏
-            self.upload.setShortcut("")
-            # 菜单栏槽
-            self.upload.triggered.disconnect(self.upload_dialog.show)
-            self.upload_dialog.new_infos.disconnect(self.call_upload)
+            self.logout.setEnabled(False)
+            self.upload.setEnabled(False)
 
     def call_login_luncher(self):
         """登录网盘"""
@@ -609,7 +613,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             btn = self.btn_disk_select_all
             table = self.table_disk
         elif page == 2:
-            print(page)
             return
         else:
             return

@@ -46,13 +46,17 @@ QPushButton {
     border-style: solid;
     border-radius: 7;
     padding: 3px;
-    font-size: 10px;
+    font-size: 13px;
     padding-left: 5px;
     padding-right: 5px;
     min-width: 60px;
     max-width: 60px;
     min-height: 14px;
     max-height: 14px;
+}
+#btn_chooseMutiFile, #btn_chooseDir {
+    min-width: 90px;
+    max-width: 90px;
 }
 """
 # https://thesmithfam.org/blog/2009/09/10/qt-stylesheets-tutorial/
@@ -191,10 +195,12 @@ class UploadDialog(QDialog):
         # btn 1
         self.btn_chooseDir = QPushButton("选择文件夹", self)
         self.btn_chooseDir.setObjectName("btn_chooseDir")
+        self.btn_chooseDir.setObjectName("btn_chooseDir")
         self.btn_chooseDir.setIcon(QIcon("./icon/folder.gif"))
 
         # btn 2
         self.btn_chooseMutiFile = QPushButton("选择多文件", self)
+        self.btn_chooseDir.setObjectName("btn_chooseMutiFile")
         self.btn_chooseMutiFile.setObjectName("btn_chooseMutiFile")
         self.btn_chooseMutiFile.setIcon(QIcon("./icon/file.ico"))
 
