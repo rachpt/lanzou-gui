@@ -15,7 +15,7 @@ from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QHead
 from Ui_lanzou import Ui_MainWindow
 from lanzou.api import LanZouCloud
 
-from workers import Downloader, DownloadManager, GetSharedInfo, UploadWorker, LoginLuncher
+from workers import Downloader, DownloadManager, GetSharedInfo, UploadWorker, LoginLuncher, DescFetcher
 from dialogs import (update_settings, LoginDialog, UploadDialog, InfoDialog, RenameDialog,
                      SetPwdDialog, MoveFileDialog, DeleteDialog, MyLineEdit, AboutDialog)
 
@@ -151,6 +151,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 上传器，信号在登录更新界面设置
         self.upload_dialog = UploadDialog()
         self.upload_dialog.new_infos.connect(self.call_upload)
+        # 文件描述更新器
+        self.desc_fetcher = DescFetcher(self._disk)
+        self.desc_fetcher.desc.connect(self.call_update_desc)
         # 设置 tab
         self.tabWidget.setCurrentIndex(0)
         self.tabWidget.removeTab(2)
@@ -419,13 +422,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     # 此处仅更新文件夹，并显示
                     self.refresh_dir(self._work_id, False, True, False)
         else:  # 重命名、修改简介
-            res = self._disk.rename_dir(fid, str(new_name), str(new_desc))
+            if action == "file":  # 修改文件描述
+                res = self._disk.modify_desc(fid, str(new_desc))
+            else:  # 修改文件夹，action == "folder"
+                res = self._disk.rename_dir(fid, str(new_name), str(new_desc))
             if res == LanZouCloud.SUCCESS:
                 self.statusbar.showMessage("修改成功！", 4000)
             elif res == LanZouCloud.FAILED:
                 self.statusbar.showMessage("失败：发生错误！", 4000)
-            # 只更新文件夹列表
-            self.refresh_dir(self._work_id, r_files=False, r_folders=True, r_path=False)
+            if action == "file":  # 只更新文件列表
+                self.refresh_dir(self._work_id, r_files=True, r_folders=False, r_path=False)
+            else:  # 只更新文件夹列表
+                self.refresh_dir(self._work_id, r_files=False, r_folders=True, r_path=False)
 
     def set_passwd(self, infos):
         """设置文件(夹)提取码"""
@@ -534,8 +542,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             set_pwd_dialog.new_infos.connect(self.set_passwd)
             set_pwd_dialog.exec()
         elif action == self.left_menu_rename_set_desc:
+            self.desc_fetcher.set_values(infos)
+            self.desc_fetcher.start()  # 启动后台更新描述
             self.rename_dialog.set_values(infos)
             self.rename_dialog.exec()
+
+    def call_update_desc(self, desc, infos):
+        infos[6] = desc  # 更新 desc
+        self.rename_dialog.set_values(infos)
 
     def get_more_infomation(self, infos):
         """获取文件直链、文件(夹)提取码描述"""
