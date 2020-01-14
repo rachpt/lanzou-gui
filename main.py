@@ -79,7 +79,7 @@ qssStyle = '''
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
-    __version__ = '0.0.5'
+    __version__ = 'v0.0.5'
 
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
