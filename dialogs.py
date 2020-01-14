@@ -49,8 +49,8 @@ QPushButton {
     font-size: 13px;
     padding-left: 5px;
     padding-right: 5px;
-    min-width: 60px;
-    max-width: 60px;
+    min-width: 70px;
+    max-width: 70px;
     min-height: 14px;
     max-height: 14px;
 }
@@ -374,37 +374,28 @@ class InfoDialog(QDialog, Ui_Dialog):
 
 
 class RenameDialog(QDialog):
-    new_infos = pyqtSignal(object)
+    out = pyqtSignal(object)
 
-    def __init__(self, infos, parent=None):
+    def __init__(self, parent=None):
         super(RenameDialog, self).__init__(parent)
-        self.infos = infos
+        self.infos = None
+        self.min_width = 400
         self.initUI()
+        self.update_text()
         self.setStyleSheet(dialog_qss_style)
 
+    def set_values(self, infos):
+        self.infos = infos
+        self.update_text()  # 更新界面
+
     def initUI(self):
+        self.setWindowIcon(QIcon("./icon/desc.ico"))
         self.lb_name = QLabel()
         self.lb_name.setText("文件夹名：")
-        self.setWindowIcon(QIcon("./icon/desc.ico"))
         self.lb_name.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
         self.tx_name = QLineEdit()
         self.lb_desc = QLabel()
         self.tx_desc = QTextEdit()
-        if self.infos:
-            self.setWindowTitle("修改文件夹名与描述")
-            self.tx_name.setText(str(self.infos[1]))
-            if self.infos[6]:
-                self.tx_desc.setText(str(self.infos[6]))
-            else:
-                self.tx_desc.setPlaceholderText("无")
-            min_width = len(str(self.infos[1])) * 8
-            if self.infos[2]:
-                # 文件无法重命名，由 infos[2] size表示文件
-                self.tx_name.setFocusPolicy(Qt.NoFocus)
-                self.tx_name.setReadOnly(True)
-        else:
-            min_width = 400
-            self.setWindowTitle("新建文件夹")
         self.lb_desc.setText("描　　述：")
         self.lb_desc.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
 
@@ -420,21 +411,38 @@ class RenameDialog(QDialog):
         self.grid.addWidget(self.tx_desc, 2, 1, 5, 1)
         self.grid.addWidget(self.buttonBox, 7, 1, 1, 1)
         self.setLayout(self.grid)
-        if min_width < 340:
-            min_width = 340
-        self.resize(min_width, 200)
         self.buttonBox.accepted.connect(self.btn_ok)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
 
+    def update_text(self):
+        if self.infos:
+            self.setWindowTitle("修改文件夹名与描述")
+            self.tx_name.setText(str(self.infos[1]))
+            if self.infos[6]:
+                self.tx_desc.setPlaceholderText(str(self.infos[6]))
+            else:
+                self.tx_desc.setPlaceholderText("无")
+            self.min_width = len(str(self.infos[1])) * 8
+            if self.infos[2]:  # 文件无法重命名，由 infos[2] size表示文件
+                self.setWindowTitle("修改文件描述")
+                self.tx_name.setFocusPolicy(Qt.NoFocus)
+                self.tx_name.setReadOnly(True)
+        else:
+            self.setWindowTitle("新建文件夹")
+            self.tx_desc.setPlaceholderText("可选项，建议160字数以内。")
+        if self.min_width < 400:
+            self.min_width = 400
+        self.resize(self.min_width, 200)
+
     def btn_ok(self):
         new_name = self.tx_name.text()
         new_desc = self.tx_desc.toPlainText()
-        if not self.infos and new_name:
-            self.new_infos.emit((new_name, new_desc))
+        if not self.infos and new_name:  # 在 work_id 新建文件夹
+            self.out.emit(("new", "", new_name, new_desc))
             return
-        if new_name != self.infos[0] or new_desc != self.infos[6]:
-            self.new_infos.emit(((self.infos[0], new_name), (self.infos[6], new_desc)))
+        if new_name != self.infos[1] or(new_desc and new_desc != self.infos[6]):
+            self.out.emit(("rename", self.infos[0], new_name, new_desc))
 
 
 class SetPwdDialog(QDialog):
