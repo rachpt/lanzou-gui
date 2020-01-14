@@ -605,9 +605,13 @@ class LanZouCloud(object):
             if len(pwd) == 0:
                 return {"code": LanZouCloud.LACK_PASSWORD, "info": ""}
             post_str = re.findall(r"[^/]data\s:\s\'(.*)\'", html)[0] + str(pwd)
-            f_size = re.findall(r'class="n_filesize">[^<]*([\.0-9 MKBmkbGg]+)<div', html)[0]
-            f_date = re.findall(r'class="n_file_infos">([-0-9]+)<div', html)[0]
-            f_desc = re.findall(r'class="n_box_des">(.*)<div', html)[0]
+            f_size = re.findall(r'class="n_filesize">[^<0-9]*([\.0-9 MKBmkbGg]+)<', html)
+            print(f_size)
+            f_size = f_size[0] if f_size else ""
+            f_date = re.findall(r'class="n_file_infos">([-0-9 月天小时分钟秒前]+)<', html)
+            f_date = f_date[0] if f_date else ""
+            f_desc = re.findall(r'class="n_box_des">(.*)<', html)
+            f_desc = f_desc[0] if f_desc else ""
             # action=downprocess&sign=xxxxx&p=
             post_data = {}
             for i in post_str.split("&"):  # 转换成 dict
@@ -625,9 +629,12 @@ class LanZouCloud(object):
                 f_name = f_name[0]
             else:
                 f_name = re.findall(r"var filename = '(.*)';", html)[0]
-            f_size = re.findall(r'文件大小：</span>([\.0-9 MKBmkbGg]+)<br', html)[0]
-            f_date = re.findall(r'上传时间：</span>([-0-9 月天小时分钟秒前]+)<br', html)[0]
-            f_desc = re.findall(r'文件描述：</span><br>([^<]+)</td>', html)[0].strip()
+            f_size = re.findall(r'文件大小：</span>([\.0-9 MKBmkbGg]+)<br', html)
+            f_size = f_size[0] if f_size else ""
+            f_date = re.findall(r'上传时间：</span>([-0-9 月天小时分钟秒前]+)<br', html)
+            f_date = f_date[0] if f_date else ""
+            f_desc = re.findall(r'文件描述：</span><br>([^<]+)</td>', html)
+            f_desc = f_desc[0].strip() if f_desc else ""
             infos = {f_name: [None, f_name, f_size, f_date, "", pwd, f_desc, share_url]}
             return {"code": LanZouCloud.SUCCESS, "info": infos}
 
