@@ -184,6 +184,9 @@ class UploadDialog(QDialog):
         self.set_size()
         self.setStyleSheet(dialog_qss_style)
 
+    def set_values(self, folder_name):
+        self.setWindowTitle("上传文件至 ➩ " + str(folder_name))
+
     def initUI(self):
         self.setWindowTitle("上传文件")
         self.setWindowIcon(QIcon("./icon/upload.ico"))
