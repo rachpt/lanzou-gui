@@ -268,6 +268,38 @@ class LanZouCloud(object):
         info = self.get_share_info(fid, is_file=True)  # 能获取直链，一定是文件
         return self.get_direct_url(info['share_url'], info['passwd'])
 
+    def get_file_desc(self, fid):
+        """"获取文件描述"""
+        post_data = {'task': 12, 'file_id': fid}
+        try:
+            result = self._post(self._doupload_url, post_data).json()
+            if result['zt'] == 1:
+                desc = result['info']
+            else:
+                desc = ""
+            return  {'code': LanZouCloud.SUCCESS, 'desc': desc}
+        except requests.RequestException:
+            return  {'code': LanZouCloud.FAILED, 'desc': ''}  # 网络问题没拿到数据，先这样
+
+    def get_folder_desc(self, fid):
+        """"获取文件夹描述"""
+        post_data = {'task': 18, 'file_id': fid}
+        try:
+            result = self._post(self._doupload_url, post_data).json()
+            if result['zt'] == 1:
+                f_info = result['info']
+                # id 有效性校验
+                if ('f_id' in f_info.keys() and f_info['f_id'] == 'i') or ('name' in f_info.keys() and not f_info['name']):
+                    return {'code': LanZouCloud.ID_ERROR, 'desc': '', 'passwd': ''}
+                # onof=1 时，存在有效的提取码; onof=0 时不存在提取码，但是 pwd 字段还是有一个无效的随机密码
+                pwd = f_info['pwd'] if f_info['onof'] == '1' else ''
+                desc = f_info['des']
+                return {'code': LanZouCloud.SUCCESS, 'desc': desc, 'passwd': pwd}
+            else:
+                return {'code': LanZouCloud.FAILED, 'desc': '', 'passwd': ''}
+        except requests.RequestException:
+            return {'code': LanZouCloud.FAILED, 'desc': '', 'passwd': ''}
+
     def get_share_info(self, fid, is_file=True):
         """获取文件(夹)提取码、分享链接"""
         if is_file:
@@ -326,6 +358,15 @@ class LanZouCloud(object):
     def rename_dir(self, folder_id, folder_name, description=''):
         """重命名文件夹(不支持修改文件名)"""
         post_data = {'task': 4, 'folder_id': folder_id, 'folder_name': folder_name, 'folder_description': description}
+        try:
+            result = self._post(self._doupload_url, post_data).json()
+            return LanZouCloud.SUCCESS if result['info'] == '修改成功' else LanZouCloud.FAILED
+        except requests.RequestException:
+            return LanZouCloud.FAILED
+
+    def modify_desc(self, file_id, description=''):
+        """修改文件描述"""
+        post_data = {'task': 11, 'file_id': file_id, 'desc': description}
         try:
             result = self._post(self._doupload_url, post_data).json()
             return LanZouCloud.SUCCESS if result['info'] == '修改成功' else LanZouCloud.FAILED
