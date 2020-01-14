@@ -25,7 +25,7 @@ def show_progress(file_name, total_size, now_size):
     else:
         unit = "KB"
         piece = 1024
-    bar_str = ">" * round(bar_len * percent) + "=" * round(bar_len * (1 - percent))
+    bar_str = "<font color='red'>" + ">" * round(bar_len * percent) + "</font>" + "=" * round(bar_len * (1 - percent))
     msg = "\r{:>5.1f}%\t[{}] {:.1f}/{:.1f}{} | {} ".format(
         percent * 100,
         bar_str,
@@ -35,7 +35,7 @@ def show_progress(file_name, total_size, now_size):
         file_name,
     )
     if total_size == now_size:
-        msg = msg + "| Done!"
+        msg = msg + "| <font color='blue'>Done!</font>"
     return msg
 
 
@@ -248,6 +248,6 @@ class LoginLuncher(QThread):
         else:
             res = self._disk.login(self.username, self.password)
             if res == LanZouCloud.SUCCESS:
-                self.code.emit(True, "登录成功！ ≧◉◡◉≦", 5000)
+                self.code.emit(True, "登录<b>成功</b>！ ≧◉◡◉≦", 5000)
             else:
                 self.code.emit(False, "登录失败，可能是用户名或密码错误！", 8000)
