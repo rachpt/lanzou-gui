@@ -25,7 +25,8 @@ def show_progress(file_name, total_size, now_size):
     else:
         unit = "KB"
         piece = 1024
-    bar_str = "<font color='red'>" + ">" * round(bar_len * percent) + "</font>" + "=" * round(bar_len * (1 - percent))
+    bar_str = ("<font color='#00CC00'>" + ">" * round(bar_len * percent) +
+               "</font><font color='#000080'>" + "=" * round(bar_len * (1 - percent)) + "</font>")
     msg = "\r{:>5.1f}%\t[{}] {:.1f}/{:.1f}{} | {} ".format(
         percent * 100,
         bar_str,
@@ -130,7 +131,7 @@ class DownloadManager(QThread):
                 task = self.tasks.pop()
                 dl_id = int(random() * 100000)
                 downloader[dl_id] = Downloader(self._disk)
-                self.download_mgr_msg.emit("准备下载：{}".format(task[0]), 8000)
+                self.download_mgr_msg.emit("准备下载：<font color='#FFA500'>{}</font>".format(task[0]), 8000)
                 downloader[dl_id].finished.connect(self.add_task)
                 downloader[dl_id].download_proc.connect(self.ahead_msg)
                 downloader[dl_id].set_values(task[0], task[1], task[2], task[3])
@@ -164,17 +165,17 @@ class GetSharedInfo(QThread):
     def is_successed(self, infos):
         show_time = 7000
         if infos["code"] == LanZouCloud.FILE_CANCELLED:
-            self.code.emit("文件不存在，或已删除！", show_time)
+            self.code.emit("<font color='red'>文件不存在，或已删除！</font>", show_time)
         elif infos["code"] == LanZouCloud.URL_INVALID:
-            self.code.emit("链接非法！", show_time)
+            self.code.emit("<font color='red'>链接非法！</font>", show_time)
         elif infos["code"] == LanZouCloud.PASSWORD_ERROR:
-            self.code.emit("提取码 [{}] 错误！".format(self.pwd), show_time)
+            self.code.emit("<font color='red'>提取码 [{}] 错误！</font>".format(self.pwd), show_time)
         elif infos["code"] == LanZouCloud.LACK_PASSWORD:
-            self.code.emit("请在链接后面跟上提取码，空格分割！", show_time)
+            self.code.emit("<font color='red'>请在链接后面跟上提取码，空格分割！</font>", show_time)
         elif infos["code"] == LanZouCloud.FAILED:
-            self.code.emit("网络错误！{}".format(infos["info"]), show_time)
+            self.code.emit("<font color='red'>网络错误！{}</font>".format(infos["info"]), show_time)
         elif infos["code"] == LanZouCloud.SUCCESS:
-            self.code.emit("提取成功！", show_time)
+            self.code.emit("<font color='#00CC00'>提取成功！</font>", show_time)
 
     def run(self):
         if self.is_file:  # 链接为文件
@@ -211,15 +212,15 @@ class UploadWorker(QThread):
     def run(self):
         for f in self.infos:
             if not os.path.exists(f):
-                msg = 'ERROR : 文件不存在:{}'.format(f)
+                msg = "<b>ERROR :</b> <font color='red'>文件不存在:{}</font>".format(f)
                 self.code.emit(msg, 0)
                 continue
             if os.path.isdir(f):
-                msg = 'INFO : 批量上传文件夹:{}'.format(f)
+                msg = "<b>INFO :</b> <font color='#00CC00'>批量上传文件夹:{}</font>".format(f)
                 self.code.emit(msg, 0)
                 self._disk.upload_dir(f, self._work_id, self._show_progress)
             else:
-                msg = 'INFO : 上传文件:{}'.format(f)
+                msg = "<b>INFO :</b> <font color='#00CC00'>上传文件:{}</font>".format(f)
                 self.code.emit(msg, 0)
                 self._disk.upload_file(f, self._work_id, self._show_progress)
 
@@ -244,10 +245,10 @@ class LoginLuncher(QThread):
 
     def run(self):
         if (not self.username or not self.password) and not self.cookie:
-            self.code.emit(False, "登录失败: 没有用户或密码", 3000)
+            self.code.emit(False, "<font color='red'>登录失败: 没有用户或密码</font>", 3000)
         else:
             res = self._disk.login(self.username, self.password)
             if res == LanZouCloud.SUCCESS:
-                self.code.emit(True, "登录<b>成功</b>！ ≧◉◡◉≦", 5000)
+                self.code.emit(True, "<font color='#00CC00'>登录<b>成功</b>！ ≧◉◡◉≦</font>", 5000)
             else:
-                self.code.emit(False, "登录失败，可能是用户名或密码错误！", 8000)
+                self.code.emit(False, "<font color='red'>登录失败，可能是用户名或密码错误！</font>", 8000)
