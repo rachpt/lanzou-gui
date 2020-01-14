@@ -252,3 +252,30 @@ class LoginLuncher(QThread):
                 self.code.emit(True, "<font color='#00CC00'>登录<b>成功</b>！ ≧◉◡◉≦</font>", 5000)
             else:
                 self.code.emit(False, "<font color='red'>登录失败，可能是用户名或密码错误！</font>", 8000)
+
+
+class DescFetcher(QThread):
+    desc = pyqtSignal(object, object)
+
+    def __init__(self, disk, parent=None):
+        super(DescFetcher, self).__init__(parent)
+        self._disk = disk
+        self.infos = ""
+
+    def set_values(self, infos):
+        self.infos = infos
+
+    def __del__(self):
+        self.wait()
+
+    def run(self):
+        if not self.infos or not self.infos[0]:
+            return
+        if self.infos[2]:  # 文件
+            res = self._disk.get_file_desc(self.infos[0])
+            if res['code'] == LanZouCloud.SUCCESS:
+                self.desc.emit(res['desc'], self.infos)
+        else:  # 文件夹
+            res = self._disk.get_folder_desc(self.infos[0])
+            if res['code'] == LanZouCloud.SUCCESS:
+                self.desc.emit(res['desc'], self.infos)
