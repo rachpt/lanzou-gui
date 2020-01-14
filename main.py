@@ -70,11 +70,16 @@ qssStyle = '''
         font: 14px;
         color: white;
     }
+    #msg_label {
+        font: 14px;
+        color: white;
+        background:transparent;
+    }
 '''
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
-    __version__ = '0.0.4'
+    __version__ = '0.0.5'
 
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
@@ -152,7 +157,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.rec_tab.setEnabled(False)
         # 状态栏
         self._msg_label = QLabel()
+        self._msg_label.setObjectName("msg_label")
         self.statusbar.addWidget(self._msg_label)
+        # 重命名、修改简介与新建文件夹对话框
+        self.rename_dialog = RenameDialog()
+        self.rename_dialog.out.connect(self.rename_set_desc_and_mkdir)
 
     def show_login_dialog(self):
         """显示登录对话框"""
@@ -321,7 +330,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             name.setToolTip(tips)
             size_ = QStandardItem(pwd_ico, infos[2]) if infos[5] else QStandardItem(infos[2])  # 提取码+size
             self.model_disk.appendRow([name, size_, QStandardItem(infos[3])])
-        for r in range(self.model_disk.rowCount()):
+        for r in range(self.model_disk.rowCount()):  # 右对齐
             self.model_disk.item(r, 1).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             self.model_disk.item(r, 2).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
@@ -385,24 +394,31 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.left_menu_move = self.left_menus.addAction("移动")
         self.left_menu_move.setIcon(QIcon("./icon/move.ico"))
 
-    def rename_set_desc(self, infos):
-        """重命名与修改简介"""
-        name = infos[0][0]
-        new_name = infos[0][1]
-        desc = infos[1][0]
-        new_desc = infos[1][1]
-        if self._work_name == "Recovery":
-            print("ERROR : 回收站模式下无法使用此操作")
-            return None
-        fid = self._folder_list.get(name, None)[0]
-        if fid is None:
-            print("ERROR : 文件夹不存在:{}".format(name))
-        else:
+    def rename_set_desc_and_mkdir(self, infos):
+        """重命名、修改简介与新建文件夹"""
+        action = infos[0]
+        fid = infos[1]
+        new_name = infos[2]
+        new_desc = infos[3]
+        if not fid:  # 新建文件夹
+            fid = self._work_id
+            if new_name in self._folder_list.keys():
+                self.statusbar.showMessage("文件夹已存在：{}".format(new_name), 7000)
+            else:
+                res = self._disk.mkdir(self._work_id, new_name, new_desc)
+                if res == LanZouCloud.MKDIR_ERROR:
+                    self.statusbar.showMessage("创建文件夹失败：{}".format(new_name), 7000)
+                else:
+                    sleep(1.5)  # 暂停一下，否则无法获取新建的文件夹
+                    self.statusbar.showMessage("成功创建文件夹：{}".format(new_name), 7000)
+                    # 此处仅更新文件夹，并显示
+                    self.refresh_dir(self._work_id, False, True, False)
+        else:  # 重命名、修改简介
             res = self._disk.rename_dir(fid, str(new_name), str(new_desc))
             if res == LanZouCloud.SUCCESS:
                 self.statusbar.showMessage("修改成功！", 4000)
             elif res == LanZouCloud.FAILED:
-                self.statusbar.showMessage("失败：文件夹id数大于7位 或者 网络错误！", 4000)
+                self.statusbar.showMessage("失败：发生错误！", 4000)
             # 只更新文件夹列表
             self.refresh_dir(self._work_id, r_files=False, r_folders=True, r_path=False)
 
@@ -440,28 +456,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def call_mkdir(self):
         """弹出新建文件夹对话框"""
-        mkdir_dialog = RenameDialog(None)
-        mkdir_dialog.new_infos.connect(self.mkdir)
-        mkdir_dialog.exec()
-
-    def mkdir(self, infos):
-        """创建文件夹"""
-        if self._work_name == 'Recovery':
-            print('ERROR : 回收站模式下无法使用此操作')
-            return None
-        name = infos[0]
-        desc = infos[1]
-        if name in self._folder_list.keys():
-            self.statusbar.showMessage("文件夹已存在：{}".format(name), 7000)
-        else:
-            res = self._disk.mkdir(self._work_id, name, desc)
-            if res == LanZouCloud.MKDIR_ERROR:
-                self.statusbar.showMessage("创建文件夹失败：{}".format(name), 7000)
-            else:
-                sleep(1.5)  # 暂停一下，否则无法获取新建的文件夹
-                self.statusbar.showMessage("成功创建文件夹：{}".format(name), 7000)
-                # 此处仅更新文件夹，并显示
-                self.refresh_dir(self._work_id, False, True, False)
+        self.rename_dialog.set_values(None)
+        self.rename_dialog.exec()
 
     def remove_files(self, infos):
         if not infos:
@@ -533,9 +529,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             set_pwd_dialog.new_infos.connect(self.set_passwd)
             set_pwd_dialog.exec()
         elif action == self.left_menu_rename_set_desc:
-            rename_dialog = RenameDialog(infos)
-            rename_dialog.new_infos.connect(self.rename_set_desc)
-            rename_dialog.exec()
+            self.rename_dialog.set_values(infos)
+            self.rename_dialog.exec()
 
     def get_more_infomation(self, infos):
         """获取文件直链、文件(夹)提取码描述"""
@@ -712,6 +707,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 name = QStandardItem(self.set_file_icon(infos[1]), infos[1])
                 name.setData(infos)
                 self.model_share.appendRow([name, QStandardItem(infos[2]), QStandardItem(infos[3])])
+            for r in range(self.model_share.rowCount()):  # 右对齐
+                self.model_share.item(r, 1).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                self.model_share.item(r, 2).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             self.table_share.setDisabled(False)
             self.btn_share_select_all.setDisabled(False)
             self.btn_share_select_all.setToolTip("按下 Ctrl/Alt + A 全选或则取消全选")
