@@ -7,8 +7,8 @@ import re
 from time import sleep
 from pickle import dump, load
 
-from PyQt5.QtCore import Qt, QCoreApplication, QTimer
-from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel
+from PyQt5.QtCore import Qt, QCoreApplication, QTimer, QUrl
+from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel, QDesktopServices
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QHeaderView, QMenu, QAction, QLabel,
                              QPushButton, QFileDialog, QDesktopWidget)
 
@@ -17,7 +17,7 @@ from lanzou.api import LanZouCloud
 
 from workers import Downloader, DownloadManager, GetSharedInfo, UploadWorker, LoginLuncher
 from dialogs import (update_settings, LoginDialog, UploadDialog, InfoDialog, RenameDialog,
-                     SetPwdDialog, MoveFileDialog, DeleteDialog, MyLineEdit)
+                     SetPwdDialog, MoveFileDialog, DeleteDialog, MyLineEdit, AboutDialog)
 
 
 qssStyle = '''
@@ -115,10 +115,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.download.setIcon(QIcon("./icon/download.ico"))
         self.delete.setShortcut("Ctrl+D")
         self.delete.setIcon(QIcon("./icon/delete.ico"))
-        self.how.setShortcut("Ctrl+H")
+        # self.how.setShortcut("Ctrl+H")
         self.how.setIcon(QIcon("./icon/help.ico"))
+        self.how.triggered.connect(self.open_wiki_url)
         # self.about.setShortcut("Ctrl+O")
         self.about.setIcon(QIcon("./icon/about.ico"))
+        self.about.triggered.connect(self.about_dialog.exec)
         self.upload.setIcon(QIcon("./icon/upload.ico"))
         self.upload.setShortcut("Ctrl+U")    # 上传快捷键
 
@@ -162,6 +164,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 重命名、修改简介与新建文件夹对话框
         self.rename_dialog = RenameDialog()
         self.rename_dialog.out.connect(self.rename_set_desc_and_mkdir)
+        # 菜单栏关于
+        self.about_dialog = AboutDialog()
+        self.about_dialog.set_values(self.__version__)
 
     def show_login_dialog(self):
         """显示登录对话框"""
@@ -776,6 +781,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         new_left = int((screen.width() - size.width()) / 2)
         new_top = int((screen.height() - size.height()) / 2)
         self.move(new_left, new_top)
+
+    def open_wiki_url(self):
+        # 打开使用说明页面
+        url = QUrl('https://github.com/rachpt/lanzou-gui/wiki')
+        if not QDesktopServices.openUrl(url):
+            self.show_status('Could not open wiki page!', 5000)
 
 
 if __name__ == "__main__":
