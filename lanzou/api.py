@@ -403,12 +403,8 @@ class LanZouCloud(object):
                 self.delete(file_id)
             else:
                 self.set_share_passwd(file_id)  # 正常的文件上传后默认关闭提取码
-            _file.close()
-            print("1111")
             return LanZouCloud.SUCCESS
         except (requests.RequestException, KeyboardInterrupt):
-            print("222")
-            _file.close()
             return LanZouCloud.FAILED
 
     def upload_file(self, file_path, folder_id=-1, call_back=None):
@@ -442,8 +438,12 @@ class LanZouCloud(object):
 
         # 上传并删除分卷文件
         folder_name = '.'.join(file_list[0].split('.')[:-2])  # 文件名去除".part**.rar"作为网盘新建的文件夹名
-        dir_id = self.mkdir(folder_id, folder_name, '分卷压缩文件')
-        if dir_id == LanZouCloud.MKDIR_ERROR: return LanZouCloud.MKDIR_ERROR  # 创建文件夹失败就退出
+        _current_folders = self.get_dir_list(folder_id)  # 如果工作路径已经有该文件夹
+        if folder_name in _current_folders.keys():
+            dir_id = _current_folders[folder_name][0]
+        else:
+            dir_id = self.mkdir(folder_id, folder_name, '分卷压缩文件')
+            if dir_id == LanZouCloud.MKDIR_ERROR: return LanZouCloud.MKDIR_ERROR  # 创建文件夹失败就退出
 
         for f in file_list:
             # 蓝奏云禁止用户连续上传 100M 的文件，因此需要上传一个 100M 的文件，然后上传一个“假文件”糊弄过去
@@ -453,10 +453,9 @@ class LanZouCloud(object):
             self._upload_a_file(temp_file, dir_id)
             # 现在上传真正的文件
             if self._upload_a_file('./tmp/' + f, dir_id, call_back) == LanZouCloud.FAILED:
+                os.remove('./tmp/' + f)
                 return LanZouCloud.FAILED
-        sleep(20)
-        print("7777++++111")
-        rmtree('./tmp')  # 此处有bug !!!
+        rmtree('./tmp')  # 此处可能会遇到bug !!!
         return LanZouCloud.SUCCESS
 
     def upload_dir(self, dir_path, folder_id=-1, call_back=None):
