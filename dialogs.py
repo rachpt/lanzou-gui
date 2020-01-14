@@ -22,8 +22,8 @@ def update_settings(_config, up_info):
 
 dialog_qss_style = """
 QLabel {
-    font-weight: bold;
-    font-size: 12px;
+    font-weight: 400;
+    font-size: 14px;
 }
 QLineEdit {
     padding: 1px;
@@ -442,7 +442,10 @@ class RenameDialog(QDialog):
             self.out.emit(("new", "", new_name, new_desc))
             return
         if new_name != self.infos[1] or(new_desc and new_desc != self.infos[6]):
-            self.out.emit(("rename", self.infos[0], new_name, new_desc))
+            if self.infos[2]:  # 文件
+                self.out.emit(("file", self.infos[0], new_name, new_desc))
+            else:
+                self.out.emit(("folder", self.infos[0], new_name, new_desc))
 
 
 class SetPwdDialog(QDialog):
@@ -639,7 +642,7 @@ class AboutDialog(QDialog):
 Python 依赖见<a href="https://github.com/rachpt/lanzou-gui/blob/master/requirements.txt">requirements.txt</a>，<a href="https://github.com/rachpt/lanzou-gui/releases">releases</a> 有打包好了的 Windows 可执行程序，但可能不是最新的
         '''
         project_url = '''
-主 repo &nbsp;&nbsp;&nbsp; ： <a href="https://github.com/rachpt/lanzou-gui">https://github.com/rachpt/lanzou-gui</a><br/>
+主 repo&nbsp; ： <a href="https://github.com/rachpt/lanzou-gui">https://github.com/rachpt/lanzou-gui</a><br/>
 镜像 repo ： <a href="https://gitee.com/rachpt/lanzou-gui">https://gitee.com/rachpt/lanzou-gui</a>
         '''
         self.setWindowTitle("关于 lanzou-gui")
