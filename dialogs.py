@@ -617,3 +617,65 @@ class DeleteDialog(QDialog):
 
     def btn_ok(self):
         self.new_infos.emit(self.out)
+
+
+class AboutDialog(QDialog):
+    out = pyqtSignal(object)
+
+    def __init__(self, parent=None):
+        super(AboutDialog, self).__init__(parent)
+        self.initUI()
+        self.setStyleSheet(dialog_qss_style)
+
+    def set_values(self, version):
+        self.lb_name_text.setText("<font color=blue>"+version+"</font>")  # 更新版本
+
+    def initUI(self):
+        about = '''
+本项目使用PyQt5实现图形界面，可以完成蓝奏云的大部分功能<br/>
+
+得益于 API 的功能，可以间接突破单文件最大 100MB 的限制，同时增加了批量上传/下载的功能<br/>
+
+Python 依赖见<a href="https://github.com/rachpt/lanzou-gui/blob/master/requirements.txt">requirements.txt</a>，<a href="https://github.com/rachpt/lanzou-gui/releases">releases</a> 有打包好了的 Windows 可执行程序，但可能不是最新的
+        '''
+        project_url = '''
+主 repo &nbsp;&nbsp;&nbsp; ： <a href="https://github.com/rachpt/lanzou-gui">https://github.com/rachpt/lanzou-gui</a><br/>
+镜像 repo ： <a href="https://gitee.com/rachpt/lanzou-gui">https://gitee.com/rachpt/lanzou-gui</a>
+        '''
+        self.setWindowTitle("关于 lanzou-gui")
+        self.logo = QLabel()  # logo
+        self.logo.setPixmap(QPixmap("./icon/logo2.gif"))
+        self.logo.setStyleSheet("background-color:rgb(255,255,255);")
+        self.logo.setAlignment(Qt.AlignCenter)
+        self.lb_name = QLabel("版本")  # 版本
+        self.lb_name_text = QLabel("")  # 版本
+        self.lb_about = QLabel("About")  # about
+        self.lb_about_text = QTextEdit(about)  # about
+        self.lb_about_text.setFocusPolicy(Qt.NoFocus)
+        self.lb_about_text.setReadOnly(True)
+        # self.lb_about_text.setOpenExternalLinks(True)
+        self.lb_author = QLabel("Author")  # author
+        self.lb_author_mail = QLabel("rachpt@126.com")  # author
+        self.lb_update = QLabel("更新地址")  # 更新
+        self.lb_update_url = QLabel(project_url)
+        self.lb_update_url.setOpenExternalLinks(True)
+        self.buttonBox = QDialogButtonBox()
+        self.buttonBox.setOrientation(Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.Close)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+        self.grid = QGridLayout()
+        self.grid.setSpacing(10)
+        self.grid.addWidget(self.logo, 1, 0, 2, 3)
+        self.grid.addWidget(self.lb_name, 3, 0)
+        self.grid.addWidget(self.lb_name_text, 3, 1)
+        self.grid.addWidget(self.lb_about, 4, 0)
+        self.grid.addWidget(self.lb_about_text, 4, 1, 3, 2)
+        self.grid.addWidget(self.lb_author, 7, 0)
+        self.grid.addWidget(self.lb_author_mail, 7, 1)
+        self.grid.addWidget(self.lb_update, 8, 0)
+        self.grid.addWidget(self.lb_update_url, 8, 1, 2, 2)
+        self.grid.addWidget(self.buttonBox, 10, 2)
+        self.setLayout(self.grid)
+        self.setFixedSize(660, 300)
