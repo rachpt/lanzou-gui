@@ -7,9 +7,9 @@ import re
 from time import sleep
 from pickle import dump, load
 
-from PyQt5.QtCore import Qt, QCoreApplication
+from PyQt5.QtCore import Qt, QCoreApplication, QTimer
 from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel
-from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QHeaderView, QMenu, QAction,
+from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QHeaderView, QMenu, QAction, QLabel,
                              QPushButton, QFileDialog, QDesktopWidget)
 
 from Ui_lanzou import Ui_MainWindow
@@ -150,6 +150,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tabWidget.removeTab(1)
         self.disk_tab.setEnabled(False)
         self.rec_tab.setEnabled(False)
+        # 状态栏
+        self._msg_label = QLabel()
+        self.statusbar.addWidget(self._msg_label)
 
     def show_login_dialog(self):
         """显示登录对话框"""
@@ -160,6 +163,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def show_upload_dialog(self):
         """显示上传文件对话框"""
+        self.upload_dialog.set_values(list(self._path_list.keys())[-1])
         self.upload_dialog.exec()
 
     def load_settings(self):
@@ -663,8 +667,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.upload_worker.code.connect(self.show_status)
 
     def show_status(self, msg, duration=0):
-        self.statusbar.showMessage(msg, duration)
+        self._msg_label.setText(msg)
+        # self.statusbar.showMessage(msg, duration)
         QCoreApplication.processEvents()  # 重绘界面
+        if duration != 0:
+            QTimer.singleShot(duration, lambda: self._msg_label.setText(""))
 
     # shared url
     def call_get_shared_info_worker(self):
