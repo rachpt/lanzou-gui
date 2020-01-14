@@ -41,7 +41,7 @@ class LanZouCloud(object):
         self._fake_file_prefix = '__fake__'  # 假文件前缀
         self._rar_part_name = 'wtf'  # rar 分卷文件后缀 *.wtf01.rar
         self._timeout = 2000  # 每个请求的超时 ms(不包含下载响应体的用时)
-        self._max_size = 100  # 单个文件大小上限 MB
+        self._max_size = 99  # 单个文件大小上限 MB
         self._rar_path = None  # 解压工具路径
         self._host_url = 'https://www.lanzous.com'
         self._doupload_url = 'https://pc.woozooo.com/doupload.php'
@@ -451,10 +451,11 @@ class LanZouCloud(object):
             with open(temp_file, 'w') as t_f:
                 t_f.write('FUCK LanZouCloud')
             self._upload_a_file(temp_file, dir_id)
+            os.remove(temp_file)
             # 现在上传真正的文件
             if self._upload_a_file('./tmp/' + f, dir_id, call_back) == LanZouCloud.FAILED:
-                os.remove('./tmp/' + f)
                 return LanZouCloud.FAILED
+            os.remove('./tmp/' + f)
         rmtree('./tmp')  # 此处可能会遇到bug !!!
         return LanZouCloud.SUCCESS
 
@@ -606,7 +607,6 @@ class LanZouCloud(object):
                 return {"code": LanZouCloud.LACK_PASSWORD, "info": ""}
             post_str = re.findall(r"[^/]data\s:\s\'(.*)\'", html)[0] + str(pwd)
             f_size = re.findall(r'class="n_filesize">[^<0-9]*([\.0-9 MKBmkbGg]+)<', html)
-            print(f_size)
             f_size = f_size[0] if f_size else ""
             f_date = re.findall(r'class="n_file_infos">([-0-9 月天小时分钟秒前]+)<', html)
             f_date = f_date[0] if f_date else ""
