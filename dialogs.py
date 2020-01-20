@@ -420,6 +420,7 @@ class RenameDialog(QDialog):
             self.setWindowTitle("修改文件夹名与描述")
             self.tx_name.setText(str(self.infos[1]))
             if self.infos[6]:
+                self.tx_desc.setText("")
                 self.tx_desc.setPlaceholderText(str(self.infos[6]))
             else:
                 self.tx_desc.setPlaceholderText("无")
@@ -507,10 +508,10 @@ class SetPwdDialog(QDialog):
 class MoveFileDialog(QDialog):
     new_infos = pyqtSignal(object)
 
-    def __init__(self, infos, all_dirs, parent=None):
+    def __init__(self, infos, all_dirs_dict, parent=None):
         super(MoveFileDialog, self).__init__(parent)
         self.infos = infos
-        self.dirs = all_dirs
+        self.dirs = all_dirs_dict
         self.initUI()
         self.setStyleSheet(dialog_qss_style)
 
@@ -533,12 +534,11 @@ class MoveFileDialog(QDialog):
         self.tx_new_path = QComboBox()
         f_icon = QIcon("./icon/folder.gif")
         # 莫名其妙，15 = 8*2 - 1
-        self.tx_new_path.addItem(f_icon, "id：{:>15}，name：{}".format("-1", "根目录"))
-        for i in self.dirs:
-            f_name = i["folder_name"]
-            if len(f_name) > 1000:  # 防止文件夹名字过长？
-                f_name = f_name[:998] + "..."
-            self.tx_new_path.addItem(f_icon, "id：{:>8}，name：{}".format(i["folder_id"], f_name))
+        # self.tx_new_path.addItem(f_icon, "id：{:>15}，name：{}".format("-1", "根目录"))
+        for f_name, fid in self.dirs.items():
+            if len(f_name) > 30:  # 防止文件夹名字过长？
+                f_name = f_name[:27] + "..."
+            self.tx_new_path.addItem(f_icon, "id：{:>8}，name：{}".format(fid, f_name))
 
         self.buttonBox = QDialogButtonBox()
         self.buttonBox.setOrientation(Qt.Horizontal)
