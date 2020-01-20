@@ -148,7 +148,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.download_manager = DownloadManager(self._disk)
         self.download_manager.downloaders_msg.connect(self.show_status)
         self.download_manager.download_mgr_msg.connect(self.show_status)
-        self.download_manager.finished.connect(lambda: self.self.show_status("所有下载任务已完成！", 7000))
+        self.download_manager.finished.connect(lambda: self.show_status("所有下载任务已完成！", 7000))
         # 上传器，信号在登录更新界面设置
         self.upload_dialog = UploadDialog()
         self.upload_dialog.new_infos.connect(self.call_upload)
