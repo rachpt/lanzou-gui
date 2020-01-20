@@ -148,6 +148,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.download_manager = DownloadManager(self._disk)
         self.download_manager.downloaders_msg.connect(self.show_status)
         self.download_manager.download_mgr_msg.connect(self.show_status)
+        self.download_manager.finished.connect(lambda: self.self.show_status("所有下载任务已完成！", 7000))
         # 上传器，信号在登录更新界面设置
         self.upload_dialog = UploadDialog()
         self.upload_dialog.new_infos.connect(self.call_upload)
@@ -218,8 +219,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     _info = self._disk.get_share_info(infos[0], is_file=True)
                 else:  # 文件夹
                     _info = self._disk.get_share_info(infos[0], is_file=False)
-                infos[5] = _info['passwd']  # 将bool值改成 字符串
-                infos.append(_info['share_url'])
+                infos[5] = _info['pwd']  # 将bool值改成 字符串
+                infos.append(_info['url'])
             tasks.append([infos[1], infos[7], infos[5], save_path])
         self.download_manager.set_values(tasks, 3)
         self.download_manager.start()
@@ -346,10 +347,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """更新目录列表，包括列表和路径指示器"""
         if r_files:
             info = {i['name']: [i['id'], i['name'], i['size'], i['time'], i['downs'], i['has_pwd'], i['has_des']]
-                    for i in self._disk.get_file_list(folder_id).values()}
+                    for i in self._disk.get_file_list(folder_id)}
             self._file_list = {key: info.get(key) for key in sorted(info.keys())}  # {name-[id,...]}
         if r_folders:
-            self._folder_list = self._disk.get_dir_list(folder_id)
+            info = {i['name']: [i['id'], i['name'],  "", "", "", i['has_pwd'], i['desc']]
+                    for i in self._disk.get_dir_list(folder_id)}
+            self._folder_list = {key: info.get(key) for key in sorted(info.keys())}  # {name-[id,...]}
         self._path_list = self._disk.get_full_path(folder_id)
         current_folder = list(self._path_list.keys())[-1]
         self._work_id = self._path_list.get(current_folder, -1)
@@ -423,9 +426,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     self.refresh_dir(self._work_id, False, True, False)
         else:  # 重命名、修改简介
             if action == "file":  # 修改文件描述
-                res = self._disk.modify_desc(fid, str(new_desc))
+                res = self._disk.set_desc(fid, str(new_desc), is_file=True)
             else:  # 修改文件夹，action == "folder"
-                res = self._disk.rename_dir(fid, str(new_name), str(new_desc))
+                _res = self._disk.get_share_info(fid, is_file=False)
+                if _res['code'] == LanZouCloud.SUCCESS:
+                    res = self._disk._set_dir_info(fid, str(new_name), str(new_desc))
+                else:
+                    res = _res['code']
             if res == LanZouCloud.SUCCESS:
                 self.statusbar.showMessage("修改成功！", 4000)
             elif res == LanZouCloud.FAILED:
@@ -447,9 +454,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 is_file = True
             else:
                 is_file = False
-            res = self._disk.set_share_passwd(fid, new_pass, is_file)
+            res = self._disk.set_passwd(fid, new_pass, is_file)
             if res == LanZouCloud.SUCCESS:
                 self.statusbar.showMessage("提取码变更成功！♬", 3000)
+            elif res == LanZouCloud.NETWORK_ERROR:
+                self.statusbar.showMessage("网络错误，稍后重试！☒", 4000)
             else:
                 self.statusbar.showMessage("提取码变更失败❀╳❀:{}".format(res), 4000)
             self.refresh_dir(self._work_id, r_files=is_file, r_folders=not is_file, r_path=False)
@@ -533,8 +542,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             info_dialog.setWindowModality(Qt.ApplicationModal)
             info_dialog.exec()
         elif action == self.left_menu_move:
-            all_dirs = self._disk.get_all_folders_list(infos[0])
-            move_file_dialog = MoveFileDialog(infos, all_dirs)
+            all_dirs_dict = self._disk.get_folder_id_list()
+            move_file_dialog = MoveFileDialog(infos, all_dirs_dict)
             move_file_dialog.new_infos.connect(self.move_file)
             move_file_dialog.exec()
         elif action == self.left_menu_set_pwd:
@@ -562,11 +571,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 _info = self._disk.get_share_info(infos[0], is_file=True)
             else:  # 文件夹
                 _info = self._disk.get_share_info(infos[0], is_file=False)
-            infos[5] = _info['passwd']
-            infos.append(_info['share_url'])
+            infos[5] = _info['pwd']
+            infos.append(_info['url'])
         if infos[2]:  # 文件
-            d_url = self._disk.get_direct_url(infos[-1], infos[5])
-            infos.append("{}".format(d_url["direct_url"] or "无"))  # 下载直链
+            res = self._disk.get_file_info_by_url(infos[-1], infos[5])
+            if res["code"] == LanZouCloud.SUCCESS:
+                infos.append("{}".format(res["durl"] or "无"))  # 下载直链
+            elif res["code"] == LanZouCloud.NETWORK_ERROR:
+                infos.append("网络错误！获取失败")  # 下载直链
+            else:
+                infos.append("其它错误！")  # 下载直链
         else:
             infos.append("无")  # 下载直链
         infos[5] = infos[5] or "无"  # 提取码

@@ -74,13 +74,13 @@ class Downloader(QThread):
     def run(self):
         if self._disk.is_file_url(self.url):
             # 下载文件
-            self._disk.download_file(self.url, self.pwd, self.save_path, self._show_progress)
+            self._disk.down_file_by_url(self.url, self.pwd, self.save_path, self._show_progress)
         elif self._disk.is_folder_url(self.url):
             # 下载文件夹
             folder_path = self.save_path + os.sep + self.name
             os.makedirs(folder_path, exist_ok=True)
             self.save_path = folder_path
-            self._disk.download_dir(self.url, self.pwd, self.save_path, self._show_progress)
+            self._disk.down_dir_by_url(self.url, self.pwd, self.save_path, self._show_progress)
 
 
 class DownloadManager(QThread):
@@ -106,7 +106,7 @@ class DownloadManager(QThread):
 
     def ahead_msg(self, msg):
         if self._old_msg != msg:
-            self.downloaders_msg.emit(msg, 10000)
+            self.downloaders_msg.emit(msg, 0)
             self._old_msg = msg
 
     def add_task(self):
@@ -169,10 +169,10 @@ class GetSharedInfo(QThread):
         elif infos["code"] == LanZouCloud.URL_INVALID:
             self.code.emit("<font color='red'>链接非法！</font>", show_time)
         elif infos["code"] == LanZouCloud.PASSWORD_ERROR:
-            self.code.emit("<font color='red'>提取码 [{}] 错误！</font>".format(self.pwd), show_time)
+            self.code.emit("<font color='red'>提取码 [<b><font color='magenta'>{}</font></b>] 错误！</font>".format(self.pwd), show_time)
         elif infos["code"] == LanZouCloud.LACK_PASSWORD:
             self.code.emit("<font color='red'>请在链接后面跟上提取码，空格分割！</font>", show_time)
-        elif infos["code"] == LanZouCloud.FAILED:
+        elif infos["code"] == LanZouCloud.NETWORK_ERROR:
             self.code.emit("<font color='red'>网络错误！{}</font>".format(infos["info"]), show_time)
         elif infos["code"] == LanZouCloud.SUCCESS:
             self.code.emit("<font color='#00CC00'>提取成功！</font>", show_time)
@@ -272,10 +272,10 @@ class DescFetcher(QThread):
         if not self.infos or not self.infos[0]:
             return
         if self.infos[2]:  # 文件
-            res = self._disk.get_file_desc(self.infos[0])
+            res = self._disk.get_share_info(self.infos[0], is_file=True)
             if res['code'] == LanZouCloud.SUCCESS:
                 self.desc.emit(res['desc'], self.infos)
         else:  # 文件夹
-            res = self._disk.get_folder_desc(self.infos[0])
+            res = self._disk.get_share_info(self.infos[0], is_file=False)
             if res['code'] == LanZouCloud.SUCCESS:
                 self.desc.emit(res['desc'], self.infos)
