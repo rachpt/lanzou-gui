@@ -43,7 +43,7 @@ class LanZouCloud(object):
         self._fake_file_prefix = '__fake__'  # 假文件前缀
         self._rar_part_name = 'wtf'  # rar 分卷文件后缀 *.wtf01.rar
         self._timeout = 2000  # 每个请求的超时 ms(不包含下载响应体的用时)
-        self._max_size = 100  # 单个文件大小上限 MB
+        self._max_size = 8  # 单个文件大小上限 MB
         self._rar_path = None  # 解压工具路径
         self._host_url = 'https://www.lanzous.com'
         self._doupload_url = 'https://pc.woozooo.com/doupload.php'
@@ -591,52 +591,52 @@ class LanZouCloud(object):
         if suffix == 'rar' and 'part' in file_name.split(".")[-2]:
             file_name = file_name.replace('.part', f'.{self._rar_part_name}')
         logger.debug(f'Upload file {file_path} to folder ID#{folder_id} as "{file_name}"')
+        with open(file_path, 'rb') as _file_handle:
+            post_data = {
+                "task": "1",
+                "folder_id": str(folder_id),
+                "id": "WU_FILE_0",
+                "name": file_name,
+                "upload_file": (file_name, _file_handle, 'application/octet-stream')
+            }
 
-        post_data = {
-            "task": "1",
-            "folder_id": str(folder_id),
-            "id": "WU_FILE_0",
-            "name": file_name,
-            "upload_file": (file_name, open(file_path, 'rb'), 'application/octet-stream')
-        }
+            post_data = MultipartEncoder(post_data)
+            tmp_header = self._headers.copy()
+            tmp_header['Content-Type'] = post_data.content_type
+            # 让回调函数里不显示伪装后缀名
+            file_name, _ = self._get_right_name(file_name)
 
-        post_data = MultipartEncoder(post_data)
-        tmp_header = self._headers.copy()
-        tmp_header['Content-Type'] = post_data.content_type
-        # 让回调函数里不显示伪装后缀名
-        file_name, _ = self._get_right_name(file_name)
+            # MultipartEncoderMonitor 每上传 8129 bytes数据调用一次回调函数，问题根源是 httplib 库
+            # issue : https://github.com/requests/toolbelt/issues/75
+            # 上传完成后，回调函数会被错误的多调用一次(强迫症受不了)。因此，下面重新封装了回调函数，修改了接受的参数，并阻断了多余的一次调用
+            self._upload_finished_flag = False  # 上传完成的标志
 
-        # MultipartEncoderMonitor 每上传 8129 bytes数据调用一次回调函数，问题根源是 httplib 库
-        # issue : https://github.com/requests/toolbelt/issues/75
-        # 上传完成后，回调函数会被错误的多调用一次(强迫症受不了)。因此，下面重新封装了回调函数，修改了接受的参数，并阻断了多余的一次调用
-        self._upload_finished_flag = False  # 上传完成的标志
+            def _call_back(read_monitor):
+                if call_back is not None:
+                    if not self._upload_finished_flag:
+                        call_back(file_name, read_monitor.len, read_monitor.bytes_read)
+                    if read_monitor.len == read_monitor.bytes_read:
+                        self._upload_finished_flag = True
 
-        def _call_back(read_monitor):
-            if call_back is not None:
-                if not self._upload_finished_flag:
-                    call_back(file_name, read_monitor.len, read_monitor.bytes_read)
-                if read_monitor.len == read_monitor.bytes_read:
-                    self._upload_finished_flag = True
+            monitor = MultipartEncoderMonitor(post_data, _call_back)
+            result = self._post('http://pc.woozooo.com/fileup.php', data=monitor, headers=tmp_header)
+            if not result:  # 网络异常
+                return LanZouCloud.NETWORK_ERROR
+            else:
+                result = result.json()
+            if result["zt"] != 1:
+                logger.warning(f'Upload failed: {result}')
+                return LanZouCloud.FAILED  # 上传失败
 
-        monitor = MultipartEncoderMonitor(post_data, _call_back)
-        result = self._post('http://pc.woozooo.com/fileup.php', data=monitor, headers=tmp_header)
-        if not result:  # 网络异常
-            return LanZouCloud.NETWORK_ERROR
-        else:
-            result = result.json()
-        if result["zt"] != 1:
-            logger.warning(f'Upload failed: {result}')
-            return LanZouCloud.FAILED  # 上传失败
-
-        # 蓝奏云禁止用户连续上传 100M 的文件，因此需要上传一个 100M 的文件，然后上传一个“假文件”糊弄过去
-        # 这里检查上传的文件是否为“假文件”，是的话上传后就立刻删除
-        file_id = result["text"][0]["id"]
-        if result['text'][0]['name_all'].startswith(self._fake_file_prefix):
-            self.delete(file_id)
-            self.delete_rec(file_id)
-        else:
-            self.set_passwd(file_id)  # 文件上传后默认关闭提取码
-        return LanZouCloud.SUCCESS
+            # 蓝奏云禁止用户连续上传 100M 的文件，因此需要上传一个 100M 的文件，然后上传一个“假文件”糊弄过去
+            # 这里检查上传的文件是否为“假文件”，是的话上传后就立刻删除
+            file_id = result["text"][0]["id"]
+            if result['text'][0]['name_all'].startswith(self._fake_file_prefix):
+                self.delete(file_id)
+                self.delete_rec(file_id)
+            else:
+                self.set_passwd(file_id)  # 文件上传后默认关闭提取码
+            return LanZouCloud.SUCCESS
 
     def upload_file(self, file_path, folder_id=-1, call_back=None) -> dict:
         """解除限制上传文件"""
@@ -661,20 +661,23 @@ class LanZouCloud(object):
         file_list = [f"{file_name}.part{i}.rar" for i in range(1, part_sum + 1)]
         if not os.path.exists('./tmp'):
             os.mkdir('./tmp')  # 本地保存分卷文件的临时文件夹
-        # 使用压缩工具分卷压缩大文件
-        cmd_args = f'a -m{rar_level} -v{self._max_size}m -ep -y -rr5% "./tmp/{file_name}" "{file_path}"'
+        # 使用压缩工具分卷压缩大文件  # -rr5% 导致 rar.exe 一直在后台占用文件
+        cmd_args = f'a -m{rar_level} -v{self._max_size}m -ep -y "./tmp/{file_name}" "{file_path}"'
         if os.name == 'nt':
             command = f"start /b {self._rar_path} {cmd_args}"  # windows 平台调用 rar.exe 实现压缩
         else:
             command = f"{self._rar_path} {cmd_args}"  # linux 平台使用 rar 命令压缩
         try:
             logger.debug(f'rar command: {command}')
-            # os.popen(command).readlines()
-            p = Popen(command, shell=True, stdout=PIPE, stderr=PIPE, stdin=PIPE)
+            p = Popen(command, shell=True, close_fds=True, stdout=PIPE, stderr=PIPE, stdin=PIPE)
             p.wait()
-        except os.error:
+            if p.returncode != 0:  # 打包压缩失败
+                rmtree('./tmp')
+                return {'code': LanZouCloud.ZIP_ERROR, 'failed': None}
+        except Exception:  # 其它未知错误
             rmtree('./tmp')
             return {'code': LanZouCloud.ZIP_ERROR, 'failed': None}
+
 
         # 上传并删除分卷文件
         folder_name = '.'.join(file_list[0].split('.')[:-2])  # 文件名去除".xxx.rar"作为网盘新建的文件夹名
@@ -697,8 +700,14 @@ class LanZouCloud(object):
                 result['code'] = LanZouCloud.FAILED
                 result['failed'].append(f)
             else:
-                os.remove('./tmp/' + f)
-        rmtree('./tmp')  # 此处可能会遇到bug !!!
+                try:
+                    os.remove('./tmp/' + f)
+                except PermissionError:
+                    print(f"无法删除文件{f}，rar占用文件中！")
+        try:
+            rmtree('./tmp')  # 此处可能会遇到bug !!!
+        except PermissionError:
+            print("无法删除文件，rar占用文件中！")
         return result
 
     def upload_dir(self, dir_path, folder_id=-1, call_back=None) -> dict:
@@ -730,6 +739,7 @@ class LanZouCloud(object):
         if info['code'] != LanZouCloud.SUCCESS:
             return info['code']
         try:
+            sleep(1.2)
             r = requests.get(info['durl'], stream=True)
             total_size = int(r.headers['content-length'])
             now_size = 0
@@ -743,7 +753,9 @@ class LanZouCloud(object):
                         if call_back is not None:
                             call_back(info['name'], total_size, now_size)
             return LanZouCloud.SUCCESS
-        except ValueError:
+        # except ValueError as err:
+        except Exception as err:
+            print("err:[", err, "]END-err")
             return LanZouCloud.FAILED
 
     def down_file_by_id(self, fid, save_path='.', call_back=None) -> int:
@@ -766,14 +778,17 @@ class LanZouCloud(object):
             command = f'{self._rar_path} -y e {first_rar} {save_path}'  # Linux 平台
         try:
             logger.debug(f'unzip command: {command}')
-            # os.popen(command).readlines()  # 解压出原文件
+            # 解压出原文件
             p = Popen(command, shell=True, stdout=PIPE, stderr=PIPE, stdin=PIPE)
             p.wait()
+            if p.returncode != 0:  # 解压失败状态码非0
+                return LanZouCloud.ZIP_ERROR
+            sleep(1)
             for f_name in file_list:  # 删除分卷文件
                 logger.debug(f'delete rar file: {save_path + os.sep + f_name}')
                 os.remove(save_path + os.sep + f_name)
             return LanZouCloud.SUCCESS
-        except os.error:
+        except Exception:  # 其它未知错误
             return LanZouCloud.ZIP_ERROR
 
     def get_folder_info_by_url(self, share_url, dir_pwd='') -> dict:
