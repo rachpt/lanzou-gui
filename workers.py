@@ -211,6 +211,7 @@ class UploadWorker(QThread):
 
     def run(self):
         for f in self.infos:
+            f = os.path.normpath(f)  # windows backslash
             if not os.path.exists(f):
                 msg = "<b>ERROR :</b> <font color='red'>文件不存在:{}</font>".format(f)
                 self.code.emit(msg, 0)
@@ -279,3 +280,57 @@ class DescFetcher(QThread):
             res = self._disk.get_share_info(self.infos[0], is_file=False)
             if res['code'] == LanZouCloud.SUCCESS:
                 self.desc.emit(res['desc'], self.infos)
+
+
+class ListRefresher(QThread):
+    infos = pyqtSignal(object)
+    err_msg = pyqtSignal(str, int)
+
+    def __init__(self, disk, parent=None):
+        super(ListRefresher, self).__init__(parent)
+        self._disk = disk
+        self._fid = -1
+        self.r_files = True
+        self.r_folders = True
+        self.r_path = True
+        self._mutex = QMutex()
+        self._is_work = False
+
+    def set_values(self, fid, r_files=True, r_folders=True, r_path=True):
+        if not self._is_work:
+            self._fid = fid
+            self.r_files = r_files
+            self.r_folders = r_folders
+            self.r_path = r_path
+            self.run()
+        else:
+            self.err_msg.emit("正在更新目录，请稍后再试！", 4000)
+
+    def __del__(self):
+        self.wait()
+
+    def stop(self):
+        self._mutex.lock()
+        self._is_work = False
+        self._mutex.unlock()
+
+    def run(self):
+        if not self._is_work:
+            self._mutex.lock()
+            self._is_work = True
+            emit_infos = {}
+            emit_infos['r'] = {'fid': self._fid, 'files': self.r_files, 'folders': self.r_folders, 'path': self.r_path}
+            try:
+                if self.r_files:
+                    info = {i['name']: [i['id'], i['name'], i['size'], i['time'], i['downs'], i['has_pwd'], i['has_des']] for i in self._disk.get_file_list(self._fid)}
+                    emit_infos['file_list'] = {key: info.get(key) for key in sorted(info.keys())}  # {name-[id,...]}
+                if self.r_folders:
+                    info = {i['name']: [i['id'], i['name'],  "", "", "", i['has_pwd'], i['desc']] for i in self._disk.get_dir_list(self._fid)}
+                    emit_infos['folder_list'] = {key: info.get(key) for key in sorted(info.keys())}  # {name-[id,...]}
+                emit_infos['path_list'] = self._disk.get_full_path(self._fid)
+            except Exception as exp:
+                self.err_msg.emit(str(exp), 10000)
+                return
+            self.infos.emit(emit_infos)
+            self._is_work = False
+            self._mutex.unlock()

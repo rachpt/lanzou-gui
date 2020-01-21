@@ -15,7 +15,7 @@ from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QHead
 from Ui_lanzou import Ui_MainWindow
 from lanzou.api import LanZouCloud
 
-from workers import Downloader, DownloadManager, GetSharedInfo, UploadWorker, LoginLuncher, DescFetcher
+from workers import Downloader, DownloadManager, GetSharedInfo, UploadWorker, LoginLuncher, DescFetcher, ListRefresher
 from dialogs import (update_settings, LoginDialog, UploadDialog, InfoDialog, RenameDialog,
                      SetPwdDialog, MoveFileDialog, DeleteDialog, MyLineEdit, AboutDialog)
 
@@ -149,6 +149,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.download_manager.downloaders_msg.connect(self.show_status)
         self.download_manager.download_mgr_msg.connect(self.show_status)
         self.download_manager.finished.connect(lambda: self.show_status("所有下载任务已完成！", 7000))
+        # 登录文件列表更新器
+        self.list_refresher = ListRefresher(self._disk)
+        self.list_refresher.err_msg.connect(self.show_status)
+        self.list_refresher.infos.connect(self.update_lists)
         # 上传器，信号在登录更新界面设置
         self.upload_dialog = UploadDialog()
         self.upload_dialog.new_infos.connect(self.call_upload)
@@ -260,7 +264,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.tabWidget.setCurrentIndex(1)
             QCoreApplication.processEvents()  # 重绘界面
             # 刷新文件列表
-            self.refresh_dir(self._work_id)
+            self.list_refresher.set_values(self._work_id)
         else:
             self.show_status(msg, duration)
             self.tabWidget.setCurrentIndex(0)
@@ -339,28 +343,26 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             name.setToolTip(tips)
             size_ = QStandardItem(pwd_ico, infos[2]) if infos[5] else QStandardItem(infos[2])  # 提取码+size
             self.model_disk.appendRow([name, size_, QStandardItem(infos[3])])
-        for r in range(self.model_disk.rowCount()):  # 右对齐
-            self.model_disk.item(r, 1).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            self.model_disk.item(r, 2).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        for row in range(self.model_disk.rowCount()):  # 右对齐
+            self.model_disk.item(row, 1).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self.model_disk.item(row, 2).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
-    def refresh_dir(self, folder_id=-1, r_files=True, r_folders=True, r_path=True):
-        """更新目录列表，包括列表和路径指示器"""
-        if r_files:
-            info = {i['name']: [i['id'], i['name'], i['size'], i['time'], i['downs'], i['has_pwd'], i['has_des']]
-                    for i in self._disk.get_file_list(folder_id)}
-            self._file_list = {key: info.get(key) for key in sorted(info.keys())}  # {name-[id,...]}
-        if r_folders:
-            info = {i['name']: [i['id'], i['name'],  "", "", "", i['has_pwd'], i['desc']]
-                    for i in self._disk.get_dir_list(folder_id)}
-            self._folder_list = {key: info.get(key) for key in sorted(info.keys())}  # {name-[id,...]}
-        self._path_list = self._disk.get_full_path(folder_id)
+    def update_lists(self, infos):
+        if not infos:
+            return
+        if infos['r']['files']:
+            self._file_list = infos['file_list']
+        if infos['r']['folders']:
+            self._folder_list = infos['folder_list']
+        self._path_list = infos['path_list']
+
         current_folder = list(self._path_list.keys())[-1]
         self._work_id = self._path_list.get(current_folder, -1)
-        if folder_id != -1:
+        if infos['r']['fid'] != -1:
             parent_folder_name = list(self._path_list.keys())[-2]
             self._parent_id = self._path_list.get(parent_folder_name, -1)
         self.show_file_and_folder_lists()
-        if r_path:
+        if infos['r']['path']:
             self.show_full_path()
 
     def config_tableview(self, tab):
@@ -423,7 +425,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     sleep(1.5)  # 暂停一下，否则无法获取新建的文件夹
                     self.statusbar.showMessage("成功创建文件夹：{}".format(new_name), 7000)
                     # 此处仅更新文件夹，并显示
-                    self.refresh_dir(self._work_id, False, True, False)
+                    self.list_refresher.set_values(self._work_id, False, True, False)
         else:  # 重命名、修改简介
             if action == "file":  # 修改文件描述
                 res = self._disk.set_desc(fid, str(new_desc), is_file=True)
@@ -438,9 +440,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             elif res == LanZouCloud.FAILED:
                 self.statusbar.showMessage("失败：发生错误！", 4000)
             if action == "file":  # 只更新文件列表
-                self.refresh_dir(self._work_id, r_files=True, r_folders=False, r_path=False)
+                self.list_refresher.set_values(self._work_id, r_files=True, r_folders=False, r_path=False)
             else:  # 只更新文件夹列表
-                self.refresh_dir(self._work_id, r_files=False, r_folders=True, r_path=False)
+                self.list_refresher.set_values(self._work_id, r_files=False, r_folders=True, r_path=False)
 
     def set_passwd(self, infos):
         """设置文件(夹)提取码"""
@@ -461,7 +463,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.statusbar.showMessage("网络错误，稍后重试！☒", 4000)
             else:
                 self.statusbar.showMessage("提取码变更失败❀╳❀:{}".format(res), 4000)
-            self.refresh_dir(self._work_id, r_files=is_file, r_folders=not is_file, r_path=False)
+            self.list_refresher.set_values(self._work_id, r_files=is_file, r_folders=not is_file, r_path=False)
         else:
             self.statusbar.showMessage("提取码为2-6位字符,关闭请输入空！", 4000)
 
@@ -471,7 +473,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         folder_id = info[1]
         if self._disk.move_file(file_id, folder_id) == LanZouCloud.SUCCESS:
             # 此处仅更新文件夹，并显示
-            self.refresh_dir(self._work_id, False, True, False)
+            self.list_refresher.set_values(self._work_id, False, True, False)
             self.statusbar.showMessage("{} 移动成功！".format(info[2]), 4000)
         else:
             self.statusbar.showMessage("移动文件{}失败！".format(info[2]), 4000)
@@ -490,7 +492,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             else:
                 is_file = False
             self._disk.delete(i[0], is_file)
-        self.refresh_dir(self._work_id)
+        self.list_refresher.set_values(self._work_id)
 
     def call_remove_files(self):
         indexs = []
@@ -586,25 +588,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         infos[5] = infos[5] or "无"  # 提取码
         return infos
 
-    def chang_dir(self, dir_name):
-        """双击切换工作目录"""
-        dir_name = self.model_disk.item(dir_name.row(), 0).text()  # 文件夹名
-        if self._work_name == "Recovery" and dir_name not in [".", ".."]:
-            return None
-        if dir_name == "..":  # 返回上级路径
-            self.refresh_dir(self._parent_id)
-        elif dir_name in self._folder_list.keys():
-            folder_id = self._folder_list[dir_name][0]
-            self.refresh_dir(folder_id)
-        else:
-            self.show_status("ERROR : 该文件夹不存在: {}".format(dir_name))
-
     def call_change_dir(self, folder_id=-1):
         """按钮调用"""
         def callfunc():
-            self.refresh_dir(folder_id)
+            self.list_refresher.set_values(folder_id)
 
         return callfunc
+
+    def change_dir(self, dir_name):
+        """双击切换工作目录"""
+        dir_name = self.model_disk.item(dir_name.row(), 0).text()  # 文件夹名
+        if dir_name == "..":  # 返回上级路径
+            self.list_refresher.set_values(self._parent_id)
+        elif dir_name in self._folder_list.keys():
+            folder_id = self._folder_list[dir_name][0]
+            self.list_refresher.set_values(folder_id)
+        else:
+            self.show_status("ERROR : 该文件夹不存在: {}".format(dir_name), 3000)
 
     def call_upload(self, infos):
         """上传文件(夹)"""
@@ -626,12 +626,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             del self._locs[index]
             index += 1
         index = 1
-        for name, id in self._path_list.items():
+        for name, fid in self._path_list.items():
             self._locs[index] = QPushButton(name, self.disk_tab)
             self._locs[index].setIcon(QIcon("./icon/folder.gif"))
             self._locs[index].setStyleSheet("QPushButton {border: none; background:transparent;}")
             self.disk_loc.insertWidget(index, self._locs[index])
-            self._locs[index].clicked.connect(self.call_change_dir(id))
+            self._locs[index].clicked.connect(self.call_change_dir(fid))
             index += 1
         self._path_list_old = self._path_list
 
@@ -669,7 +669,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def finished_upload(self):
         """上传完成调用"""
         if self._old_work_id == self._work_id:
-            self.refresh_dir(self._work_id, True, True, False)
+            self.list_refresher.set_values(self._work_id, True, True, False)
         else:
             self._old_work_id = self._work_id
         self.show_status("上传完成！", 7000)
@@ -688,7 +688,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btn_disk_mkdir.clicked.connect(self.call_mkdir)
         self.btn_disk_delete.clicked.connect(self.call_remove_files)
 
-        self.table_disk.doubleClicked.connect(self.chang_dir)
+        self.table_disk.doubleClicked.connect(self.change_dir)
         # 上传器
         self.upload_worker = UploadWorker()
         self.upload_worker.finished.connect(self.finished_upload)
@@ -756,6 +756,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def set_download_path(self):
         """设置下载路径"""
         dl_path = QFileDialog.getExistingDirectory()
+        dl_path = os.path.normpath(dl_path)  # windows backslash
         if dl_path == self.settings["path"]:
             return
         if dl_path == "":
@@ -818,7 +819,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 
 if __name__ == "__main__":
-    sys.setrecursionlimit(1000000)
+    # sys.setrecursionlimit(1000000)
     app = QApplication(sys.argv)
     form = MainWindow()
     form.show()
