@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 
-import time
 import sys
 import os
-import re
-from time import sleep
 from pickle import dump, load
 
 from PyQt5.QtCore import Qt, QCoreApplication, QTimer, QUrl
@@ -15,7 +12,8 @@ from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QHead
 from Ui_lanzou import Ui_MainWindow
 from lanzou.api import LanZouCloud
 
-from workers import Downloader, DownloadManager, GetSharedInfo, UploadWorker, LoginLuncher, DescFetcher, ListRefresher
+from workers import (DownloadManager, GetSharedInfo, UploadWorker, LoginLuncher, DescPwdFetcher, ListRefresher,
+                     RemoveFilesWorker, GetMoreInfoWorker, GetAllFoldersWorker, RenameMkdirWorker, SetPwdWorker, LogoutWorker)
 from dialogs import (update_settings, LoginDialog, UploadDialog, InfoDialog, RenameDialog,
                      SetPwdDialog, MoveFileDialog, DeleteDialog, MyLineEdit, AboutDialog)
 
@@ -79,12 +77,13 @@ qssStyle = '''
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
-    __version__ = 'v0.0.5'
+    __version__ = 'v0.0.6'
 
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
         self.setupUi(self)
         self.init_variable()
+        self.init_workers()
         self.init_menu()
         self.setWindowTitle("蓝奏云客户端 - {}".format(self.__version__))
         self.setWindowIcon(QIcon("./icon/lanzou-logo2.png"))
@@ -96,7 +95,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.create_left_menus()
 
-        # print(QApplication.style().objectName())
         self.setObjectName("MainWindow")
 
         self.setStyleSheet(qssStyle)
@@ -108,13 +106,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.login.setIcon(QIcon("./icon/login.ico"))
         self.login.setShortcut("Ctrl+L")
         self.toolbar.addAction(self.login)
-        self.logout.triggered.connect(self.call_logout)  # 登出
+        self.logout.triggered.connect(lambda: self.logout_worker.set_values(self._disk))  # 登出
         self.logout.setIcon(QIcon("./icon/logout.ico"))
         self.logout.setShortcut("Ctrl+Q")    # 登出快捷键
         self.download.setShortcut("Ctrl+J")  # 以下还未使用
         self.download.setIcon(QIcon("./icon/download.ico"))
+        self.download.setEnabled(False)  # 暂时不用
         self.delete.setShortcut("Ctrl+D")
         self.delete.setIcon(QIcon("./icon/delete.ico"))
+        self.delete.setEnabled(False)  # 暂时不用
         # self.how.setShortcut("Ctrl+H")
         self.how.setIcon(QIcon("./icon/help.ico"))
         self.how.triggered.connect(self.open_wiki_url)
@@ -136,29 +136,57 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._work_name = ""  # share disk rec, not use now
         self._work_id = -1    # disk folder id
         self._old_work_id = self._work_id  # 用于上传完成后判断是否需要更新disk界面
+        self.download_threads = 3  # 同时三个下载任务
         self.load_settings()
         if os.name == 'nt':
             self._disk.set_rar_tool("./rar.exe")
         else:
             self._disk.set_rar_tool("/usr/bin/rar")
+
+    def init_workers(self):
         # 登录器
         self.login_luncher = LoginLuncher(self._disk)
         self.login_luncher.code.connect(self.login_update_ui)
+        # 登出器
+        self.logout_worker = LogoutWorker()
+        self.logout_worker.successed.connect(self.call_logout_update_ui)
         # 下载器
-        self.download_manager = DownloadManager(self._disk)
+        self.download_manager = DownloadManager()
         self.download_manager.downloaders_msg.connect(self.show_status)
         self.download_manager.download_mgr_msg.connect(self.show_status)
         self.download_manager.finished.connect(lambda: self.show_status("所有下载任务已完成！", 7000))
+        # 获取更多信息，直链、下载次数等
+        self.more_info_worker = GetMoreInfoWorker()
+        self.more_info_worker.msg.connect(self.show_status)
+        self.more_info_worker.infos.connect(self.show_info_dialog)
         # 登录文件列表更新器
         self.list_refresher = ListRefresher(self._disk)
         self.list_refresher.err_msg.connect(self.show_status)
         self.list_refresher.infos.connect(self.update_lists)
+        # 获取所有文件夹fid，并移动
+        self.all_folders_worker = GetAllFoldersWorker()
+        self.all_folders_worker.msg.connect(self.show_status)
+        self.all_folders_worker.infos.connect(self.show_move_file_dialog)
+        self.all_folders_worker.moved.connect(lambda: self.list_refresher.set_values(self._work_id, False, True, False)) # 更新文件列表
+        # 重命名、修改简介、新建文件夹
+        self.rename_mkdir_worker = RenameMkdirWorker()
+        self.rename_mkdir_worker.msg.connect(self.show_status)
+        self.rename_mkdir_worker.update.connect(self.list_refresher.set_values)  # 更新界面
+        # 设置文件(夹)提取码
+        self.set_pwd_worker = SetPwdWorker()
+        self.set_pwd_worker.msg.connect(self.show_status)
+        self.set_pwd_worker.update.connect(self.list_refresher.set_values)  # 更新界面
+        # 删除文件(夹)
+        self.remove_files_worker = RemoveFilesWorker(self._disk)
+        self.remove_files_worker.msg.connect(self.show_status)  # 显示错误提示
+        self.remove_files_worker.finished.connect(lambda: self.list_refresher.set_values(self._work_id))  # 更新界面
         # 上传器，信号在登录更新界面设置
         self.upload_dialog = UploadDialog()
         self.upload_dialog.new_infos.connect(self.call_upload)
-        # 文件描述更新器
-        self.desc_fetcher = DescFetcher(self._disk)
-        self.desc_fetcher.desc.connect(self.call_update_desc)
+        # 文件描述与提取码更新器
+        self.desc_pwd_fetcher = DescPwdFetcher()
+        self.desc_pwd_fetcher.desc.connect(self.call_update_desc_pwd)
+        self.desc_pwd_fetcher.tasks.connect(self.call_download_manager_thread)  # 连接下载管理器线程
         # 设置 tab
         self.tabWidget.setCurrentIndex(0)
         self.tabWidget.removeTab(2)
@@ -171,7 +199,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.statusbar.addWidget(self._msg_label)
         # 重命名、修改简介与新建文件夹对话框
         self.rename_dialog = RenameDialog()
-        self.rename_dialog.out.connect(self.rename_set_desc_and_mkdir)
+        self.rename_dialog.out.connect(self.call_rename_mkdir_worker)
+        # 修改设置 提取码对话框
+        self.set_pwd_dialog = SetPwdDialog()
+        self.set_pwd_dialog.new_infos.connect(self.set_passwd)
         # 菜单栏关于
         self.about_dialog = AboutDialog()
         self.about_dialog.set_values(self.__version__)
@@ -198,6 +229,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             with open(self._config, "wb") as _file:
                 dump(self.settings, _file)
 
+    def call_download_manager_thread(self, tasks):
+        self.download_manager.set_values(tasks, self.settings["path"], self.download_threads)
+        self.download_manager.start()
+
     def call_downloader(self):
         tab_page = self.tabWidget.currentIndex()
         if tab_page == 0:
@@ -206,32 +241,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         elif tab_page == 1:
             listview = self.table_disk
             model = self.model_disk
-        indexes = []
-        tasks = []
+        else:
+            return
+        infos = []
         _indexes = listview.selectionModel().selection().indexes()
         for i in _indexes:  # 获取所选行号
-            indexes.append(i.row())
-        indexes = set(indexes)
-        save_path = self.settings["path"]
-        for index in indexes:
-            infos = model.item(index, 0).data()
-            if not infos:
-                continue
-            # 查询 分享链接 以及 提取码
-            if infos[0]:  # 从 disk 运行
-                if infos[2]:  # 文件
-                    _info = self._disk.get_share_info(infos[0], is_file=True)
-                else:  # 文件夹
-                    _info = self._disk.get_share_info(infos[0], is_file=False)
-                infos[5] = _info['pwd']  # 将bool值改成 字符串
-                infos.append(_info['url'])
-            tasks.append([infos[1], infos[7], infos[5], save_path])
-        self.download_manager.set_values(tasks, 3)
-        self.download_manager.start()
+            info = model.item(i.row(), 0).data()
+            if info and info not in infos:
+                infos.append(info)
+        if not infos:
+            return
+        self.desc_pwd_fetcher.set_values(self._disk, infos, download=True)
 
-    def call_logout(self):
+    def call_logout_update_ui(self):
         """菜单栏、工具栏登出"""
-        self._disk.logout()
         self.toolbar.removeAction(self.logout)
         self.tabWidget.setCurrentIndex(0)
         self.disk_tab.setEnabled(False)
@@ -243,7 +266,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.toolbar.removeAction(self.upload)  # 上传文件工具栏
         self.upload.setEnabled(False)
         self.upload.triggered.disconnect(self.show_upload_dialog)
-        self.statusbar.showMessage("已经退出登录！", 4000)
 
     def login_update_ui(self, success, msg, duration):
         """根据登录是否成功更新UI"""
@@ -281,7 +303,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def call_login_luncher(self):
         """登录网盘"""
         self.load_settings()
-        self._disk.logout()
+        self.logout_worker.set_values(self._disk, update_ui=False)
         self.toolbar.removeAction(self.logout)
         try:
             username = self.settings["user"]
@@ -398,101 +420,27 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def create_left_menus(self):
         self.left_menus = QMenu()
-        self.left_menu_share_url = self.left_menus.addAction("外链分享地址")
+        self.left_menu_share_url = self.left_menus.addAction("外链分享地址等")
         self.left_menu_share_url.setIcon(QIcon("./icon/share.ico"))
         self.left_menu_rename_set_desc = self.left_menus.addAction("修改文件夹名与描述")
         self.left_menu_rename_set_desc.setIcon(QIcon("./icon/desc.ico"))
         self.left_menu_set_pwd = self.left_menus.addAction("设置访问密码")
         self.left_menu_set_pwd.setIcon(QIcon("./icon/password.ico"))
-        self.left_menu_move = self.left_menus.addAction("移动")
+        self.left_menu_move = self.left_menus.addAction("移动（支持批量）")
         self.left_menu_move.setIcon(QIcon("./icon/move.ico"))
 
-    def rename_set_desc_and_mkdir(self, infos):
+    def call_rename_mkdir_worker(self, infos):
         """重命名、修改简介与新建文件夹"""
-        action = infos[0]
-        fid = infos[1]
-        new_name = infos[2]
-        new_desc = infos[3]
-        if not fid:  # 新建文件夹
-            fid = self._work_id
-            if new_name in self._folder_list.keys():
-                self.statusbar.showMessage("文件夹已存在：{}".format(new_name), 7000)
-            else:
-                res = self._disk.mkdir(self._work_id, new_name, new_desc)
-                if res == LanZouCloud.MKDIR_ERROR:
-                    self.statusbar.showMessage("创建文件夹失败：{}".format(new_name), 7000)
-                else:
-                    sleep(1.5)  # 暂停一下，否则无法获取新建的文件夹
-                    self.statusbar.showMessage("成功创建文件夹：{}".format(new_name), 7000)
-                    # 此处仅更新文件夹，并显示
-                    self.list_refresher.set_values(self._work_id, False, True, False)
-        else:  # 重命名、修改简介
-            if action == "file":  # 修改文件描述
-                res = self._disk.set_desc(fid, str(new_desc), is_file=True)
-            else:  # 修改文件夹，action == "folder"
-                _res = self._disk.get_share_info(fid, is_file=False)
-                if _res['code'] == LanZouCloud.SUCCESS:
-                    res = self._disk._set_dir_info(fid, str(new_name), str(new_desc))
-                else:
-                    res = _res['code']
-            if res == LanZouCloud.SUCCESS:
-                self.statusbar.showMessage("修改成功！", 4000)
-            elif res == LanZouCloud.FAILED:
-                self.statusbar.showMessage("失败：发生错误！", 4000)
-            if action == "file":  # 只更新文件列表
-                self.list_refresher.set_values(self._work_id, r_files=True, r_folders=False, r_path=False)
-            else:  # 只更新文件夹列表
-                self.list_refresher.set_values(self._work_id, r_files=False, r_folders=True, r_path=False)
+        self.rename_mkdir_worker.set_values(self._disk, infos, self._work_id)
 
     def set_passwd(self, infos):
         """设置文件(夹)提取码"""
-        fid = infos[0]
-        if not fid:
-            print("ERROR : 文件(夹)不存在:{}".format(infos[0]))
-            return None
-        new_pass = infos[1]
-        if 2 <= len(new_pass) <= 6 or new_pass == "":
-            if infos[2]:
-                is_file = True
-            else:
-                is_file = False
-            res = self._disk.set_passwd(fid, new_pass, is_file)
-            if res == LanZouCloud.SUCCESS:
-                self.statusbar.showMessage("提取码变更成功！♬", 3000)
-            elif res == LanZouCloud.NETWORK_ERROR:
-                self.statusbar.showMessage("网络错误，稍后重试！☒", 4000)
-            else:
-                self.statusbar.showMessage("提取码变更失败❀╳❀:{}".format(res), 4000)
-            self.list_refresher.set_values(self._work_id, r_files=is_file, r_folders=not is_file, r_path=False)
-        else:
-            self.statusbar.showMessage("提取码为2-6位字符,关闭请输入空！", 4000)
-
-    def move_file(self, info):
-        """移动文件至新的文件夹"""
-        file_id = info[0]
-        folder_id = info[1]
-        if self._disk.move_file(file_id, folder_id) == LanZouCloud.SUCCESS:
-            # 此处仅更新文件夹，并显示
-            self.list_refresher.set_values(self._work_id, False, True, False)
-            self.statusbar.showMessage("{} 移动成功！".format(info[2]), 4000)
-        else:
-            self.statusbar.showMessage("移动文件{}失败！".format(info[2]), 4000)
+        self.set_pwd_worker.set_values(self._disk, infos, self._work_id)
 
     def call_mkdir(self):
         """弹出新建文件夹对话框"""
         self.rename_dialog.set_values(None)
         self.rename_dialog.exec()
-
-    def remove_files(self, infos):
-        if not infos:
-            return
-        for i in infos:
-            if i[1]:
-                is_file = True
-            else:
-                is_file = False
-            self._disk.delete(i[0], is_file)
-        self.list_refresher.set_values(self._work_id)
 
     def call_remove_files(self):
         indexs = []
@@ -508,25 +456,29 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if info:
                 infos.append(info[:3])
         delete_dialog = DeleteDialog(infos)
-        delete_dialog.new_infos.connect(self.remove_files)
+        delete_dialog.new_infos.connect(self.remove_files_worker.set_values)
         delete_dialog.exec()
 
     def generateMenu(self, pos):
         """右键菜单"""
-        row_num = self.sender().selectionModel().selection().indexes()
-        if not row_num:  # 如果没有选中行，什么也不做
+        row_nums = self.sender().selectionModel().selection().indexes()
+        if not row_nums:  # 如果没有选中行，什么也不做
             return
-        # row_num = row_num[0].row()
         _model = self.sender().model()
-        infos = _model.item(row_num[0].row(), 0).data()
+        infos = []  # 多个选中的行，用于移动文件与...
+        for one_row in row_nums:
+            one_row_data = _model.item(one_row.row(), 0).data()
+            if one_row_data and one_row_data not in infos:  # 删掉 .. 行
+                infos.append(one_row_data)
         if not infos:
             return
+        info = infos[0]  # 取选中的第一行
         # 通过是否有文件 ID 判断是登录界面还是提取界面
-        if infos[0]:
+        if info[0]:
             self.left_menu_rename_set_desc.setEnabled(True)
             self.left_menu_set_pwd.setEnabled(True)
             # 通过infos第3个字段 size 判断是否为文件夹，文件夹不能移动，设置不同的显示菜单名
-            if infos[2]:
+            if info[2]:
                 self.left_menu_rename_set_desc.setText("修改文件描述")
                 self.left_menu_move.setEnabled(True)
             else:
@@ -538,55 +490,38 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.left_menu_set_pwd.setDisabled(True)
 
         action = self.left_menus.exec_(self.sender().mapToGlobal(pos))
-        infos = self.get_more_infomation(infos)  # 点击菜单项后更新信息
-        if action == self.left_menu_share_url:
-            info_dialog = InfoDialog(infos)
-            info_dialog.setWindowModality(Qt.ApplicationModal)
-            info_dialog.exec()
-        elif action == self.left_menu_move:
-            all_dirs_dict = self._disk.get_folder_id_list()
-            move_file_dialog = MoveFileDialog(infos, all_dirs_dict)
-            move_file_dialog.new_infos.connect(self.move_file)
-            move_file_dialog.exec()
-        elif action == self.left_menu_set_pwd:
-            set_pwd_dialog = SetPwdDialog(infos)
-            set_pwd_dialog.new_infos.connect(self.set_passwd)
-            set_pwd_dialog.exec()
-        elif action == self.left_menu_rename_set_desc:
-            self.desc_fetcher.set_values(infos)
-            self.desc_fetcher.start()  # 启动后台更新描述
-            self.rename_dialog.set_values(infos)
+        if action == self.left_menu_share_url:  # 显示详细信息
+            # 后台跟新信息，并显示信息对话框
+            self.more_info_worker.set_values(info, self._disk)
+        elif action == self.left_menu_move:  # 移动文件
+            self.all_folders_worker.set_values(self._disk, infos)
+        elif action == self.left_menu_set_pwd:  # 修改提取码
+            self.desc_pwd_fetcher.set_values(self._disk, [info,])  # 兼容下载器，使用列表的列表
+            self.set_pwd_dialog.set_values(info)
+            self.set_pwd_dialog.exec()
+        elif action == self.left_menu_rename_set_desc:  # 重命名与修改描述
+            self.desc_pwd_fetcher.set_values(self._disk, [info,])  # 兼容下载器，使用列表的列表
+            self.rename_dialog.set_values(info)
             self.rename_dialog.exec()
 
-    def call_update_desc(self, desc, infos):
-        infos[6] = desc  # 更新 desc
+    def call_update_desc_pwd(self, desc, pwd, infos):
+        '''更新 desc、pwd'''
+        infos[6] = desc
+        infos[5] = pwd
         self.rename_dialog.set_values(infos)
+        self.set_pwd_dialog.set_values(infos)
 
-    def get_more_infomation(self, infos):
-        """获取文件直链、文件(夹)提取码描述"""
-        if self._work_name == "Recovery":
-            print("ERROR : 回收站模式下无法使用此操作")
-            return None
-        # infos: ID/None，文件名，大小，日期，下载次数(dl_count)，提取码(pwd)，描述(desc)，|链接(share-url)，直链
-        if infos[0]:  # 从 disk 运行
-            if infos[2]:  # 文件
-                _info = self._disk.get_share_info(infos[0], is_file=True)
-            else:  # 文件夹
-                _info = self._disk.get_share_info(infos[0], is_file=False)
-            infos[5] = _info['pwd']
-            infos.append(_info['url'])
-        if infos[2]:  # 文件
-            res = self._disk.get_file_info_by_url(infos[-1], infos[5])
-            if res["code"] == LanZouCloud.SUCCESS:
-                infos.append("{}".format(res["durl"] or "无"))  # 下载直链
-            elif res["code"] == LanZouCloud.NETWORK_ERROR:
-                infos.append("网络错误！获取失败")  # 下载直链
-            else:
-                infos.append("其它错误！")  # 下载直链
-        else:
-            infos.append("无")  # 下载直链
-        infos[5] = infos[5] or "无"  # 提取码
-        return infos
+    def show_move_file_dialog(self, infos, all_dirs_dict):
+        '''显示移动文件对话框'''
+        move_file_dialog = MoveFileDialog(infos, all_dirs_dict)
+        move_file_dialog.new_infos.connect(self.all_folders_worker.move_file)  # 调用移动线程
+        move_file_dialog.exec()
+
+    def show_info_dialog(self, infos):
+        '''显示更多信息对话框'''
+        info_dialog = InfoDialog(infos)
+        info_dialog.setWindowModality(Qt.ApplicationModal)  # 窗口前置
+        info_dialog.exec()
 
     def call_change_dir(self, folder_id=-1):
         """按钮调用"""
@@ -603,14 +538,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         elif dir_name in self._folder_list.keys():
             folder_id = self._folder_list[dir_name][0]
             self.list_refresher.set_values(folder_id)
-        else:
-            self.show_status("ERROR : 该文件夹不存在: {}".format(dir_name), 3000)
 
     def call_upload(self, infos):
         """上传文件(夹)"""
-        if self._work_name == 'Recovery':
-            print('ERROR : 回收站模式下无法使用此操作')
-            return None
         self._old_work_id = self._work_id  # 记录上传文件夹id
         self.upload_worker.set_values(self._disk, infos, self._old_work_id)
         self.upload_worker.start()
@@ -697,40 +627,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def show_status(self, msg, duration=0):
         self._msg_label.setText(msg)
         # self.statusbar.showMessage(msg, duration)
-        QCoreApplication.processEvents()  # 重绘界面
+        # QCoreApplication.processEvents()  # 重绘界面，在弱网络情况导致程序闪退
         if duration != 0:
             QTimer.singleShot(duration, lambda: self._msg_label.setText(""))
 
     # shared url
-    def call_get_shared_info_worker(self):
-        line_share_text = self.line_share_url.text().strip()
-        pat = r"(https?://(www\.)?lanzous.com/[bi][a-z0-9]+)[^0-9a-z]*([a-z0-9]+)?"
-        for share_url, _, pwd in re.findall(pat, line_share_text):
-            pass
-        if self._disk.is_file_url(share_url):  # 链接为文件
-            is_file = True
-            is_folder = False
-            self.show_status("正在获取文件链接信息……")
-        elif self._disk.is_folder_url(share_url):  # 链接为文件夹
-            is_folder = True
-            is_file = False
-            self.show_status("正在获取文件夹链接信息，可能需要几秒钟，请稍后……")
-        else:
-            self.show_status("{} 为非法链接！".format(share_url))
-            self.btn_extract.setEnabled(True)
-            self.line_share_url.setEnabled(True)
-            return
-        self.model_share.removeRows(0, self.model_share.rowCount())
-        QCoreApplication.processEvents()  # 重绘界面
-
-        self.get_shared_info_thread.set_values(self._disk, share_url, pwd, is_file, is_folder)
-        self.get_shared_info_thread.start()
-
     def call_get_shared_info(self):
-        if not self.get_shared_info_thread.isRunning():  # 防止阻塞主进程
+        if not self.get_shared_info_thread.isRunning():  # 防止快速多次调用
             self.line_share_url.setEnabled(False)
             self.btn_extract.setEnabled(False)
-            self.call_get_shared_info_worker()
+            text = self.line_share_url.text().strip()
+            self.get_shared_info_thread.set_values(text)
 
     def show_share_url_file_lists(self, infos):
         if infos["code"] == LanZouCloud.SUCCESS:
@@ -774,11 +681,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.table_share.setDisabled(True)
         self.model_share = QStandardItemModel(1, 3)
         self.config_tableview("share")
+        # 获取分享链接信息线程
         self.get_shared_info_thread = GetSharedInfo()
-        self.get_shared_info_thread.code.connect(self.show_status)  # 状态码
-        self.get_shared_info_thread.infos.connect(self.show_share_url_file_lists)  # 信息
+        self.get_shared_info_thread.update.connect(lambda: self.model_share.removeRows(0, self.model_share.rowCount()))  # 清理旧的信息
+        self.get_shared_info_thread.msg.connect(self.show_status)  # 提示信息
+        self.get_shared_info_thread.infos.connect(self.show_share_url_file_lists)  # 内容信息
         self.get_shared_info_thread.finished.connect(lambda: self.btn_extract.setEnabled(True))
         self.get_shared_info_thread.finished.connect(lambda: self.line_share_url.setEnabled(True))
+        # 控件设置
         self.line_share_url.setPlaceholderText("蓝奏云链接，如有提取码，放后面，空格或汉字等分割，回车键提取")
         self.line_share_url.returnPressed.connect(self.call_get_shared_info)
         self.btn_extract.clicked.connect(self.call_get_shared_info)
@@ -786,7 +696,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btn_share_dl.setIcon(QIcon("./icon/downloader.ico"))
         self.btn_share_select_all.setIcon(QIcon("./icon/select-all.ico"))
         self.btn_share_select_all.clicked.connect(lambda: self.select_all_btn("reverse"))
-        self.table_share.clicked.connect(lambda: self.select_all_btn("cancel"))
+        self.table_share.clicked.connect(lambda: self.select_all_btn("cancel"))  # 全选按钮
 
         # 添加文件下载路径选择器
         self.line_dl_path = MyLineEdit(self.share_tab)

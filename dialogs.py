@@ -429,8 +429,15 @@ class RenameDialog(QDialog):
                 self.setWindowTitle("修改文件描述")
                 self.tx_name.setFocusPolicy(Qt.NoFocus)
                 self.tx_name.setReadOnly(True)
+            else:
+                self.tx_name.setFocusPolicy(Qt.StrongFocus)
+                self.tx_name.setReadOnly(False)
+
         else:
             self.setWindowTitle("新建文件夹")
+            self.tx_name.setText("")
+            self.tx_name.setFocusPolicy(Qt.StrongFocus)
+            self.tx_name.setReadOnly(False)
             self.tx_desc.setPlaceholderText("可选项，建议160字数以内。")
         if self.min_width < 400:
             self.min_width = 400
@@ -452,26 +459,27 @@ class RenameDialog(QDialog):
 class SetPwdDialog(QDialog):
     new_infos = pyqtSignal(object)
 
-    def __init__(self, infos, parent=None):
+    def __init__(self, parent=None):
         super(SetPwdDialog, self).__init__(parent)
-        self.infos = infos
+        self.infos = None
         self.initUI()
+        self.update_text()
         self.setStyleSheet(dialog_qss_style)
 
+    def set_values(self, infos):
+        self.infos = infos
+        self.update_text()  # 更新界面
+
+    def set_tip(self):  # 用于提示状态
+        self.setWindowTitle("请稍等……")
+
     def initUI(self):
-        if self.infos[2]:  # 通过size列判断是否为文件
-            self.setWindowTitle("修改文件提取码")
-        else:
-            self.setWindowTitle("修改文件夹名提取码")
+        self.setWindowTitle("请稍等……")
         self.setWindowIcon(QIcon("./icon/password.ico"))
         self.lb_oldpwd = QLabel()
         self.lb_oldpwd.setText("当前提取码：")
         self.lb_oldpwd.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
         self.tx_oldpwd = QLineEdit()
-        if self.infos[5]:
-            self.tx_oldpwd.setText(str(self.infos[5]))
-        else:
-            self.tx_oldpwd.setPlaceholderText("无")
         # 当前提取码 只读
         self.tx_oldpwd.setFocusPolicy(Qt.NoFocus)
         self.tx_oldpwd.setReadOnly(True)
@@ -479,9 +487,7 @@ class SetPwdDialog(QDialog):
         self.lb_newpwd.setText("新的提取码：")
         self.lb_newpwd.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
         self.tx_newpwd = QLineEdit()
-        self.tx_newpwd.setMaxLength(6)  # 最长6个字符
-        self.tx_newpwd.setPlaceholderText("2-6位字符,关闭请留空")
-
+        
         self.buttonBox = QDialogButtonBox()
         self.buttonBox.setOrientation(Qt.Horizontal)
         self.buttonBox.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -496,8 +502,28 @@ class SetPwdDialog(QDialog):
         self.setLayout(self.grid)
         self.buttonBox.accepted.connect(self.btn_ok)
         self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.accepted.connect(self.set_tip)
         self.buttonBox.rejected.connect(self.reject)
+        self.buttonBox.rejected.connect(self.set_tip)
         self.setMinimumWidth(280)
+
+    def update_text(self):
+        if self.infos:
+            if self.infos[5]:
+                self.tx_oldpwd.setText(str(self.infos[5]))
+                self.tx_oldpwd.setPlaceholderText("")
+            else:
+                self.tx_oldpwd.setText("")
+                self.tx_oldpwd.setPlaceholderText("无")
+
+            if self.infos[2]:  # 文件  通过size列判断是否为文件
+                self.setWindowTitle("修改文件提取码")
+                self.tx_newpwd.setPlaceholderText("2-6位字符,关闭请留空")
+                self.tx_newpwd.setMaxLength(6)  # 最长6个字符
+            else:  # 文件夹
+                self.setWindowTitle("修改文件夹名提取码")
+                self.tx_newpwd.setPlaceholderText("2-12位字符,关闭请留空")
+                self.tx_newpwd.setMaxLength(12)  # 最长12个字符
 
     def btn_ok(self):
         new_pwd = self.tx_newpwd.text()
@@ -506,6 +532,7 @@ class SetPwdDialog(QDialog):
 
 
 class MoveFileDialog(QDialog):
+    '''移动文件对话框'''
     new_infos = pyqtSignal(object)
 
     def __init__(self, infos, all_dirs_dict, parent=None):
@@ -516,13 +543,19 @@ class MoveFileDialog(QDialog):
         self.setStyleSheet(dialog_qss_style)
 
     def initUI(self):
+        for i in self.infos:
+            if not i[2]:  # 非文件
+                self.infos.remove(i)
         self.setWindowTitle("移动文件")
         self.setWindowIcon(QIcon("./icon/move.ico"))
         self.lb_name = QLabel()
         self.lb_name.setText("文件路径：")
         self.lb_name.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
         self.tx_name = QLineEdit()
-        self.tx_name.setText(self.infos[1])
+        names = " | ".join([i[1] for i in self.infos])
+        names_tip = "\n".join([i[1] for i in self.infos])
+        self.tx_name.setText(names)
+        self.tx_name.setToolTip(names_tip)
         # 只读
         self.tx_name.setFocusPolicy(Qt.NoFocus)
         self.tx_name.setReadOnly(True)
@@ -533,11 +566,9 @@ class MoveFileDialog(QDialog):
         )
         self.tx_new_path = QComboBox()
         f_icon = QIcon("./icon/folder.gif")
-        # 莫名其妙，15 = 8*2 - 1
-        # self.tx_new_path.addItem(f_icon, "id：{:>15}，name：{}".format("-1", "根目录"))
         for f_name, fid in self.dirs.items():
-            if len(f_name) > 30:  # 防止文件夹名字过长？
-                f_name = f_name[:27] + "..."
+            if len(f_name) > 50:  # 防止文件夹名字过长？
+                f_name = f_name[:47] + "..."
             self.tx_new_path.addItem(f_icon, "id：{:>8}，name：{}".format(fid, f_name))
 
         self.buttonBox = QDialogButtonBox()
@@ -559,7 +590,7 @@ class MoveFileDialog(QDialog):
 
     def btn_ok(self):
         selected = self.tx_new_path.currentText().split("，")[0].split("：")[1]
-        self.new_infos.emit((self.infos[0], selected, self.infos[1]))
+        self.new_infos.emit([(info[0], selected, info[1]) for info in self.infos])
 
 
 class DeleteDialog(QDialog):
@@ -596,7 +627,7 @@ class DeleteDialog(QDialog):
                 self.model.appendRow(QStandardItem(self.set_file_icon(i[1]), i[1]))
             else:
                 self.model.appendRow(QStandardItem(QIcon("./icon/folder.gif"), i[1]))
-            self.out.append((i[0], i[2]))  # id，文件标示
+            self.out.append({'fid': i[0], 'is_file': True if i[2] else False, 'name': i[1]})  # id，文件标示, 文件名
             count += 1
             if max_len < len(i[1]):  # 使用最大文件名长度
                 max_len = len(i[1])
