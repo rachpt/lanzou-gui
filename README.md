@@ -5,7 +5,7 @@
 <h1 align="center">- 蓝奏云 GUI -</h1>
 
 <p align="center">
-<img src="https://img.shields.io/badge/version-0.0.5-blue?logo=iCloud">
+<img src="https://img.shields.io/badge/version-0.0.6-blue?logo=iCloud">
 <img src="https://img.shields.io/badge/support-Windows-blue?logo=Windows">
 <img src="https://img.shields.io/badge/support-Linux-yellow?logo=Linux">
 <img src="https://img.shields.io/badge/support-MacOS-green?logo=apple">
