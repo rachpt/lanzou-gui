@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import os
-import sys
 import re
 from random import random
 from PyQt5.QtCore import QThread, pyqtSignal, QMutex
@@ -282,13 +281,14 @@ class UploadWorker(QThread):
 class LoginLuncher(QThread):
     '''登录线程'''
     code = pyqtSignal(bool, str, int)
+    update_cookie = pyqtSignal(object)
 
     def __init__(self, disk, parent=None):
         super(LoginLuncher, self).__init__(parent)
         self._disk = disk
         self.username = ""
         self.password = ""
-        self.cookie = ""
+        self.cookie = None
 
     def set_values(self, username, password, cookie=None):
         self.username = username
@@ -299,14 +299,22 @@ class LoginLuncher(QThread):
         self.wait()
 
     def run(self):
+        if self.cookie:
+            res = self._disk.login_by_cookie(self.cookie)
+            if res == LanZouCloud.SUCCESS:
+                self.code.emit(True, "<font color='#00CC00'>通过<b>Cookie</b>登录<b>成功</b>！ ≧◉◡◉≦</font>", 5000)
+                return
         if (not self.username or not self.password) and not self.cookie:
             self.code.emit(False, "<font color='red'>登录失败: 没有用户或密码</font>", 3000)
         else:
             res = self._disk.login(self.username, self.password)
             if res == LanZouCloud.SUCCESS:
                 self.code.emit(True, "<font color='#00CC00'>登录<b>成功</b>！ ≧◉◡◉≦</font>", 5000)
+                _cookie = self._disk.get_cookie()
+                self.update_cookie.emit(_cookie)
             else:
                 self.code.emit(False, "<font color='red'>登录失败，可能是用户名或密码错误！</font>", 8000)
+                self.update_cookie.emit(None)
 
 
 class DescPwdFetcher(QThread):
@@ -608,15 +616,17 @@ class RenameMkdirWorker(QThread):
         super(RenameMkdirWorker, self).__init__(parent)
         self._disk = object
         self._work_id = -1
+        self._folder_list = None
         self.infos = None
         self._mutex = QMutex()
         self._is_work = False
 
-    def set_values(self, disk, infos, work_id):
+    def set_values(self, disk, infos, work_id, folder_list):
         # 登录信息可能会有变化，重新给 disk
         self._disk = disk
         self.infos = infos  # 对话框标识文件与文件夹
         self._work_id = work_id
+        self._folder_list = folder_list
         self.start()
 
     def __del__(self):

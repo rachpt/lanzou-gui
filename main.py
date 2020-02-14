@@ -77,7 +77,7 @@ qssStyle = '''
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
-    __version__ = 'v0.0.6'
+    __version__ = 'v0.0.7'
 
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
@@ -147,6 +147,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 登录器
         self.login_luncher = LoginLuncher(self._disk)
         self.login_luncher.code.connect(self.login_update_ui)
+        self.login_luncher.update_cookie.connect(self.call_update_cookie)
         # 登出器
         self.logout_worker = LogoutWorker()
         self.logout_worker.successed.connect(self.call_logout_update_ui)
@@ -225,7 +226,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.settings = load(_file)
         except Exception:
             dl_path = os.path.dirname(os.path.abspath(__file__)) + os.sep + "downloads"
-            self.settings = {"user": "", "pwd": "", "path": dl_path}
+            self.settings = {"user": "", "pwd": "", "cookie": "", "path": dl_path}
             with open(self._config, "wb") as _file:
                 dump(self.settings, _file)
 
@@ -314,6 +315,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         except Exception as exp:
             print(exp)
             pass
+
+    def call_update_cookie(self, cookie):
+        """更新cookie至config文件"""
+        up_info = {"cookie": cookie}
+        update_settings(self._config, up_info)
 
     def set_file_icon(self, name):
         suffix = name.split(".")[-1]
@@ -431,7 +437,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def call_rename_mkdir_worker(self, infos):
         """重命名、修改简介与新建文件夹"""
-        self.rename_mkdir_worker.set_values(self._disk, infos, self._work_id)
+        self.rename_mkdir_worker.set_values(self._disk, infos, self._work_id, self._folder_list)
 
     def set_passwd(self, infos):
         """设置文件(夹)提取码"""
