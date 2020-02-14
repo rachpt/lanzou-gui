@@ -49,6 +49,7 @@ class LanZouCloud(object):
         self._doupload_url = 'https://pc.woozooo.com/doupload.php'
         self._account_url = 'https://pc.woozooo.com/account.php'
         self._mydisk_url = 'https://pc.woozooo.com/mydisk.php'
+        self._cookies = None
         self._headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36',
             'Referer': 'https://www.lanzous.com',
@@ -88,7 +89,7 @@ class LanZouCloud(object):
     @staticmethod
     def _name_format(name):
         """去除文件(夹)非法字符"""
-        name = re.sub(r'\s', '_', name)  # 文件夹不能包含空白字符 (Linux 系统限制)
+        name = re.sub(r'\s', '_', name)  # lanzou 文件夹不能包含空白字符
         name = re.sub(r'[#$%^!*<>)(+=`\'\"/:;,?]', '', name)  # 去除非法字符
         return name
 
@@ -110,6 +111,7 @@ class LanZouCloud(object):
     def _get_right_name(self, filename):
         """去除伪装后缀，返回正确文件名和格式"""
         if filename.endswith(self._guise_suffix):
+            filename = filename.replace('#', '.')  # 恢复被 "#" 替代的 '.'
             filename = '.'.join(filename.split('.')[:-1])
         ftype = filename.split('.')[-1]  # 正确的文件后缀
         return filename, ftype.lower()
@@ -149,7 +151,23 @@ class LanZouCloud(object):
         html = self._post(self._account_url, login_data)
         if not html:
             return LanZouCloud.NETWORK_ERROR
-        return LanZouCloud.SUCCESS if '登录成功' in html.text else LanZouCloud.FAILED
+        if '登录成功' in html.text:
+            self._cookies = html.cookies.get_dict()
+            return LanZouCloud.SUCCESS
+        else:
+            return LanZouCloud.FAILED
+
+    def get_cookie(self):
+        """获取用户 Cookie"""
+        return self._cookies
+
+    def login_by_cookie(self, cookie: dict):
+        """通过cookie登录"""
+        self._session.cookies.update(cookie)
+        html = self._get(self._account_url)
+        if not html or '网盘用户登录' in html.text:
+            return LanZouCloud.FAILED
+        return LanZouCloud.SUCCESS
 
     def logout(self) -> int:
         """注销"""
@@ -580,7 +598,7 @@ class LanZouCloud(object):
         """上传文件到蓝奏云上指定的文件夹(默认根目录)"""
         if not os.path.isfile(file_path):
             return LanZouCloud.PATH_ERROR
-        file_name = re.sub(r'\s', '_', os.path.basename(file_path))  # 从文件路径截取文件名，去除空白字符(Linux文件名限制)
+        file_name = os.path.basename(file_path)  # 从文件路径截取文件名
         try:
             tmp_list = {**self.get_file_id_list(folder_id), **self.get_dir_id_list(folder_id)}
             if file_name in tmp_list.keys():
@@ -595,6 +613,7 @@ class LanZouCloud(object):
                              'mp3', 'iso', 'img', 'gho', 'ttf', 'ttc', 'txf', 'dwg', 'bat', 'dll']
         # 不支持上传的格式，通过修改后缀蒙混过关
         if suffix not in valid_suffix_list:
+            file_name = file_name.replace('.', '#')  # 官方限制了dll文件名中出现多重后缀，用 "#" .
             file_name = file_name + self._guise_suffix
 
         # 分卷后缀 .part[0-9]+.rar 被蓝奏云限制上传，改一下命名规则
@@ -610,7 +629,6 @@ class LanZouCloud(object):
                 "name": file_name,
                 "upload_file": (file_name, _file_handle, 'application/octet-stream')
             }
-
             post_data = MultipartEncoder(post_data)
             tmp_header = self._headers.copy()
             tmp_header['Content-Type'] = post_data.content_type
@@ -630,7 +648,7 @@ class LanZouCloud(object):
                         self._upload_finished_flag = True
 
             monitor = MultipartEncoderMonitor(post_data, _call_back)
-            result = self._POST('http://pc.woozooo.com/fileup.php', data=monitor, headers=tmp_header)
+            result = self._POST('https://pc.woozooo.com/fileup.php', data=monitor, headers=tmp_header)
             if not result:  # 网络异常
                 return LanZouCloud.NETWORK_ERROR
             else:
@@ -666,10 +684,9 @@ class LanZouCloud(object):
         if not self._rar_path:
             return {'code': LanZouCloud.ZIP_ERROR, 'failed': None}
         rar_level = 0  # 压缩等级(0-5)，0 不压缩, 5 最好压缩(耗时长)
-        part_sum = os.path.getsize(file_path) // (self._max_size * 1048576) + 1
         file_name = file_path.split(os.sep)[-1].split('.')  # 文件名去掉无后缀，用作分卷文件的名字
         file_name = file_name[0] if len(file_name) == 1 else '.'.join(file_name[:-1])  # 处理没有后缀的文件
-        file_list = [f"{file_name}.part{i}.rar" for i in range(1, part_sum + 1)]
+
         if not os.path.exists('./tmp'):
             os.mkdir('./tmp')  # 本地保存分卷文件的临时文件夹
         # 使用压缩工具分卷压缩大文件  # -rr5% 导致 rar.exe 一直在后台占用文件
@@ -689,8 +706,9 @@ class LanZouCloud(object):
             rmtree('./tmp')
             return {'code': LanZouCloud.ZIP_ERROR, 'failed': None}
 
-
         # 上传并删除分卷文件
+        sleep(1.5)
+        file_list = [f for f in os.listdir('./tmp') if f.startswith(file_name)]
         folder_name = '.'.join(file_list[0].split('.')[:-2])  # 文件名去除".xxx.rar"作为网盘新建的文件夹名
         dir_id = self.mkdir(folder_id, folder_name, '分卷压缩文件')
         if dir_id == LanZouCloud.MKDIR_ERROR:
@@ -764,7 +782,6 @@ class LanZouCloud(object):
                         if call_back is not None:
                             call_back(info['name'], total_size, now_size)
             return LanZouCloud.SUCCESS
-        # except ValueError as err:
         except Exception as err:
             print("err:[", err, "]END-err")
             return LanZouCloud.FAILED
