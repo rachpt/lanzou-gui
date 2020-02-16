@@ -648,7 +648,7 @@ class RenameMkdirWorker(QThread):
             new_desc = self.infos[3]
             try:
                 if not fid:  # 新建文件夹
-                    if new_name in self._folder_list.keys():
+                    if hasattr(self,'_folder_list') and new_name in self._folder_list.keys():
                         self.msg.emit(f"文件夹已存在：{new_name}", 7000)
                     else:
                         res = self._disk.mkdir(self._work_id, new_name, new_desc)
