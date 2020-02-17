@@ -2,21 +2,21 @@ import os
 from pickle import dump, load
 from PyQt5.QtCore import Qt, pyqtSignal, QSize
 from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel, QPixmap, QLinearGradient
-from PyQt5.QtWidgets import (QAbstractItemView, QPushButton, QFileDialog, QLineEdit, QDialog, QLabel,
+from PyQt5.QtWidgets import (QAbstractItemView, QPushButton, QFileDialog, QLineEdit, QDialog, QLabel, QFormLayout,
                              QTextEdit, QGridLayout, QListView, QDialogButtonBox, QVBoxLayout, QComboBox)
 
 from Ui_share import Ui_Dialog
 
 
-def update_settings(_config, up_info):
+def update_settings(config_file: str, up_info: dict):
     """更新配置文件"""
     try:
-        with open(_config, "rb") as _file:
+        with open(config_file, "rb") as _file:
             _info = load(_file)
     except Exception:
         _info = {}
     _info.update(up_info)
-    with open(_config, "wb") as _file:
+    with open(config_file, "wb") as _file:
         dump(_info, _file)
 
 
@@ -716,3 +716,90 @@ Python 依赖见<a href="https://github.com/rachpt/lanzou-gui/blob/master/requir
         self.grid.addWidget(self.buttonBox, 10, 2)
         self.setLayout(self.grid)
         self.setFixedSize(660, 300)
+
+
+class SettingDialog(QDialog):
+    infos = pyqtSignal(str, dict)
+
+    def __init__(self, config_file, parent=None):
+        super(SettingDialog, self).__init__(parent)
+        self._config_file = config_file
+        self.rar_tool = None
+        self.download_threads = None
+        self.max_size = None
+        self.timeout = None
+        self.guise_suffix = None
+        self.rar_part_name = None
+        self.path = None
+        self.initUI()
+        self.read_values()
+        self.setStyleSheet(dialog_qss_style)
+
+    def read_values(self):
+        try:
+            with open(self._config_file, "rb") as _file:
+                configs = load(_file)
+            settings = configs["settings"]
+            self.rar_tool = settings["rar_tool"]
+            self.download_threads = settings["download_threads"]
+            self.max_size = settings["max_size"]
+            self.timeout = settings["timeout"]
+            self.guise_suffix = settings["guise_suffix"]
+            self.rar_part_name = settings["rar_part_name"]
+            self.path = configs["path"]
+            self.show_infos()
+        except Exception:
+            pass
+
+    def show_infos(self):
+        self.rar_tool_var.setText(self.rar_tool)
+        self.download_threads_var.setText(str(self.download_threads))
+        self.max_size_var.setText(str(self.max_size))
+        self.timeout_var.setText(str(self.timeout))
+        self.guise_suffix_var.setText(str(self.guise_suffix))
+        self.rar_part_name_var.setText(str(self.rar_part_name))
+        self.path_var.setText(str(self.path))
+
+    def initUI(self):
+        self.setWindowTitle("设置")
+        self.logo = QLabel()  # logo
+        self.logo.setPixmap(QPixmap("./icon/logo2.gif"))
+        self.logo.setStyleSheet("background-color:rgb(255,255,255);")
+        self.logo.setAlignment(Qt.AlignCenter)
+        self.rar_tool = QLabel("rar路径")  # rar路径
+        self.rar_tool_var = QLineEdit()
+        self.download_threads = QLabel("同时下载文件数")  # about
+        self.download_threads_var = QLineEdit()
+        self.max_size = QLabel("分卷大小(MB)")
+        self.max_size_var = QLineEdit()
+        self.timeout = QLabel("请求超时(秒)")
+        self.timeout_var = QLineEdit()
+        self.guise_suffix = QLabel("假后缀")
+        self.guise_suffix_var = QLineEdit()
+        self.rar_part_name = QLabel("rar分卷名")
+        self.rar_part_name_var =QLineEdit()
+        self.path = QLabel("下载保存路径")
+        self.path_var = QLineEdit()
+
+        self.buttonBox = QDialogButtonBox()
+        self.buttonBox.setOrientation(Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+        self.form = QFormLayout()
+        self.form.setSpacing(10)
+        self.form.addRow(self.rar_tool, self.rar_tool_var)
+        self.form.addRow(self.download_threads, self.download_threads_var)
+        self.form.addRow(self.max_size, self.max_size_var)
+        self.form.addRow(self.timeout, self.timeout_var)
+        self.form.addRow(self.guise_suffix, self.guise_suffix_var)
+        self.form.addRow(self.rar_part_name, self.rar_part_name_var)
+        self.form.addRow(self.path, self.path_var)
+
+        self.vbox = QVBoxLayout()
+        self.vbox.addWidget(self.logo)
+        self.vbox.addLayout(self.form)
+        self.vbox.addWidget(self.buttonBox)
+        self.setLayout(self.vbox)
+        self.setMinimumWidth(500)
