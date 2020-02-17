@@ -5,10 +5,13 @@
 <h1 align="center">- 蓝奏云 GUI -</h1>
 
 <p align="center">
-<img src="https://img.shields.io/github/v/release/rachpt/lanzou-gui.svg?logo=iCloud">
 <img src="https://img.shields.io/badge/support-Windows-blue?logo=Windows">
 <img src="https://img.shields.io/badge/support-Linux-yellow?logo=Linux">
 <img src="https://img.shields.io/badge/support-MacOS-green?logo=apple">
+<br />
+<img src="https://img.shields.io/github/v/release/rachpt/lanzou-gui.svg?logo=iCloud">
+<img src="https://img.shields.io/github/last-commit/rachpt/lanzou-gui.svg">
+<img src="https://img.shields.io/github/downloads/rachpt/lanzou-gui/total.svg">
 </p>
 
 - 本项目使用`PyQt5`实现图形界面，可以完成蓝奏云的大部分功能
@@ -20,8 +23,6 @@
 
 # 一些说明
 - 目前并发下载任务为3，多个文件时最多同时3个下载，单个文件还是单线程的，后期会开放设置；
-
-- 上传功能还不是很完善，~~不能后台上传，也就是只有所有文件上传完成后，你才能继续其他的事情~~，`v0.0.4`已经解决；
 
 - 理想的文件上传功能是直接拖拽文件到软件界面，然而目前还不能（欢迎熟悉PyQt5的同学PR）；
 
@@ -40,7 +41,7 @@
 
 # 其他
 
-[Gitee 镜像repo](https://gitee.com/rachpt/lanzou-gui)
+[Gitee 镜像 repo](https://gitee.com/rachpt/lanzou-gui)
 
 # 致谢
 
