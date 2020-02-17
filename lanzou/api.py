@@ -925,7 +925,7 @@ class LanZouCloud(object):
                 return {"code": LanZouCloud.LACK_PASSWORD, "info": ""}
             f_size = re.findall(r'class="n_filesize">[^<0-9]*([\.0-9 MKBmkbGg]+)<', first_page)
             f_size = f_size[0] if f_size else ""
-            f_date = re.findall(r'class="n_file_infos">([-0-9 月天小时分钟秒前]+)<', first_page)
+            f_date = re.findall(r'class="n_file_infos">([-0-9 :月天小时分钟秒前]+)<', first_page)
             f_date = f_date[0] if f_date else ""
             f_desc = re.findall(r'class="n_box_des">(.*)<', first_page)
             f_desc = f_desc[0] if f_desc else ""
@@ -954,7 +954,7 @@ class LanZouCloud(object):
                 f_name = re.findall(r"var filename = '(.*)';", first_page)[0]
             f_size = re.findall(r'文件大小：</span>([\.0-9 MKBmkbGg]+)<br', first_page)
             f_size = f_size[0] if f_size else ""
-            f_date = re.findall(r'上传时间：</span>([-0-9 月天小时分钟秒前]+)<br', first_page)
+            f_date = re.findall(r'上传时间：</span>([-0-9 :月天小时分钟秒前]+)<br', first_page)
             f_date = f_date[0] if f_date else ""
             f_desc = re.findall(r'文件描述：</span><br>([^<]+)</td>', first_page)
             f_desc = f_desc[0].strip() if f_desc else ""
