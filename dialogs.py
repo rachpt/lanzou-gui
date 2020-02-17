@@ -436,6 +436,7 @@ class RenameDialog(QDialog):
         else:
             self.setWindowTitle("新建文件夹")
             self.tx_name.setText("")
+            self.tx_name.setPlaceholderText("不支持空格，如有会被自动替换成 _")
             self.tx_name.setFocusPolicy(Qt.StrongFocus)
             self.tx_name.setReadOnly(False)
             self.tx_desc.setPlaceholderText("可选项，建议160字数以内。")
@@ -446,10 +447,12 @@ class RenameDialog(QDialog):
     def btn_ok(self):
         new_name = self.tx_name.text()
         new_desc = self.tx_desc.toPlainText()
-        if not self.infos and new_name:  # 在 work_id 新建文件夹
-            self.out.emit(("new", "", new_name, new_desc))
-            return
-        if new_name != self.infos[1] or(new_desc and new_desc != self.infos[6]):
+        if not self.infos:  # 在 work_id 新建文件夹
+            if new_name:
+                self.out.emit(("new", "", new_name, new_desc))
+            else:
+                return
+        elif new_name != self.infos[1] or(new_desc and new_desc != self.infos[6]):
             if self.infos[2]:  # 文件
                 self.out.emit(("file", self.infos[0], new_name, new_desc))
             else:
