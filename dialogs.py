@@ -3,19 +3,26 @@ from pickle import dump, load
 from PyQt5.QtCore import Qt, pyqtSignal, QSize
 from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel, QPixmap, QLinearGradient
 from PyQt5.QtWidgets import (QAbstractItemView, QPushButton, QFileDialog, QLineEdit, QDialog, QLabel, QFormLayout,
-                             QTextEdit, QGridLayout, QListView, QDialogButtonBox, QVBoxLayout, QComboBox)
+                             QTextEdit, QGridLayout, QListView, QDialogButtonBox, QVBoxLayout, QHBoxLayout, QComboBox, QCheckBox)
 
 from Ui_share import Ui_Dialog
 
 
-def update_settings(config_file: str, up_info: dict):
+def update_settings(config_file: str, up_info: dict, is_settings=False):
     """更新配置文件"""
     try:
         with open(config_file, "rb") as _file:
             _info = load(_file)
     except Exception:
         _info = {}
-    _info.update(up_info)
+    if is_settings:
+        try: _settings = _info["settings"]
+        except Exception:
+            _settings = {}
+        _settings.update(up_info)
+        _info.update(_settings)
+    else:
+        _info.update(up_info)
     with open(config_file, "wb") as _file:
         dump(_info, _file)
 
@@ -88,14 +95,11 @@ class LoginDialog(QDialog):
         self._cookie = ""
         self.initUI()
         self.setStyleSheet(dialog_qss_style)
-        self.setMinimumWidth(300)
+        self.setMinimumWidth(350)
         # 信号
         self.name_ed.textChanged.connect(self.set_user)
         self.pwd_ed.textChanged.connect(self.set_pwd)
         self.cookie_ed.textChanged.connect(self.set_cookie)
-
-        self.buttonBox.accepted.connect(self._ok)
-        self.buttonBox.rejected.connect(self._cancel)
 
     def default_var(self):
         try:
@@ -103,20 +107,21 @@ class LoginDialog(QDialog):
                 _info = load(_file)
             self._user = _info["user"]
             self._pwd = _info["pwd"]
-            self._cookie = _info["cookie"]
+            cookies = _info["cookie"]
+            self._cookie = ";".join([str(k) +'='+ str(v) for k,v in cookies.items()])
         except Exception:
             pass
         self.name_ed.setText(self._user)
         self.pwd_ed.setText(self._pwd)
-        self.cookie_ed.setPlainText(self._cookie)
+        self.cookie_ed.setPlainText(str(self._cookie))
 
     def initUI(self):
         self.setWindowTitle("登录蓝奏云")
         self.setWindowIcon(QIcon("./icon/login.ico"))
-        self.logo = QLabel()
-        self.logo.setPixmap(QPixmap("./icon/logo3.gif"))
-        self.logo.setStyleSheet("background-color:rgb(0,153,255);")
-        self.logo.setAlignment(Qt.AlignCenter)
+        logo = QLabel()
+        logo.setPixmap(QPixmap("./icon/logo3.gif"))
+        logo.setStyleSheet("background-color:rgb(0,153,255);")
+        logo.setAlignment(Qt.AlignCenter)
         self.name_lb = QLabel("&User")
         self.name_lb.setAlignment(Qt.AlignCenter)
         self.name_ed = QLineEdit()
@@ -130,26 +135,41 @@ class LoginDialog(QDialog):
 
         self.cookie_lb = QLabel("&Cookie")
         self.cookie_ed = QTextEdit()
-        notice = "如果由于滑动验证，无法使用用户名与密码登录，则需要输入cookie，自行使用浏览器获取，" \
+        notice = "如果由于滑动验证，无法使用用户名与密码登录，则需要输入cookie，自行使用浏览器获取，\n" \
             "cookie会保持在本地，下次使用。其格式如下：\n\n key1=value1; key2=value2"
         self.cookie_ed.setPlaceholderText(notice)
         self.cookie_lb.setBuddy(self.cookie_ed)
+        
+        self.show_input_cookie_btn = QPushButton("显示Cookie输入框")
+        self.show_input_cookie_btn.setToolTip(notice)
+        self.show_input_cookie_btn.setStyleSheet("QPushButton {min-width: 110px;max-width: 110px;}")
+        self.show_input_cookie_btn.clicked.connect(self.change_show_input_cookie)
+        self.ok_btn = QPushButton("登录")
+        self.ok_btn.clicked.connect(self.change_ok_btn)
+        self.cancel_btn = QPushButton("取消")
+        self.cancel_btn.clicked.connect(self.change_cancel_btn)
 
-        self.buttonBox = QDialogButtonBox()
-        self.buttonBox.setOrientation(Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.form = QFormLayout()
+        self.form.addRow(self.name_lb, self.name_ed)
+        self.form.addRow(self.pwd_lb, self.pwd_ed)
 
-        main_layout = QGridLayout()
-        main_layout.addWidget(self.logo, 0, 0, 2, 4)
-        main_layout.addWidget(self.name_lb, 2, 0)
-        main_layout.addWidget(self.name_ed, 2, 1, 1, 3)
-        main_layout.addWidget(self.pwd_lb, 3, 0)
-        main_layout.addWidget(self.pwd_ed, 3, 1, 1, 3)
-        # main_layout.addWidget(self.cookie_lb, 4, 0)  # cookie输入框
-        # main_layout.addWidget(self.cookie_ed, 4, 1, 2, 3)
-        main_layout.addWidget(self.buttonBox, 4, 2)
-        self.setLayout(main_layout)
+        hbox = QHBoxLayout()
+        hbox.addWidget(self.show_input_cookie_btn)
+        hbox.addStretch(1)
+        hbox.addWidget(self.ok_btn)
+        hbox.addWidget(self.cancel_btn)
+        vbox = QVBoxLayout()
+        vbox.addWidget(logo)
+        vbox.addStretch(1)
+        vbox.addLayout(self.form)
+        vbox.addStretch(1)
+        vbox.addLayout(hbox)
+        self.setLayout(vbox)
         self.default_var()
+
+    def change_show_input_cookie(self):
+        self.form.addRow(self.cookie_lb, self.cookie_ed)
+        pass
 
     def set_user(self, user):
         self._user = user
@@ -158,13 +178,17 @@ class LoginDialog(QDialog):
         self._pwd = pwd
 
     def set_cookie(self):
-        self._cookie = self.cookie_ed.toPlainText()
+        cookies = self.cookie_ed.toPlainText()
+        try:
+            self._cookie = {kv.split("=")[0].strip(" "): kv.split("=")[1].strip(" ") for kv in cookies.split(";")}
+        except Exception:
+            self._cookie = None
 
-    def _cancel(self):
+    def change_cancel_btn(self):
         self.default_var()
         self.close()
 
-    def _ok(self):
+    def change_ok_btn(self):
         up_info = {"user": self._user, "pwd": self._pwd, "cookie": self._cookie}
         update_settings(self._config, up_info)
         self.clicked_ok.emit()
@@ -719,87 +743,171 @@ Python 依赖见<a href="https://github.com/rachpt/lanzou-gui/blob/master/requir
 
 
 class SettingDialog(QDialog):
-    infos = pyqtSignal(str, dict)
+    saved = pyqtSignal()
 
-    def __init__(self, config_file, parent=None):
+    def __init__(self, config_file: str, default_settings: dict, parent=None):
         super(SettingDialog, self).__init__(parent)
+        self.cwd = os.getcwd()
         self._config_file = config_file
+        self._default_settings = default_settings
         self.rar_tool = None
         self.download_threads = None
         self.max_size = None
         self.timeout = None
         self.guise_suffix = None
         self.rar_part_name = None
-        self.path = None
+        self.dl_path = None
+        self.time_fmt = False
         self.initUI()
-        self.read_values()
+        self.set_values()
         self.setStyleSheet(dialog_qss_style)
 
+    def open_dialog(self):
+        """"打开前先更新一下显示界面"""
+        self.set_values()
+        self.exec()
+
     def read_values(self):
+        """读取配置信息"""
         try:
             with open(self._config_file, "rb") as _file:
                 configs = load(_file)
             settings = configs["settings"]
-            self.rar_tool = settings["rar_tool"]
-            self.download_threads = settings["download_threads"]
-            self.max_size = settings["max_size"]
-            self.timeout = settings["timeout"]
-            self.guise_suffix = settings["guise_suffix"]
-            self.rar_part_name = settings["rar_part_name"]
-            self.path = configs["path"]
-            self.show_infos()
         except Exception:
-            pass
+            settings = self._default_settings
+        return settings
 
-    def show_infos(self):
+    def show_values(self):
+        """控件显示值"""
         self.rar_tool_var.setText(self.rar_tool)
         self.download_threads_var.setText(str(self.download_threads))
         self.max_size_var.setText(str(self.max_size))
         self.timeout_var.setText(str(self.timeout))
         self.guise_suffix_var.setText(str(self.guise_suffix))
         self.rar_part_name_var.setText(str(self.rar_part_name))
-        self.path_var.setText(str(self.path))
+        self.dl_path_var.setText(str(self.dl_path))
+        self.time_fmt_box.setChecked(self.time_fmt)
+
+    def set_values(self, reset=False):
+        """设置控件对应变量初始值"""
+        settings = self._default_settings if reset else self.read_values()
+        self.rar_tool = settings["rar_tool"]
+        self.download_threads = settings["download_threads"]
+        self.max_size = settings["max_size"]
+        self.timeout = settings["timeout"]
+        self.guise_suffix = settings["guise_suffix"]
+        self.rar_part_name = settings["rar_part_name"]
+        self.dl_path = settings["dl_path"]
+        self.time_fmt = settings["time_fmt"]
+        self.show_values()
+
+    def get_values(self) -> dict:
+        """读取控件值"""
+        self.rar_tool = self.rar_tool_var.text()
+        self.download_threads = int(self.download_threads_var.text())
+        self.max_size = float(self.max_size_var.text())
+        self.timeout = float(self.timeout_var.text())
+        self.guise_suffix = str(self.guise_suffix_var.text())
+        self.rar_part_name = str(self.rar_part_name_var.text())
+        self.dl_path = str(self.dl_path_var.text())
+        return {"rar_tool": self.rar_tool, "download_threads": self.download_threads,
+                "max_size": self.max_size, "guise_suffix": self.guise_suffix, "dl_path": self.dl_path,
+                "timeout": self.timeout, "rar_part_name": self.rar_part_name, "time_fmt": self.time_fmt}
 
     def initUI(self):
         self.setWindowTitle("设置")
-        self.logo = QLabel()  # logo
-        self.logo.setPixmap(QPixmap("./icon/logo2.gif"))
-        self.logo.setStyleSheet("background-color:rgb(255,255,255);")
-        self.logo.setAlignment(Qt.AlignCenter)
-        self.rar_tool = QLabel("rar路径")  # rar路径
-        self.rar_tool_var = QLineEdit()
-        self.download_threads = QLabel("同时下载文件数")  # about
+        logo = QLabel()  # logo
+        logo.setPixmap(QPixmap("./icon/logo2.gif"))
+        logo.setStyleSheet("background-color:rgb(255,255,255);")
+        logo.setAlignment(Qt.AlignCenter)
+        self.rar_tool_lb = QLabel("rar路径")  # rar路径
+        self.rar_tool_var = MyLineEdit(self)
+        self.rar_tool_var.clicked.connect(self.set_rar_path)
+        self.rar_tool_var.setPlaceholderText("用于大文件分卷压缩与分卷合并")
+        self.rar_tool_var.setToolTip("用于大文件分卷压缩与分卷合并")
+        self.download_threads_lb = QLabel("同时下载文件数")  # about
         self.download_threads_var = QLineEdit()
-        self.max_size = QLabel("分卷大小(MB)")
+        self.download_threads_var.setPlaceholderText("范围：1-7")
+        self.download_threads_var.setToolTip("范围：1-7")
+        self.max_size_lb = QLabel("分卷大小(MB)")
         self.max_size_var = QLineEdit()
-        self.timeout = QLabel("请求超时(秒)")
+        self.max_size_var.setPlaceholderText("普通用户最大100，vip用户根据具体情况设置")
+        self.max_size_var.setToolTip("普通用户最大100，vip用户根据具体情况设置")
+        self.timeout_lb = QLabel("请求超时(秒)")
         self.timeout_var = QLineEdit()
-        self.guise_suffix = QLabel("假后缀")
+        self.timeout_var.setPlaceholderText("范围：2-30")
+        self.timeout_var.setToolTip("范围：2-30")
+        self.guise_suffix_lb = QLabel("假后缀")
         self.guise_suffix_var = QLineEdit()
-        self.rar_part_name = QLabel("rar分卷名")
-        self.rar_part_name_var =QLineEdit()
-        self.path = QLabel("下载保存路径")
-        self.path_var = QLineEdit()
+        self.guise_suffix_var.setPlaceholderText("让不支持的文件类型改成该后缀名，蒙混过关")
+        self.guise_suffix_var.setToolTip("让不支持的文件类型改成该后缀名，蒙混过关")
+        self.rar_part_name_lb = QLabel("rar分卷名")
+        self.rar_part_name_var = QLineEdit()
+        self.rar_part_name_var.setPlaceholderText("大文件分卷标识字符串，对抗封禁")
+        self.rar_part_name_var.setToolTip("大文件分卷标识字符串，对抗封禁")
+        self.dl_path_lb = QLabel("下载保存路径")
+        self.dl_path_var = MyLineEdit(self)
+        self.dl_path_var.clicked.connect(self.set_download_path)
+        self.time_fmt_box = QCheckBox("使用[年-月-日]时间格式")
+        self.time_fmt_box.toggle()
+        self.time_fmt_box.stateChanged.connect(self.change_time_fmt)
 
-        self.buttonBox = QDialogButtonBox()
-        self.buttonBox.setOrientation(Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        self.buttonBox.accepted.connect(self.accept)
-        self.buttonBox.rejected.connect(self.reject)
+        buttonBox = QDialogButtonBox()
+        buttonBox.setOrientation(Qt.Horizontal)
+        buttonBox.setStandardButtons(QDialogButtonBox.Reset | QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        buttonBox.clicked.connect(self.buttonBoxClicked)
+        buttonBox.rejected.connect(self.reject)
 
-        self.form = QFormLayout()
-        self.form.setSpacing(10)
-        self.form.addRow(self.rar_tool, self.rar_tool_var)
-        self.form.addRow(self.download_threads, self.download_threads_var)
-        self.form.addRow(self.max_size, self.max_size_var)
-        self.form.addRow(self.timeout, self.timeout_var)
-        self.form.addRow(self.guise_suffix, self.guise_suffix_var)
-        self.form.addRow(self.rar_part_name, self.rar_part_name_var)
-        self.form.addRow(self.path, self.path_var)
+        form = QFormLayout()
+        form.setSpacing(10)
+        form.addRow(self.download_threads_lb, self.download_threads_var)
+        form.addRow(self.timeout_lb, self.timeout_var)
+        form.addRow(self.guise_suffix_lb, self.guise_suffix_var)
+        form.addRow(self.max_size_lb, self.max_size_var)
+        form.addRow(self.rar_part_name_lb, self.rar_part_name_var)
+        form.addRow(self.rar_tool_lb, self.rar_tool_var)
+        form.addRow(self.dl_path_lb, self.dl_path_var)
 
-        self.vbox = QVBoxLayout()
-        self.vbox.addWidget(self.logo)
-        self.vbox.addLayout(self.form)
-        self.vbox.addWidget(self.buttonBox)
-        self.setLayout(self.vbox)
+        vbox = QVBoxLayout()
+        vbox.addWidget(logo)
+        vbox.addStretch(1)
+        vbox.addLayout(form)
+        vbox.addStretch(1)
+        vbox.addWidget(self.time_fmt_box)
+        vbox.addStretch(1)
+        vbox.addWidget(buttonBox)
+        self.setLayout(vbox)
         self.setMinimumWidth(500)
+
+    def change_time_fmt(self, state):
+        if state == Qt.Checked:
+            self.time_fmt = True
+        else:
+            self.time_fmt = False
+
+    def set_rar_path(self):
+        """设置RAR路径"""
+        rar_path, _ = QFileDialog.getOpenFileName(self, "选择 rar 路径", self.cwd, "All Files (*)")
+        if len(rar_path) == 0:
+            return
+        rar_path = os.path.normpath(rar_path)  # windows backslash
+        self.rar_tool_var.setText(rar_path)
+        self.rar_tool = rar_path
+
+    def set_download_path(self):
+        """设置下载路径"""
+        dl_path = QFileDialog.getExistingDirectory(self, "选择文件下载保存文件夹", self.cwd)
+        dl_path = os.path.normpath(dl_path)  # windows backslash
+        if dl_path == self.dl_path or dl_path == ".":
+            return
+        self.dl_path_var.setText(dl_path)
+        self.dl_path = dl_path
+
+    def buttonBoxClicked(self, btn):
+        btn_name = btn.text()
+        if btn_name == "Reset":  # 重置
+            self.set_values(reset=True)
+        elif btn_name == "Save":  # 保存
+            update_settings(self._config_file, self.get_values(), is_settings=True)
+            self.saved.emit()
+            self.close()
