@@ -94,9 +94,9 @@ class LanZouCloud(object):
         return name
 
     @staticmethod
-    def _time_format(time_str) -> str:
+    def time_format(time_str) -> str:
         """输出格式化时间 %Y-%m-%d"""
-        if '秒前' or '分钟前' in time_str:
+        if ('秒前' in time_str) or ('分钟前' in time_str):
             return datetime.today().strftime('%Y-%m-%d')
         elif '昨天' in time_str:
             return (datetime.today() - timedelta(days=1)).strftime('%Y-%m-%d')
@@ -127,6 +127,18 @@ class LanZouCloud(object):
         """判断是否为文件夹的分享链接"""
         pat = 'https?://www.lanzous.com/b[a-z0-9]{7,}/?'
         return True if re.fullmatch(pat, share_url) else False
+
+    def set_guise_suffix(self, suffix):
+        self._guise_suffix = suffix
+
+    def set_rar_part_name(self, part_name):
+        self._rar_part_name = part_name
+
+    def set_timeout(self, timeout):
+        self._timeout = timeout
+
+    def set_max_size(self, max_size):
+        self._max_size = max_size
 
     def set_rar_tool(self, bin_path) -> int:
         """设置解压工具路径"""
