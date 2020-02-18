@@ -82,7 +82,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
         self.setupUi(self)
-        self.init_variable()
+        self.init_default_settings()
+        self.init_variables()
         self.init_workers()
         self.init_menu()
         self.setWindowTitle("蓝奏云客户端 - {}".format(self.__version__))
@@ -96,7 +97,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.create_left_menus()
 
         # self.setObjectName("MainWindow")
-
         self.setStyleSheet(qssStyle)
         self.tabWidget.setStyleSheet("QTabBar{ background-color: #AEEEEE; }")
 
@@ -128,10 +128,27 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.setting_menu.setText("设置")
         self.files.addAction(self.setting_menu)
         self.setting_menu.setIcon(QIcon("./icon/about.ico"))
-        self.setting_menu.triggered.connect(self.setting_dialog.exec)
+        self.setting_menu.triggered.connect(self.setting_dialog.open_dialog)
         self.setting_menu.setShortcut("Ctrl+P")  # 设置快捷键
 
-    def init_variable(self):
+    def init_default_settings(self):
+        """初始化默认设置"""
+        if os.name == 'nt':
+            rar_tool = "./rar.exe"
+        else:
+            rar_tool = "/usr/bin/rar"
+        download_threads = 3   # 同时三个下载任务
+        max_size = 100         # 单个文件大小上限 MB
+        timeout = 5            # 每个请求的超时 s(不包含下载响应体的用时)
+        guise_suffix = '.dll'  # 不支持的文件伪装后缀
+        rar_part_name = 'wtf'  # rar 分卷文件后缀 *.wtf01.rar
+        time_fmt = False       # 使用年月日时间格式
+        dl_path = os.path.dirname(os.path.abspath(__file__)) + os.sep + "downloads"
+        self._default_settings = {"rar_tool": rar_tool, "download_threads": download_threads,
+                    "max_size": max_size, "guise_suffix": guise_suffix, "dl_path": dl_path,
+                    "timeout": timeout, "rar_part_name": rar_part_name, "time_fmt": time_fmt}
+
+    def init_variables(self):
         self._disk = LanZouCloud()
         self._config_file = "./config.pkl"
         self._folder_list = {}
@@ -143,25 +160,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._work_name = ""  # share disk rec, not use now
         self._work_id = -1    # disk folder id
         self._old_work_id = self._work_id  # 用于上传完成后判断是否需要更新disk界面
-        self.load_settings(self._config_file)
-        self._disk.set_rar_tool(self.configs["settings"]["rar_tool"])
-        self.download_threads = self.configs["settings"]["download_threads"]
+        self.load_settings()
 
-    def set_default_settings(self):
-        if "settings" not in self.configs or not self.configs["settings"]:
-            if os.name == 'nt':
-                rar_tool = "./rar.exe"
-            else:
-                rar_tool = "/usr/bin/rar"
-            download_threads = 3  # 同时三个下载任务
-            max_size = 100  # 单个文件大小上限 MB
-            timeout = 5  # 每个请求的超时 s(不包含下载响应体的用时)
-            guise_suffix = '.dll'  # 不支持的文件伪装后缀
-            rar_part_name = 'wtf'  # rar 分卷文件后缀 *.wtf01.rar
-            settings = {"rar_tool": rar_tool, "download_threads": download_threads,
-                        "max_size": max_size, "guise_suffix": guise_suffix,
-                        "timeout": timeout, "rar_part_name": rar_part_name}
-            update_settings(self._config_file, {"settings": settings})
+    def update_lanzoucloud_settings(self):
+        """更新LanzouCloud实例设置"""
+        self._disk.set_rar_tool(self.configs["settings"]["rar_tool"])
+        self._disk.set_guise_suffix(self.configs["settings"]["guise_suffix"])
+        self._disk.set_rar_part_name(self.configs["settings"]["rar_part_name"])
+        self._disk.set_timeout(self.configs["settings"]["timeout"])
+        self._disk.set_max_size(self.configs["settings"]["max_size"])
+        self.download_threads = self.configs["settings"]["download_threads"]
+        self.time_fmt = self.configs["settings"]["time_fmt"]
+        # self.time_fmt = True
 
     def init_workers(self):
         # 登录器
@@ -228,12 +238,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.about_dialog = AboutDialog()
         self.about_dialog.set_values(self.__version__)
         # 菜单栏设置
-        self.setting_dialog = SettingDialog(self._config_file)
-        self.setting_dialog.infos.connect(self.update_settings)
-        self.setting_dialog.infos.connect(self.load_settings)
-
-    def update_settings(self, config_path, infos):
-        update_settings(config_path, infos)
+        self.setting_dialog = SettingDialog(self._config_file, self._default_settings)
+        self.setting_dialog.saved.connect(lambda: self.load_settings(ref_ui=True))
 
     def show_login_dialog(self):
         """显示登录对话框"""
@@ -247,19 +253,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.upload_dialog.set_values(list(self._path_list.keys())[-1])
         self.upload_dialog.exec()
 
-    def load_settings(self, config_file, info={}):
+    def load_settings(self, ref_ui=False):
+        """加载用户设置"""
         try:
-            with open(config_file, "rb") as _file:
+            with open(self._config_file, "rb") as _file:
                 self.configs = load(_file)
         except Exception:
-            dl_path = os.path.dirname(os.path.abspath(__file__)) + os.sep + "downloads"
-            self.configs = {"user": "", "pwd": "", "cookie": "", "path": dl_path, "settings": {}}
-            with open(config_file, "wb") as _file:
+            self.configs = {"user": "", "pwd": "", "cookie": "", "settings": self._default_settings}
+            with open(self._config_file, "wb") as _file:
                 dump(self.configs, _file)
-        self.set_default_settings()
+        # 兼容以前的平配置文件
+        if "settings" not in self.configs or not self.configs["settings"]:
+            self.configs.update({"settings": self._default_settings})
+            update_settings(self._config_file, {"settings": self._default_settings})
+        self.update_lanzoucloud_settings()
+        if ref_ui and self.tabWidget.currentIndex() == 1:  # 更新文件界面的时间
+            self.show_file_and_folder_lists()
 
     def call_download_manager_thread(self, tasks):
-        self.download_manager.set_values(tasks, self.configs["path"], self.download_threads)
+        self.download_manager.set_values(tasks, self.configs["settings"]["dl_path"], self.download_threads)
         self.download_manager.start()
 
     def call_downloader(self):
@@ -331,7 +343,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def call_login_luncher(self):
         """登录网盘"""
-        self.load_settings(self._config_file)
+        self.load_settings()
         self.logout_worker.set_values(self._disk, update_ui=False)
         self.toolbar.removeAction(self.logout)
         try:
@@ -398,7 +410,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 tips = "描述：" + str(infos[6])
             name.setToolTip(tips)
             size_ = QStandardItem(pwd_ico, infos[2]) if infos[5] else QStandardItem(infos[2])  # 提取码+size
-            self.model_disk.appendRow([name, size_, QStandardItem(infos[3])])
+            time_ = QStandardItem(LanZouCloud.time_format(infos[3])) if self.time_fmt else QStandardItem(infos[3])
+            self.model_disk.appendRow([name, size_, time_])
         for row in range(self.model_disk.rowCount()):  # 右对齐
             self.model_disk.item(row, 1).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             self.model_disk.item(row, 2).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
@@ -680,7 +693,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             for infos in infos["info"].values():
                 name = QStandardItem(self.set_file_icon(infos[1]), infos[1])
                 name.setData(infos)
-                self.model_share.appendRow([name, QStandardItem(infos[2]), QStandardItem(infos[3])])
+                time = QStandardItem(LanZouCloud.time_format(infos[3])) if self.time_fmt else QStandardItem(infos[3])
+                self.model_share.appendRow([name, QStandardItem(infos[2]), time])
             for r in range(self.model_share.rowCount()):  # 右对齐
                 self.model_share.item(r, 1).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
                 self.model_share.item(r, 2).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
@@ -698,16 +712,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """设置下载路径"""
         dl_path = QFileDialog.getExistingDirectory()
         dl_path = os.path.normpath(dl_path)  # windows backslash
-        if dl_path == self.configs["path"]:
+        if dl_path == self.configs["settings"]["dl_path"] or dl_path == ".":
             return
         if dl_path == "":
             dl_path = os.path.dirname(os.path.abspath(__file__)) + os.sep + "downloads"
-            up_info = {"path": dl_path}
+            up_info = {"dl_path": dl_path}
         else:
-            up_info = {"path": dl_path}
-        update_settings(self._config_file, up_info)
-        self.load_settings(self._config_file)
-        self.line_dl_path.setText(self.configs["path"])
+            up_info = {"dl_path": dl_path}
+        update_settings(self._config_file, up_info, is_settings=True)
+        self.load_settings()
+        self.line_dl_path.setText(self.configs["settings"]["dl_path"])
 
     def init_extract_share_ui(self):
         self.btn_share_select_all.setDisabled(True)
@@ -736,7 +750,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.line_dl_path = MyLineEdit(self.share_tab)
         self.line_dl_path.setObjectName("line_dl_path")
         self.horizontalLayout_share_2.insertWidget(2, self.line_dl_path)
-        self.line_dl_path.setText(self.configs["path"])
+        self.line_dl_path.setText(self.configs["settings"]["dl_path"])
         self.line_dl_path.clicked.connect(self.set_download_path)
 
         # QSS
@@ -747,6 +761,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if e.key() == Qt.Key_A:  # Ctrl/Alt + A 全选
             if e.modifiers() and Qt.ControlModifier:
                 self.select_all_btn()
+        elif e.key() == Qt.Key_F5:  # 刷新
+            if self.tabWidget.currentIndex() == 1:  # disk 界面
+                self.list_refresher.set_values(self._work_id)
 
     def set_window_at_center(self):
         screen = QDesktopWidget().screenGeometry()
@@ -763,7 +780,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 
 if __name__ == "__main__":
-    # sys.setrecursionlimit(1000000)
     app = QApplication(sys.argv)
     app.setWindowIcon(QIcon("./icon/lanzou-logo2.png"))
     form = MainWindow()
