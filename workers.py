@@ -299,22 +299,25 @@ class LoginLuncher(QThread):
         self.wait()
 
     def run(self):
-        if self.cookie:
-            res = self._disk.login_by_cookie(self.cookie)
-            if res == LanZouCloud.SUCCESS:
-                self.code.emit(True, "<font color='#00CC00'>通过<b>Cookie</b>登录<b>成功</b>！ ≧◉◡◉≦</font>", 5000)
-                return
-        if (not self.username or not self.password) and not self.cookie:
-            self.code.emit(False, "<font color='red'>登录失败: 没有用户或密码</font>", 3000)
-        else:
-            res = self._disk.login(self.username, self.password)
-            if res == LanZouCloud.SUCCESS:
-                self.code.emit(True, "<font color='#00CC00'>登录<b>成功</b>！ ≧◉◡◉≦</font>", 5000)
-                _cookie = self._disk.get_cookie()
-                self.update_cookie.emit(_cookie)
+        try:
+            if self.cookie:
+                res = self._disk.login_by_cookie(self.cookie)
+                if res == LanZouCloud.SUCCESS:
+                    self.code.emit(True, "<font color='#00CC00'>通过<b>Cookie</b>登录<b>成功</b>！ ≧◉◡◉≦</font>", 5000)
+                    return
+            if (not self.username or not self.password) and not self.cookie:
+                self.code.emit(False, "<font color='red'>登录失败: 没有用户或密码</font>", 3000)
             else:
-                self.code.emit(False, "<font color='red'>登录失败，可能是用户名或密码错误！</font>", 8000)
-                self.update_cookie.emit(None)
+                res = self._disk.login(self.username, self.password)
+                if res == LanZouCloud.SUCCESS:
+                    self.code.emit(True, "<font color='#00CC00'>登录<b>成功</b>！ ≧◉◡◉≦</font>", 5000)
+                    _cookie = self._disk.get_cookie()
+                    self.update_cookie.emit(_cookie)
+                else:
+                    self.code.emit(False, "<font color='red'>登录失败，可能是用户名或密码错误！</font>", 8000)
+                    self.update_cookie.emit(None)
+        except TimeoutError:
+            self.code.emit(False, "<font color='red'>网络超时！</font>", 3000)
 
 
 class DescPwdFetcher(QThread):
