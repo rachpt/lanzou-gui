@@ -96,7 +96,7 @@ class LanZouCloud(object):
     @staticmethod
     def time_format(time_str) -> str:
         """输出格式化时间 %Y-%m-%d"""
-        if ('秒前' in time_str) or ('分钟前' in time_str):
+        if ('秒前' in time_str) or ('分钟前' in time_str) or ('小时前' in time_str):
             return datetime.today().strftime('%Y-%m-%d')
         elif '昨天' in time_str:
             return (datetime.today() - timedelta(days=1)).strftime('%Y-%m-%d')
