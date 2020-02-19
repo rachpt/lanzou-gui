@@ -41,7 +41,7 @@ class LanZouCloud(object):
         self._session = requests.Session()
         self._guise_suffix = '.dll'  # 不支持的文件伪装后缀
         self._fake_file_prefix = '__fake__'  # 假文件前缀
-        self._rar_part_name = 'wtf'  # rar 分卷文件后缀 *.wtf01.rar
+        self._rar_part_name = 'abc'  # rar 分卷文件后缀 *.abc01.rar
         self._timeout = 5  # 每个请求的超时 s(不包含下载响应体的用时)
         self._max_size = 100  # 单个文件大小上限 MB
         self._rar_path = None  # 解压工具路径

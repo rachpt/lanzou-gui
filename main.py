@@ -77,7 +77,7 @@ qssStyle = '''
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
-    __version__ = 'v0.0.7'
+    __version__ = 'v0.0.8'
 
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
@@ -87,7 +87,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.init_workers()
         self.init_menu()
         self.setWindowTitle("蓝奏云客户端 - {}".format(self.__version__))
-        # self.setWindowIcon(QIcon("./icon/lanzou-logo2.png"))
 
         self.set_window_at_center()
         self.init_extract_share_ui()
@@ -96,7 +95,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.create_left_menus()
 
-        # self.setObjectName("MainWindow")
         self.setStyleSheet(qssStyle)
         self.tabWidget.setStyleSheet("QTabBar{ background-color: #AEEEEE; }")
 
@@ -141,8 +139,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         max_size = 100         # 单个文件大小上限 MB
         timeout = 5            # 每个请求的超时 s(不包含下载响应体的用时)
         guise_suffix = '.dll'  # 不支持的文件伪装后缀
-        rar_part_name = 'wtf'  # rar 分卷文件后缀 *.wtf01.rar
-        time_fmt = False       # 使用年月日时间格式
+        rar_part_name = 'abc'  # rar 分卷文件后缀 *.abc01.rar
+        time_fmt = False       # 是否使用年月日时间格式
         dl_path = os.path.dirname(os.path.abspath(__file__)) + os.sep + "downloads"
         self._default_settings = {"rar_tool": rar_tool, "download_threads": download_threads,
                     "max_size": max_size, "guise_suffix": guise_suffix, "dl_path": dl_path,
@@ -605,6 +603,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         index = 1
         for name, fid in self._path_list.items():
             self._locs[index] = QPushButton(name, self.disk_tab)
+            self._locs[index].setToolTip(f"fid:{fid}")
             self._locs[index].setIcon(QIcon("./icon/folder.gif"))
             self._locs[index].setStyleSheet("QPushButton {border: none; background:transparent;}")
             self.disk_loc.insertWidget(index, self._locs[index])
@@ -763,6 +762,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.select_all_btn()
         elif e.key() == Qt.Key_F5:  # 刷新
             if self.tabWidget.currentIndex() == 1:  # disk 界面
+                self.show_status("正在更新当前目录...", 1000)
                 self.list_refresher.set_values(self._work_id)
 
     def set_window_at_center(self):
