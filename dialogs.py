@@ -232,7 +232,7 @@ class UploadDialog(QDialog):
         self.btn_chooseMutiFile.setIcon(QIcon("./icon/file.ico"))
 
         # btn 3
-        self.btn_deleteSelect = QPushButton("删除", self)
+        self.btn_deleteSelect = QPushButton("移除", self)
         self.btn_deleteSelect.setObjectName("btn_deleteSelect")
         self.btn_deleteSelect.setIcon(QIcon("./icon/delete.ico"))
 
@@ -250,6 +250,8 @@ class UploadDialog(QDialog):
         self.buttonBox = QDialogButtonBox()
         self.buttonBox.setOrientation(Qt.Horizontal)
         self.buttonBox.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.buttonBox.button(QDialogButtonBox.Ok).setText("确定")
+        self.buttonBox.button(QDialogButtonBox.Cancel).setText("取消")
 
         grid = QGridLayout()
         grid.setSpacing(10)
@@ -338,6 +340,7 @@ class InfoDialog(QDialog, Ui_Dialog):
         self.setStyleSheet(dialog_qss_style)
 
     def initUI(self):
+        self.buttonBox.button(QDialogButtonBox.Close).setText("关闭")
         self.setWindowTitle("文件信息" if self.infos[2] else "文件夹信息")
         self.setWindowIcon(QIcon("./icon/share.ico"))
         self.logo.setPixmap(QPixmap("./icon/q9.gif"))
@@ -426,6 +429,8 @@ class RenameDialog(QDialog):
         self.buttonBox = QDialogButtonBox()
         self.buttonBox.setOrientation(Qt.Horizontal)
         self.buttonBox.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.buttonBox.button(QDialogButtonBox.Ok).setText("确定")
+        self.buttonBox.button(QDialogButtonBox.Cancel).setText("取消")
 
         self.grid = QGridLayout()
         self.grid.setSpacing(10)
@@ -441,6 +446,8 @@ class RenameDialog(QDialog):
 
     def update_text(self):
         if self.infos:
+            self.buttonBox.button(QDialogButtonBox.Ok).setToolTip("")  # 去除新建文件夹影响
+            self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(True)  # 去除新建文件夹影响
             self.setWindowTitle("修改文件夹名与描述")
             self.tx_name.setText(str(self.infos[1]))
             if self.infos[6]:
@@ -460,6 +467,9 @@ class RenameDialog(QDialog):
         else:
             self.setWindowTitle("新建文件夹")
             self.tx_name.setText("")
+            self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(False)
+            self.buttonBox.button(QDialogButtonBox.Ok).setToolTip("请先输入文件名！")
+            self.tx_name.textChanged.connect(self.slot_new_ok_btn)
             self.tx_name.setPlaceholderText("不支持空格，如有会被自动替换成 _")
             self.tx_name.setFocusPolicy(Qt.StrongFocus)
             self.tx_name.setReadOnly(False)
@@ -467,6 +477,11 @@ class RenameDialog(QDialog):
         if self.min_width < 400:
             self.min_width = 400
         self.resize(self.min_width, 200)
+
+    def slot_new_ok_btn(self):
+        """新建文件夹槽函数"""
+        self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(True)
+        self.buttonBox.button(QDialogButtonBox.Ok).setToolTip("")
 
     def btn_ok(self):
         new_name = self.tx_name.text()
@@ -518,6 +533,8 @@ class SetPwdDialog(QDialog):
         self.buttonBox = QDialogButtonBox()
         self.buttonBox.setOrientation(Qt.Horizontal)
         self.buttonBox.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.buttonBox.button(QDialogButtonBox.Ok).setText("确定")
+        self.buttonBox.button(QDialogButtonBox.Cancel).setText("取消")
 
         self.grid = QGridLayout()
         self.grid.setSpacing(10)
@@ -601,6 +618,8 @@ class MoveFileDialog(QDialog):
         self.buttonBox = QDialogButtonBox()
         self.buttonBox.setOrientation(Qt.Horizontal)
         self.buttonBox.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.buttonBox.button(QDialogButtonBox.Ok).setText("确定")
+        self.buttonBox.button(QDialogButtonBox.Cancel).setText("取消")
 
         self.grid = QGridLayout()
         self.grid.setSpacing(10)
@@ -664,6 +683,8 @@ class DeleteDialog(QDialog):
         self.buttonBox = QDialogButtonBox()
         self.buttonBox.setOrientation(Qt.Horizontal)
         self.buttonBox.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.buttonBox.button(QDialogButtonBox.Ok).setText("确定")
+        self.buttonBox.button(QDialogButtonBox.Cancel).setText("取消")
 
         self.layout.addWidget(self.lb_name)
         self.layout.addWidget(self.list_view)
@@ -723,6 +744,7 @@ Python 依赖见<a href="https://github.com/rachpt/lanzou-gui/blob/master/requir
         self.buttonBox = QDialogButtonBox()
         self.buttonBox.setOrientation(Qt.Horizontal)
         self.buttonBox.setStandardButtons(QDialogButtonBox.Close)
+        self.buttonBox.button(QDialogButtonBox.Close).setText("关闭")
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
 
@@ -855,7 +877,11 @@ class SettingDialog(QDialog):
         buttonBox = QDialogButtonBox()
         buttonBox.setOrientation(Qt.Horizontal)
         buttonBox.setStandardButtons(QDialogButtonBox.Reset | QDialogButtonBox.Save | QDialogButtonBox.Cancel)
-        buttonBox.clicked.connect(self.buttonBoxClicked)
+        buttonBox.button(QDialogButtonBox.Reset).setText("重置")
+        buttonBox.button(QDialogButtonBox.Save).setText("保存")
+        buttonBox.button(QDialogButtonBox.Cancel).setText("取消")
+        buttonBox.button(QDialogButtonBox.Reset).clicked.connect(lambda: self.set_values(reset=True))
+        buttonBox.button(QDialogButtonBox.Save).clicked.connect(self.slot_save)
         buttonBox.rejected.connect(self.reject)
 
         form = QFormLayout()
@@ -903,11 +929,8 @@ class SettingDialog(QDialog):
         self.dl_path_var.setText(dl_path)
         self.dl_path = dl_path
 
-    def buttonBoxClicked(self, btn):
-        btn_name = btn.text()
-        if btn_name == "Reset":  # 重置
-            self.set_values(reset=True)
-        elif btn_name == "Save":  # 保存
-            update_settings(self._config_file, self.get_values(), is_settings=True)
-            self.saved.emit()
-            self.close()
+    def slot_save(self):
+        """保存槽函数"""
+        update_settings(self._config_file, self.get_values(), is_settings=True)
+        self.saved.emit()
+        self.close()
