@@ -5,6 +5,7 @@ import re
 from random import random
 from PyQt5.QtCore import QThread, pyqtSignal, QMutex
 from lanzou.api import LanZouCloud
+from lanzou.api.utils import is_folder_url, is_file_url
 from time import sleep
 
 
@@ -39,10 +40,32 @@ def show_progress(file_name, total_size, now_size, symbol="█"):
         msg = msg + "| <font color='blue'>Done!</font>"
     return msg
 
+def why_error(code):
+    """错误原因"""
+    if code == LanZouCloud.URL_INVALID:
+        return '分享链接无效'
+    elif code == LanZouCloud.LACK_PASSWORD:
+        return '缺少提取码'
+    elif code == LanZouCloud.PASSWORD_ERROR:
+        return '提取码错误'
+    elif code == LanZouCloud.FILE_CANCELLED:
+        return '分享链接已失效'
+    elif code == LanZouCloud.ZIP_ERROR:
+        return '解压过程异常'
+    elif code == LanZouCloud.NETWORK_ERROR:
+        return '网络连接异常'
+    else:
+        return '未知错误'
+
+def show_down_failed(code, file):
+    """文件下载失败时的回调函数"""
+    return f"文件下载失败,原因: {why_error(code)},文件名: {file.name},URL: {file.url}"
+
 
 class Downloader(QThread):
     '''单个文件下载线程'''
     download_proc = pyqtSignal(str)
+    download_failed = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super(Downloader, self).__init__(parent)
@@ -53,10 +76,10 @@ class Downloader(QThread):
         self.url = ""
         self.pwd = ""
         self.save_path = ""
-        if os.name == 'nt':
-            self._disk.set_rar_tool("./rar.exe")
-        else:
-            self._disk.set_rar_tool("/usr/bin/rar")
+        # if os.name == 'nt':
+        #     self._disk.set_rar_tool("./rar.exe")
+        # else:
+        #     self._disk.set_rar_tool("/usr/bin/rar")
 
     def stop(self):
         self._mutex.lock()
@@ -68,6 +91,11 @@ class Downloader(QThread):
         msg = show_progress(file_name, total_size, now_size)
         self.download_proc.emit(msg)
 
+    def _show_down_failed(self, code, file):
+        """显示下载失败的回调函数"""
+        msg = show_down_failed(code, file)
+        self.download_failed.emit(msg)
+
     def __del__(self):
         self.wait()
 
@@ -78,15 +106,15 @@ class Downloader(QThread):
         self.save_path = save_path
 
     def run(self):
-        if self._disk.is_file_url(self.url):
+        if is_file_url(self.url):
             # 下载文件
             self._disk.down_file_by_url(self.url, self.pwd, self.save_path, self._show_progress)
-        elif self._disk.is_folder_url(self.url):
+        elif is_folder_url(self.url):
             # 下载文件夹
             folder_path = self.save_path + os.sep + self.name
             os.makedirs(folder_path, exist_ok=True)
             self.save_path = folder_path
-            self._disk.down_dir_by_url(self.url, self.pwd, self.save_path, self._show_progress)
+            self._disk.down_dir_by_url(self.url, self.pwd, self.save_path, self._show_progress, mkdir=True, failed_callback=self._show_down_failed)
 
 
 class DownloadManager(QThread):
@@ -143,6 +171,7 @@ class DownloadManager(QThread):
                 try:
                     downloader[dl_id].finished.connect(self.add_task)
                     downloader[dl_id].download_proc.connect(self.ahead_msg)
+                    downloader[dl_id].download_failed.connect(self.ahead_msg)
                     downloader[dl_id].set_values(task[0], task[1], task[2], self.save_path)
                     downloader[dl_id].start()
                 except Exception as exp:
@@ -173,11 +202,11 @@ class GetSharedInfo(QThread):
         if not text:
             return
         for share_url, _, pwd in re.findall(self._pat, text):
-            if LanZouCloud.is_file_url(share_url):  # 文件链接
+            if is_file_url(share_url):  # 文件链接
                 is_file = True
                 is_folder = False
                 self.msg.emit("正在获取文件链接信息……", 0)
-            elif LanZouCloud.is_folder_url(share_url):  # 文件夹链接
+            elif is_folder_url(share_url):  # 文件夹链接
                 is_folder = True
                 is_file = False
                 self.msg.emit("正在获取文件夹链接信息，可能需要几秒钟，请稍后……", 0)
@@ -362,12 +391,12 @@ class DescPwdFetcher(QThread):
                             res = self._disk.get_share_info(info[0], is_file=True)
                         else:  # 文件夹
                             res = self._disk.get_share_info(info[0], is_file=False)
-                        if res['code'] == LanZouCloud.SUCCESS:
+                        if res.code == LanZouCloud.SUCCESS:
                             if not self.download:  # 激发简介更新
-                                self.desc.emit(res['desc'], res['pwd'], info)
-                            info[5] = res['pwd']
-                            info.append(res['url'])
-                        elif res['code'] == LanZouCloud.NETWORK_ERROR:
+                                self.desc.emit(res.desc, res.pwd, info)
+                            info[5] = res.pwd
+                            info.append(res.url)
+                        elif res.code == LanZouCloud.NETWORK_ERROR:
                             self.msg.emit("网络错误，请稍后重试！", 6000)
                             continue
                     _task = (info[1], info[7], info[5])
@@ -427,10 +456,10 @@ class ListRefresher(QThread):
             emit_infos['r'] = {'fid': self._fid, 'files': self.r_files, 'folders': self.r_folders, 'path': self.r_path}
             try:
                 if self.r_files:
-                    info = {i['name']: [i['id'], i['name'], i['size'], i['time'], i['downs'], i['has_pwd'], i['has_des']] for i in self._disk.get_file_list(self._fid)}
+                    info = {i.name: [i.id, i.name, i.size, i.time, i.downs, i.has_pwd, i.has_des] for i in self._disk.get_file_list(self._fid)}
                     emit_infos['file_list'] = {key: info.get(key) for key in sorted(info.keys())}  # {name-[id,...]}
                 if self.r_folders:
-                    info = {i['name']: [i['id'], i['name'],  "", "", "", i['has_pwd'], i['desc']] for i in self._disk.get_dir_list(self._fid)}
+                    info = {i.name: [i.id, i.name,  "", "", "", i.has_pwd, i.desc] for i in self._disk.get_dir_list(self._fid)}
                     emit_infos['folder_list'] = {key: info.get(key) for key in sorted(info.keys())}  # {name-[id,...]}
                 emit_infos['path_list'] = self._disk.get_full_path(self._fid)
             except TimeoutError:
@@ -523,13 +552,13 @@ class GetMoreInfoWorker(QThread):
                         _info = self._disk.get_share_info(self.old_infos[0], is_file=True)
                     else:  # 文件夹
                         _info = self._disk.get_share_info(self.old_infos[0], is_file=False)
-                    self.old_infos[5] = _info['pwd']
-                    self.old_infos.append(_info['url'])
+                    self.old_infos[5] = _info.pwd
+                    self.old_infos.append(_info.url)
                 if self.old_infos[2]:  # 是文件，解析下载直链
                     res = self._disk.get_file_info_by_url(self.old_infos[-1], self.old_infos[5])
-                    if res["code"] == LanZouCloud.SUCCESS:
-                        self.old_infos.append("{}".format(res["durl"] or "无"))  # 下载直链
-                    elif res["code"] == LanZouCloud.NETWORK_ERROR:
+                    if res.code == LanZouCloud.SUCCESS:
+                        self.old_infos.append("{}".format(res.durl or "无"))  # 下载直链
+                    elif res.code == LanZouCloud.NETWORK_ERROR:
                         self.old_infos.append("网络错误！获取失败")  # 下载直链
                     else:
                         self.old_infos.append("其它错误！")  # 下载直链
@@ -589,7 +618,7 @@ class GetAllFoldersWorker(QThread):
                     try:
                         if self._disk.move_file(info[0], info[1]) == LanZouCloud.SUCCESS:
                             self.msg.emit(f"{info[2]} 移动成功！", 3000)
-                            sleep(2.5)  # 等一段时间后才更新文件列表
+                            sleep(2.1)  # 等一段时间后才更新文件列表
                             self.moved.emit()
                         else:
                             self.msg.emit(f"移动文件{info[2]}失败！", 4000)
@@ -598,7 +627,7 @@ class GetAllFoldersWorker(QThread):
             else:  # 获取所有文件夹
                 try:
                     self.msg.emit("网络请求中，请稍后……", 0)
-                    all_dirs_dict = self._disk.get_folder_id_list()
+                    all_dirs_dict = self._disk.get_move_folders().name_id
                     self.infos.emit(self.org_infos, all_dirs_dict)
                     self.msg.emit("", 0)  # 删除提示信息
                 except TimeoutError:
@@ -666,10 +695,10 @@ class RenameMkdirWorker(QThread):
                         res = self._disk.set_desc(fid, str(new_desc), is_file=True)
                     else:  # 修改文件夹，action == "folder"
                         _res = self._disk.get_share_info(fid, is_file=False)
-                        if _res['code'] == LanZouCloud.SUCCESS:
+                        if _res.code == LanZouCloud.SUCCESS:
                             res = self._disk._set_dir_info(fid, str(new_name), str(new_desc))
                         else:
-                            res = _res['code']
+                            res = _res.code
                     if res == LanZouCloud.SUCCESS:
                         if action == "file":  # 只更新文件列表
                             self.update.emit(self._work_id, True, False, False)
@@ -720,7 +749,6 @@ class SetPwdWorker(QThread):
             self._mutex.lock()
             self._is_work = True
             fid = self.infos[0]
-            print(self.infos)
             new_pass = self.infos[1]
             try:
                 if self.infos[2]:  # 文件

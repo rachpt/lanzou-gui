@@ -92,7 +92,7 @@ class LoginDialog(QDialog):
         self._config = config
         self._user = ""
         self._pwd = ""
-        self._cookie = ""
+        self._cookie = {}
         self.initUI()
         self.setStyleSheet(dialog_qss_style)
         self.setMinimumWidth(350)
@@ -107,13 +107,16 @@ class LoginDialog(QDialog):
                 _info = load(_file)
             self._user = _info["user"]
             self._pwd = _info["pwd"]
-            cookies = _info["cookie"]
-            self._cookie = ";".join([str(k) +'='+ str(v) for k,v in cookies.items()])
+            self._cookie = _info["cookie"]
         except Exception:
             pass
         self.name_ed.setText(self._user)
         self.pwd_ed.setText(self._pwd)
-        self.cookie_ed.setPlainText(str(self._cookie))
+        if self._cookie:
+            _text = str(";".join([str(k) +'='+ str(v) for k,v in self._cookie.items()]))
+            self.cookie_ed.setPlainText(_text)
+        else:
+            self.cookie_ed.setPlainText("")
 
     def initUI(self):
         self.setWindowTitle("登录蓝奏云")
@@ -451,10 +454,11 @@ class RenameDialog(QDialog):
             self.setWindowTitle("修改文件夹名与描述")
             self.tx_name.setText(str(self.infos[1]))
             if self.infos[6]:
-                self.tx_desc.setText("")
-                self.tx_desc.setPlaceholderText(str(self.infos[6]))
+                self.tx_desc.setText(str(self.infos[6]))
+                self.tx_desc.setToolTip('原描述：' + str(self.infos[6]))
             else:
-                self.tx_desc.setPlaceholderText("无")
+                self.tx_desc.setToolTip('')
+            self.tx_desc.setPlaceholderText("无")
             self.min_width = len(str(self.infos[1])) * 8
             if self.infos[2]:  # 文件无法重命名，由 infos[2] size表示文件
                 self.setWindowTitle("修改文件描述")
@@ -491,7 +495,7 @@ class RenameDialog(QDialog):
                 self.out.emit(("new", "", new_name, new_desc))
             else:
                 return
-        elif new_name != self.infos[1] or(new_desc and new_desc != self.infos[6]):
+        elif new_name != self.infos[1] or new_desc != self.infos[6]:
             if self.infos[2]:  # 文件
                 self.out.emit(("file", self.infos[0], new_name, new_desc))
             else:
@@ -801,7 +805,7 @@ class SettingDialog(QDialog):
 
     def show_values(self):
         """控件显示值"""
-        self.rar_tool_var.setText(self.rar_tool)
+        # self.rar_tool_var.setText(self.rar_tool)
         self.download_threads_var.setText(str(self.download_threads))
         self.max_size_var.setText(str(self.max_size))
         self.timeout_var.setText(str(self.timeout))
@@ -825,7 +829,7 @@ class SettingDialog(QDialog):
 
     def get_values(self) -> dict:
         """读取控件值"""
-        self.rar_tool = self.rar_tool_var.text()
+        # self.rar_tool = self.rar_tool_var.text()
         self.download_threads = int(self.download_threads_var.text())
         self.max_size = float(self.max_size_var.text())
         self.timeout = float(self.timeout_var.text())
@@ -843,10 +847,10 @@ class SettingDialog(QDialog):
         logo.setStyleSheet("background-color:rgb(255,255,255);")
         logo.setAlignment(Qt.AlignCenter)
         self.rar_tool_lb = QLabel("rar路径")  # rar路径
-        self.rar_tool_var = MyLineEdit(self)
-        self.rar_tool_var.clicked.connect(self.set_rar_path)
-        self.rar_tool_var.setPlaceholderText("用于大文件分卷压缩与分卷合并")
-        self.rar_tool_var.setToolTip("用于大文件分卷压缩与分卷合并")
+        # self.rar_tool_var = MyLineEdit(self)
+        # self.rar_tool_var.clicked.connect(self.set_rar_path)
+        # self.rar_tool_var.setPlaceholderText("用于大文件分卷压缩与分卷合并")
+        # self.rar_tool_var.setToolTip("用于大文件分卷压缩与分卷合并")
         self.download_threads_lb = QLabel("同时下载文件数")  # about
         self.download_threads_var = QLineEdit()
         self.download_threads_var.setPlaceholderText("范围：1-7")
@@ -888,10 +892,10 @@ class SettingDialog(QDialog):
         form.setSpacing(10)
         form.addRow(self.download_threads_lb, self.download_threads_var)
         form.addRow(self.timeout_lb, self.timeout_var)
-        form.addRow(self.guise_suffix_lb, self.guise_suffix_var)
         form.addRow(self.max_size_lb, self.max_size_var)
-        form.addRow(self.rar_part_name_lb, self.rar_part_name_var)
-        form.addRow(self.rar_tool_lb, self.rar_tool_var)
+        # form.addRow(self.guise_suffix_lb, self.guise_suffix_var)
+        # form.addRow(self.rar_part_name_lb, self.rar_part_name_var)
+        # form.addRow(self.rar_tool_lb, self.rar_tool_var)
         form.addRow(self.dl_path_lb, self.dl_path_var)
 
         vbox = QVBoxLayout()
@@ -917,7 +921,7 @@ class SettingDialog(QDialog):
         if len(rar_path) == 0:
             return
         rar_path = os.path.normpath(rar_path)  # windows backslash
-        self.rar_tool_var.setText(rar_path)
+        # self.rar_tool_var.setText(rar_path)
         self.rar_tool = rar_path
 
     def set_download_path(self):

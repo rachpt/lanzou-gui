@@ -11,6 +11,8 @@ from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QHead
 
 from Ui_lanzou import Ui_MainWindow
 from lanzou.api import LanZouCloud
+from lanzou.api.utils import time_format
+from lanzou.api.models import FolderList
 
 from workers import (DownloadManager, GetSharedInfo, UploadWorker, LoginLuncher, DescPwdFetcher, ListRefresher,
                      RemoveFilesWorker, GetMoreInfoWorker, GetAllFoldersWorker, RenameMkdirWorker, SetPwdWorker, LogoutWorker)
@@ -77,7 +79,7 @@ qssStyle = '''
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
-    __version__ = 'v0.0.8'
+    __version__ = 'v0.0.9'
 
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
@@ -151,8 +153,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._config_file = "./config.pkl"
         self._folder_list = {}
         self._file_list = {}
-        self._path_list = {}
-        self._path_list_old = {}
+        self._path_list = FolderList()
+        self._path_list_old = FolderList()
         self._locs = {}
         self._parent_id = -1  # --> ..
         self._work_name = ""  # share disk rec, not use now
@@ -162,9 +164,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def update_lanzoucloud_settings(self):
         """更新LanzouCloud实例设置"""
-        self._disk.set_rar_tool(self.configs["settings"]["rar_tool"])
-        self._disk.set_guise_suffix(self.configs["settings"]["guise_suffix"])
-        self._disk.set_rar_part_name(self.configs["settings"]["rar_part_name"])
+        # self._disk.set_rar_tool(self.configs["settings"]["rar_tool"])
+        # self._disk.set_guise_suffix(self.configs["settings"]["guise_suffix"])
+        # self._disk.set_rar_part_name(self.configs["settings"]["rar_part_name"])
         self._disk.set_timeout(self.configs["settings"]["timeout"])
         self._disk.set_max_size(self.configs["settings"]["max_size"])
         self.download_threads = self.configs["settings"]["download_threads"]
@@ -196,7 +198,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.all_folders_worker = GetAllFoldersWorker()
         self.all_folders_worker.msg.connect(self.show_status)
         self.all_folders_worker.infos.connect(self.show_move_file_dialog)
-        self.all_folders_worker.moved.connect(lambda: self.list_refresher.set_values(self._work_id, False, True, False)) # 更新文件列表
+        self.all_folders_worker.moved.connect(lambda: self.list_refresher.set_values(self._work_id, True, False, False)) # 更新文件列表
         # 重命名、修改简介、新建文件夹
         self.rename_mkdir_worker = RenameMkdirWorker()
         self.rename_mkdir_worker.msg.connect(self.show_status)
@@ -248,7 +250,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def show_upload_dialog(self):
         """显示上传文件对话框"""
-        self.upload_dialog.set_values(list(self._path_list.keys())[-1])
+        self.upload_dialog.set_values(self._path_list[-1].name)
         self.upload_dialog.exec()
 
     def load_settings(self, ref_ui=False):
@@ -408,7 +410,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 tips = "描述：" + str(infos[6])
             name.setToolTip(tips)
             size_ = QStandardItem(pwd_ico, infos[2]) if infos[5] else QStandardItem(infos[2])  # 提取码+size
-            time_ = QStandardItem(LanZouCloud.time_format(infos[3])) if self.time_fmt else QStandardItem(infos[3])
+            time_ = QStandardItem(time_format(infos[3])) if self.time_fmt else QStandardItem(infos[3])
             self.model_disk.appendRow([name, size_, time_])
         for row in range(self.model_disk.rowCount()):  # 右对齐
             self.model_disk.item(row, 1).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
@@ -423,11 +425,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self._folder_list = infos['folder_list']
         self._path_list = infos['path_list']
 
-        current_folder = list(self._path_list.keys())[-1]
-        self._work_id = self._path_list.get(current_folder, -1)
+        # current_folder = self._path_list[-1].name
+        self._work_id = self._path_list[-1].id
         if infos['r']['fid'] != -1:
-            parent_folder_name = list(self._path_list.keys())[-2]
-            self._parent_id = self._path_list.get(parent_folder_name, -1)
+            parent_folder_name = self._path_list[-2].name
+            self._parent_id = self._path_list[-2].id
         self.show_file_and_folder_lists()
         if infos['r']['path']:
             self.show_full_path()
@@ -593,7 +595,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def show_full_path(self):
         """路径框显示当前路径"""
         index = 1
-        for name in self._path_list_old.items():
+        for _ in range(len(self._path_list_old)):
             self._locs[index].clicked.disconnect()
             self.disk_loc.removeWidget(self._locs[index])
             self._locs[index].deleteLater()
@@ -601,13 +603,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             del self._locs[index]
             index += 1
         index = 1
-        for name, fid in self._path_list.items():
-            self._locs[index] = QPushButton(name, self.disk_tab)
-            self._locs[index].setToolTip(f"fid:{fid}")
+        for i in range(len(self._path_list)):
+            item = self._path_list[i]
+            self._locs[index] = QPushButton(item.name, self.disk_tab)
+            self._locs[index].setToolTip(f"fid:{item.id}")
             self._locs[index].setIcon(QIcon("./icon/folder.gif"))
             self._locs[index].setStyleSheet("QPushButton {border: none; background:transparent;}")
             self.disk_loc.insertWidget(index, self._locs[index])
-            self._locs[index].clicked.connect(self.call_change_dir(fid))
+            self._locs[index].clicked.connect(self.call_change_dir(item.id))
             index += 1
         self._path_list_old = self._path_list
 
@@ -692,7 +695,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             for infos in infos["info"].values():
                 name = QStandardItem(self.set_file_icon(infos[1]), infos[1])
                 name.setData(infos)
-                time = QStandardItem(LanZouCloud.time_format(infos[3])) if self.time_fmt else QStandardItem(infos[3])
+                time = QStandardItem(time_format(infos[3])) if self.time_fmt else QStandardItem(infos[3])
                 self.model_share.appendRow([name, QStandardItem(infos[2]), time])
             for r in range(self.model_share.rowCount()):  # 右对齐
                 self.model_share.item(r, 1).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
