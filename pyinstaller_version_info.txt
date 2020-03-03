@@ -6,8 +6,8 @@ VSVersionInfo(
   ffi=FixedFileInfo(
 # filevers and prodvers should be always a tuple with four items: (1, 2, 3, 4)
 # Set not needed items to zero 0.
-filevers=(1, 0, 0, 200219),
-prodvers=(1, 0, 0, 200219),
+filevers=(1, 0, 0, 200304),
+prodvers=(1, 0, 0, 200304),
 # Contains a bitmask that specifies the valid bits 'flags'r
 mask=0x3f,
 # Contains a bitmask that specifies the Boolean attributes of the file.
@@ -31,12 +31,12 @@ StringFileInfo(
     u'040904B0',
     [StringStruct(u'CompanyName', u'rachpt.cn'),
     StringStruct(u'FileDescription', u'蓝奏云客户端'),
-    StringStruct(u'FileVersion', u'0.0.8'),
+    StringStruct(u'FileVersion', u'0.0.9'),
     StringStruct(u'InternalName', u'lanzou-gui'),
     StringStruct(u'LegalCopyright', u'Copyright (c) rachpt'),
-    StringStruct(u'OriginalFilename', u'lanzou-gui_win64_v0.0.8.exe'),
+    StringStruct(u'OriginalFilename', u'lanzou-gui_win64_v0.0.9.exe'),
     StringStruct(u'ProductName', u'lanzou-gui_Win64'),
-    StringStruct(u'ProductVersion', u'0.0.8 (r200219)')])
+    StringStruct(u'ProductVersion', u'0.0.9 (r200304)')])
   ]), 
 VarFileInfo([VarStruct(u'Translation', [1033, 1200])])
   ]
