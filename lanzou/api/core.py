@@ -65,7 +65,7 @@ class LanZouCloud(object):
 
     def set_max_size(self, max_size=100) -> int:
         """设置单文件大小限制(会员用户可超过 100M)"""
-        if max_size < 100:
+        if max_size < 1:
             return LanZouCloud.FAILED
         self._max_size = max_size
         return LanZouCloud.SUCCESS
