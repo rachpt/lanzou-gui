@@ -171,7 +171,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._disk.set_max_size(self.configs["settings"]["max_size"])
         self.download_threads = self.configs["settings"]["download_threads"]
         self.time_fmt = self.configs["settings"]["time_fmt"]
-        # self.time_fmt = True
 
     def init_workers(self):
         # 登录器
