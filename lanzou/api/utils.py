@@ -99,7 +99,7 @@ def big_file_split(file_path: str, max_size: int = 100):
 
     def get_random_size() -> int:
         """按权重生成一个不超过 max_size 的文件大小"""
-        reduce_size = choices([uniform(0, 10), uniform(10, 20), uniform(40, 60), uniform(60, 80)], weights=[6, 2, 1, 1])
+        reduce_size = choices([uniform(0, max_size/10), uniform(max_size/10, 2*max_size/10), uniform(4*max_size/10, 6*max_size/10), uniform(6*max_size/10, 8*max_size/10)], weights=[6, 2, 1, 1])
         return round((max_size - reduce_size[0]) * 1048576)
 
     def get_random_name() -> str:
@@ -116,7 +116,7 @@ def big_file_split(file_path: str, max_size: int = 100):
         big_file_left_size = file_size
         chunk_size = 524288  # 512KB
         while big_file_left_size > 0:
-            tmp_file_size = get_random_size() if file_size > 52428800 else file_size  # 文件剩下 50 MB 时不再分割
+            tmp_file_size = get_random_size() if file_size > (max_size * 1048576 / 2) else file_size  # 文件剩下1/2最大值时不再分割
             tmp_file_name = get_random_name()
             tmp_file_path = tmp_dir + os.sep + tmp_file_name
 
@@ -142,8 +142,8 @@ def big_file_split(file_path: str, max_size: int = 100):
     yield info_file
 
     # 正常遍历结束时删除临时目录,失败时保留,方便复现 Bug
-    # rmtree(tmp_dir)
-    # logger.debug(f"Delete tmp dir: {tmp_dir}")
+    rmtree(tmp_dir)
+    logger.debug(f"Delete tmp dir: {tmp_dir}")
 
 
 def let_me_upload(file_path):
