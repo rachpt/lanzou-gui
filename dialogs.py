@@ -831,7 +831,7 @@ class SettingDialog(QDialog):
         """读取控件值"""
         # self.rar_tool = self.rar_tool_var.text()
         self.download_threads = int(self.download_threads_var.text())
-        self.max_size = float(self.max_size_var.text())
+        self.max_size = int(self.max_size_var.text())
         self.timeout = float(self.timeout_var.text())
         self.guise_suffix = str(self.guise_suffix_var.text())
         self.rar_part_name = str(self.rar_part_name_var.text())
