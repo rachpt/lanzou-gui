@@ -304,7 +304,11 @@ class UploadWorker(QThread):
             else:
                 msg = "<b>INFO :</b> <font color='#00CC00'>上传文件:{}</font>".format(f)
                 self.code.emit(msg, 0)
-                self._disk.upload_file(f, self._work_id, self._show_progress)
+                try:
+                    self._disk.upload_file(f, self._work_id, self._show_progress)
+                except TimeoutError:
+                    msg = "<b>ERROR :</b> <font color='red'>网络连接超时，请重试！</font>"
+                    self.code.emit(msg, 0)
 
 
 class LoginLuncher(QThread):
