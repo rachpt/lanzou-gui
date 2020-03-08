@@ -690,7 +690,7 @@ class LanZouCloud(object):
             return LanZouCloud.MKDIR_ERROR  # 创建文件夹失败就退出
         return self._upload_big_file(file_path, dir_id, callback)
 
-    def upload_dir(self, dir_path, folder_id=-1, *, callback=None, failed_callback=None):
+    def upload_dir(self, dir_path, folder_id=-1, callback=None, failed_callback=None):
         """批量上传文件
         callback(filename, total_size, now_size) 用于显示进度
         failed_callback(code, file) 用于处理上传失败的文件

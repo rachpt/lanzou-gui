@@ -300,7 +300,7 @@ class UploadWorker(QThread):
             if os.path.isdir(f):
                 msg = "<b>INFO :</b> <font color='#00CC00'>批量上传文件夹:{}</font>".format(f)
                 self.code.emit(msg, 0)
-                self._disk.upload_dir(f, self._work_id, self._show_progress)
+                self._disk.upload_dir(f, self._work_id, self._show_progress, None)
             else:
                 msg = "<b>INFO :</b> <font color='#00CC00'>上传文件:{}</font>".format(f)
                 self.code.emit(msg, 0)
