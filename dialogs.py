@@ -457,6 +457,7 @@ class RenameDialog(QDialog):
                 self.tx_desc.setText(str(self.infos[6]))
                 self.tx_desc.setToolTip('原描述：' + str(self.infos[6]))
             else:
+                self.tx_desc.setText("无")
                 self.tx_desc.setToolTip('')
             self.tx_desc.setPlaceholderText("无")
             self.min_width = len(str(self.infos[1])) * 8
