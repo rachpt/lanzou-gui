@@ -76,10 +76,6 @@ class Downloader(QThread):
         self.url = ""
         self.pwd = ""
         self.save_path = ""
-        # if os.name == 'nt':
-        #     self._disk.set_rar_tool("./rar.exe")
-        # else:
-        #     self._disk.set_rar_tool("/usr/bin/rar")
 
     def stop(self):
         self._mutex.lock()
@@ -106,15 +102,19 @@ class Downloader(QThread):
         self.save_path = save_path
 
     def run(self):
-        if is_file_url(self.url):
-            # 下载文件
-            self._disk.down_file_by_url(self.url, self.pwd, self.save_path, self._show_progress)
-        elif is_folder_url(self.url):
-            # 下载文件夹
-            folder_path = self.save_path + os.sep + self.name
-            os.makedirs(folder_path, exist_ok=True)
-            self.save_path = folder_path
-            self._disk.down_dir_by_url(self.url, self.pwd, self.save_path, self._show_progress, mkdir=True, failed_callback=self._show_down_failed)
+        try:
+            if is_file_url(self.url):
+                # 下载文件
+                self._disk.down_file_by_url(self.url, self.pwd, self.save_path, self._show_progress)
+            elif is_folder_url(self.url):
+                # 下载文件夹
+                folder_path = self.save_path + os.sep + self.name
+                os.makedirs(folder_path, exist_ok=True)
+                self.save_path = folder_path
+                self._disk.down_dir_by_url(self.url, self.pwd, self.save_path, self._show_progress,
+                                           mkdir=True, failed_callback=self._show_down_failed)
+        except:
+            self.download_failed.emit("网络连接错误！")
 
 
 class DownloadManager(QThread):
