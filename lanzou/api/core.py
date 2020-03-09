@@ -719,7 +719,6 @@ class LanZouCloud(object):
             return LanZouCloud.URL_INVALID
         if not os.path.exists(save_path):
             os.makedirs(save_path)
-
         info = self.get_durl_by_url(share_url, pwd)
         logger.debug(f'File direct url info: {info}')
         if info.code != LanZouCloud.SUCCESS:
@@ -729,12 +728,17 @@ class LanZouCloud(object):
         if not resp:
             return LanZouCloud.FAILED
         total_size = int(resp.headers['Content-Length'])
-        now_size = 0
-        chunk_size = 4096
-        last_512_bytes = b''  # 用于识别文件是否携带真实文件名信息
         file_path = save_path + os.sep + info.name
         logger.debug(f'Save file to {file_path=}')
-        with open(file_path, "wb") as f:
+        if os.path.exists(file_path):
+            now_size = os.path.getsize(file_path)  # 本地已经下载的文件大小
+        else:
+            now_size = 0
+        chunk_size = 4096
+        last_512_bytes = b''  # 用于识别文件是否携带真实文件名信息
+        headers = {'Range': 'bytes=%d-' % now_size}
+        resp = self._get(info.durl, stream=True, headers=headers)
+        with open(file_path, "ab") as f:
             for chunk in resp.iter_content(chunk_size):
                 if chunk:
                     f.write(chunk)
