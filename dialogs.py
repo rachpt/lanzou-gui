@@ -26,24 +26,15 @@ def update_settings(config_file: str, up_info: dict, is_settings=False):
     with open(config_file, "wb") as _file:
         dump(_info, _file)
 
+def set_file_icon(name):
+    suffix = name.split(".")[-1]
+    ico_path = "./icon/{}.gif".format(suffix)
+    if os.path.isfile(ico_path):
+        return QIcon(ico_path)
+    else:
+        return QIcon("./icon/file.ico")
 
-dialog_qss_style = """
-QLabel {
-    font-weight: 400;
-    font-size: 14px;
-}
-QLineEdit {
-    padding: 1px;
-    border-style: solid;
-    border: 2px solid gray;
-    border-radius: 8px;
-}
-QTextEdit {
-    padding: 1px;
-    border-style: solid;
-    border: 2px solid gray;
-    border-radius: 8px;
-}
+btn_style = """
 QPushButton {
     color: white;
     background-color: QLinearGradient(x1: 0, y1: 0, x2: 0, y2: 1,stop: 0 #88d,
@@ -61,11 +52,30 @@ QPushButton {
     min-height: 14px;
     max-height: 14px;
 }
+"""
+others_style = """
+QLabel {
+    font-weight: 400;
+    font-size: 14px;
+}
+QLineEdit {
+    padding: 1px;
+    border-style: solid;
+    border: 2px solid gray;
+    border-radius: 8px;
+}
+QTextEdit {
+    padding: 1px;
+    border-style: solid;
+    border: 2px solid gray;
+    border-radius: 8px;
+}
 #btn_chooseMutiFile, #btn_chooseDir {
     min-width: 90px;
     max-width: 90px;
 }
 """
+dialog_qss_style = others_style + btn_style
 # https://thesmithfam.org/blog/2009/09/10/qt-stylesheets-tutorial/
 
 
@@ -654,14 +664,6 @@ class DeleteDialog(QDialog):
         self.initUI()
         self.setStyleSheet(dialog_qss_style)
 
-    def set_file_icon(self, name):
-        suffix = name.split(".")[-1]
-        ico_path = "./icon/{}.gif".format(suffix)
-        if os.path.isfile(ico_path):
-            return QIcon(ico_path)
-        else:
-            return QIcon("./icon/file.ico")
-
     def initUI(self):
         self.setWindowTitle("确认删除")
         self.setWindowIcon(QIcon("./icon/delete.ico"))
@@ -675,7 +677,7 @@ class DeleteDialog(QDialog):
         count = 0
         for i in self.infos:
             if i[2]:  # 有大小，是文件
-                self.model.appendRow(QStandardItem(self.set_file_icon(i[1]), i[1]))
+                self.model.appendRow(QStandardItem(set_file_icon(i[1]), i[1]))
             else:
                 self.model.appendRow(QStandardItem(QIcon("./icon/folder.gif"), i[1]))
             self.out.append({'fid': i[0], 'is_file': True if i[2] else False, 'name': i[1]})  # id，文件标示, 文件名
@@ -942,3 +944,42 @@ class SettingDialog(QDialog):
         update_settings(self._config_file, self.get_values(), is_settings=True)
         self.saved.emit()
         self.close()
+
+
+class RecFolderDialog(QDialog):
+    out = pyqtSignal(object)
+
+    def __init__(self, files, parent=None):
+        super(RecFolderDialog, self).__init__(parent)
+        self.files = files
+        self.initUI()
+        self.setStyleSheet(others_style)
+
+    def initUI(self):
+        self.setWindowTitle("查看回收站文件夹内容")
+        self.form = QVBoxLayout()
+        for item in iter(self.files):
+            ico = QPushButton(set_file_icon(item.name), item.name)
+            ico.setStyleSheet("QPushButton {border:none; background:transparent; color:black;}")
+            ico.adjustSize()
+            it = QLabel(f"<font color='#CCCCCC'>({item.size})</font>")
+            hbox = QHBoxLayout()
+            hbox.addWidget(ico)
+            hbox.addStretch(1)
+            hbox.addWidget(it)
+            self.form.addLayout(hbox)
+
+        self.form.setSpacing(10)
+        self.buttonBox = QDialogButtonBox()
+        self.buttonBox.setOrientation(Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.Close)
+        self.buttonBox.button(QDialogButtonBox.Close).setText("关闭")
+        self.buttonBox.setStyleSheet(btn_style)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+        vbox = QVBoxLayout()
+        vbox.addLayout(self.form)
+        vbox.addStretch(1)
+        vbox.addWidget(self.buttonBox)
+        self.setLayout(vbox)

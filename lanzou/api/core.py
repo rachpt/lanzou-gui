@@ -239,6 +239,26 @@ class LanZouCloud(object):
             return LanZouCloud.NETWORK_ERROR
         return LanZouCloud.SUCCESS if '删除成功' in html.text else LanZouCloud.FAILED
 
+    def delete_rec_multi(self, files, folders) -> int:
+        """彻底删除回收站多个文件(夹)"""
+        # 与 recovery_all 几乎一样，task 表单值不一样
+        if not files and not folders:
+            return
+        para = {'item': 'recycle', 'action': 'files'}
+        post_data = {'action': 'files', 'task': 'delete_complete_recycle'}
+        if folders:
+            post_data['fd_sel_ids[]'] = folders
+        if files:
+            post_data['fl_sel_ids[]'] = files
+        html = self._get(self._mydisk_url, params=para)
+        if not html:
+            return LanZouCloud.NETWORK_ERROR
+        post_data['formhash'] = re.findall(r'name="formhash" value="(\w+?)"', html.text)[0]  # 设置表单 hash
+        html = self._post(self._mydisk_url + '?item=recycle', post_data)
+        if not html:
+            return LanZouCloud.NETWORK_ERROR
+        return LanZouCloud.SUCCESS if '删除成功' in html.text else LanZouCloud.FAILED
+
     def recovery(self, fid, is_file=True) -> int:
         """从回收站恢复文件"""
         if is_file:
@@ -255,6 +275,38 @@ class LanZouCloud(object):
         if not html:
             return LanZouCloud.NETWORK_ERROR
         return LanZouCloud.SUCCESS if '恢复成功' in html.text else LanZouCloud.FAILED
+
+    def recovery_multi(self, files, folders) -> int:
+        """从回收站恢复多个文件"""
+        if not files and not folders:
+            return
+        para = {'item': 'recycle', 'action': 'files'}
+        post_data = {'action': 'files', 'task': 'restore_recycle'}
+        if folders:
+            post_data['fd_sel_ids[]'] = folders
+        if files:
+            post_data['fl_sel_ids[]'] = files
+        html = self._get(self._mydisk_url, params=para)
+        if not html:
+            return LanZouCloud.NETWORK_ERROR
+        post_data['formhash'] = re.findall(r'name="formhash" value="(.+?)"', html.text)[0]  # 设置表单 hash
+        html = self._post(self._mydisk_url + '?item=recycle', post_data)
+        if not html:
+            return LanZouCloud.NETWORK_ERROR
+        return LanZouCloud.SUCCESS if '恢复成功' in html.text else LanZouCloud.FAILED
+
+    def recovery_all(self) -> int:
+        """从回收站恢复所有文件"""
+        para = {'item': 'recycle', 'action': 'restore_all'}
+        post_data = {'action': 'restore_all', 'task': 'restore_all'}
+        html1 = self._get(self._mydisk_url, params=para)
+        if not html1:
+            return LanZouCloud.NETWORK_ERROR
+        post_data['formhash'] = re.findall(r'name="formhash" value="(.+?)"', html1.text)[0]  # 设置表单 hash
+        html = self._post(self._mydisk_url + '?item=recycle', post_data)
+        if not html:
+            return LanZouCloud.NETWORK_ERROR
+        return LanZouCloud.SUCCESS if '还原成功' in html.text else LanZouCloud.FAILED
 
     def get_file_list(self, folder_id=-1) -> FileList:
         """获取文件列表"""
@@ -742,6 +794,7 @@ class LanZouCloud(object):
             for chunk in resp.iter_content(chunk_size):
                 if chunk:
                     f.write(chunk)
+                    # f.flush()  # 刷新，保证一点点的写入
                     now_size += len(chunk)
                     if total_size - now_size < 512:
                         last_512_bytes += chunk

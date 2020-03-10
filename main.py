@@ -7,16 +7,17 @@ from pickle import dump, load
 from PyQt5.QtCore import Qt, QCoreApplication, QTimer, QUrl
 from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel, QDesktopServices
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QHeaderView, QMenu, QAction, QLabel,
-                             QPushButton, QFileDialog, QDesktopWidget)
+                             QPushButton, QFileDialog, QDesktopWidget, QMessageBox  )
 
 from Ui_lanzou import Ui_MainWindow
 from lanzou.api import LanZouCloud
 from lanzou.api.utils import time_format
 from lanzou.api.models import FolderList
+from lanzou.api.types import RecFolder
 
-from workers import (DownloadManager, GetSharedInfo, UploadWorker, LoginLuncher, DescPwdFetcher, ListRefresher,
-                     RemoveFilesWorker, GetMoreInfoWorker, GetAllFoldersWorker, RenameMkdirWorker, SetPwdWorker, LogoutWorker)
-from dialogs import (update_settings, LoginDialog, UploadDialog, InfoDialog, RenameDialog, SettingDialog,
+from workers import (DownloadManager, GetSharedInfo, UploadWorker, LoginLuncher, DescPwdFetcher, ListRefresher, GetRecListsWorker,
+                     RemoveFilesWorker, GetMoreInfoWorker, GetAllFoldersWorker, RenameMkdirWorker, SetPwdWorker, LogoutWorker, RecManipulator)
+from dialogs import (update_settings, set_file_icon, btn_style, LoginDialog, UploadDialog, InfoDialog, RenameDialog, SettingDialog, RecFolderDialog,
                      SetPwdDialog, MoveFileDialog, DeleteDialog, MyLineEdit, AboutDialog)
 
 
@@ -33,7 +34,7 @@ qssStyle = '''
     #table_disk {
         background-color: rgba(255, 255, 255, 150);
     }
-    #tableView_rec {
+    #table_rec {
         background-color: rgba(255, 255, 255, 150);
     }
     QTabWidget::pane {
@@ -79,7 +80,7 @@ qssStyle = '''
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
-    __version__ = 'v0.0.9'
+    __version__ = 'v0.1.0'
 
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
@@ -93,6 +94,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.set_window_at_center()
         self.init_extract_share_ui()
         self.init_disk_ui()
+        self.init_rec_ui()
         self.call_login_luncher()
 
         self.create_left_menus()
@@ -130,23 +132,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.setting_menu.setIcon(QIcon("./icon/about.ico"))
         self.setting_menu.triggered.connect(self.setting_dialog.open_dialog)
         self.setting_menu.setShortcut("Ctrl+P")  # 设置快捷键
+        # tab 切换时更新
+        self.tabWidget.currentChanged.connect(self.call_change_tab)
 
     def init_default_settings(self):
         """初始化默认设置"""
-        if os.name == 'nt':
-            rar_tool = "./rar.exe"
-        else:
-            rar_tool = "/usr/bin/rar"
+        # rar_part_name = 'abc'  # rar 分卷文件后缀 *.abc01.rar
+        # guise_suffix = '.dll'  # 不支持的文件伪装后缀
         download_threads = 3   # 同时三个下载任务
         max_size = 100         # 单个文件大小上限 MB
         timeout = 5            # 每个请求的超时 s(不包含下载响应体的用时)
-        guise_suffix = '.dll'  # 不支持的文件伪装后缀
-        rar_part_name = 'abc'  # rar 分卷文件后缀 *.abc01.rar
         time_fmt = False       # 是否使用年月日时间格式
         dl_path = os.path.dirname(os.path.abspath(__file__)) + os.sep + "downloads"
-        self._default_settings = {"rar_tool": rar_tool, "download_threads": download_threads,
-                    "max_size": max_size, "guise_suffix": guise_suffix, "dl_path": dl_path,
-                    "timeout": timeout, "rar_part_name": rar_part_name, "time_fmt": time_fmt}
+        self._default_settings = {"download_threads": download_threads, "max_size": max_size,
+                                  "dl_path": dl_path, "timeout": timeout, "time_fmt": time_fmt}
 
     def init_variables(self):
         self._disk = LanZouCloud()
@@ -164,13 +163,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def update_lanzoucloud_settings(self):
         """更新LanzouCloud实例设置"""
-        # self._disk.set_rar_tool(self.configs["settings"]["rar_tool"])
-        # self._disk.set_guise_suffix(self.configs["settings"]["guise_suffix"])
-        # self._disk.set_rar_part_name(self.configs["settings"]["rar_part_name"])
         self._disk.set_timeout(self.configs["settings"]["timeout"])
         self._disk.set_max_size(self.configs["settings"]["max_size"])
         self.download_threads = self.configs["settings"]["download_threads"]
-        self.time_fmt = self.configs["settings"]["time_fmt"]
+        self.time_fmt = self.configs["settings"]["time_fmt"]  # 时间显示格式
 
     def init_workers(self):
         # 登录器
@@ -192,7 +188,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 登录文件列表更新器
         self.list_refresher = ListRefresher(self._disk)
         self.list_refresher.err_msg.connect(self.show_status)
-        self.list_refresher.infos.connect(self.update_lists)
+        self.list_refresher.infos.connect(self.update_disk_lists)
         # 获取所有文件夹fid，并移动
         self.all_folders_worker = GetAllFoldersWorker()
         self.all_folders_worker.msg.connect(self.show_status)
@@ -239,6 +235,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 菜单栏设置
         self.setting_dialog = SettingDialog(self._config_file, self._default_settings)
         self.setting_dialog.saved.connect(lambda: self.load_settings(ref_ui=True))
+        # 登录回收站信息更新器
+        self.get_rec_lists_worker = GetRecListsWorker(self._disk)
+        self.get_rec_lists_worker.msg.connect(self.show_status)
+        self.get_rec_lists_worker.infos.connect(self.update_rec_lists)
+        self.get_rec_lists_worker.folders.connect(self.pop_up_rec_folder_dialog)
+        self.get_rec_lists_worker.folders.connect(lambda: self.show_status('', 0))
+        # 回收站操作器
+        self.rec_manipulator = RecManipulator(self._disk)
+        self.rec_manipulator.msg.connect(self.show_status)
+        self.rec_manipulator.successed.connect(lambda: self.get_rec_lists_worker.start())
 
     def show_login_dialog(self):
         """显示登录对话框"""
@@ -257,7 +263,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         try:
             with open(self._config_file, "rb") as _file:
                 self.configs = load(_file)
-        except Exception:
+        except:
             self.configs = {"user": "", "pwd": "", "cookie": "", "settings": self._default_settings}
             with open(self._config_file, "wb") as _file:
                 dump(self.configs, _file)
@@ -273,7 +279,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.download_manager.set_values(tasks, self.configs["settings"]["dl_path"], self.download_threads)
         self.download_manager.start()
 
-    def call_downloader(self):
+    def call_multi_manipulator(self, action):
+        """批量操作器"""
         tab_page = self.tabWidget.currentIndex()
         if tab_page == 0:
             listview = self.table_share
@@ -281,6 +288,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         elif tab_page == 1:
             listview = self.table_disk
             model = self.model_disk
+        elif tab_page == 2:
+            listview = self.table_rec
+            model = self.model_rec
         else:
             return
         infos = []
@@ -289,9 +299,38 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             info = model.item(i.row(), 0).data()
             if info and info not in infos:
                 infos.append(info)
-        if not infos:
-            return
-        self.desc_pwd_fetcher.set_values(self._disk, infos, download=True)
+
+        if tab_page == 0 or tab_page == 1:
+            if not infos:
+                return
+            self.desc_pwd_fetcher.set_values(self._disk, infos, download=True)
+        elif tab_page == 2:
+            if action == "recovery":
+                title = "确定恢复选定文件(夹)？"
+            elif action == "delete":
+                title = "确定彻底删除选定文件(夹)？"
+            elif action == "recovery_all":
+                title = "确定还原全部文件(夹)？"
+                msg = "提示: 恢复回收站中的文件将不可撤销，请确认。"
+            elif action == "clean":
+                title = "确定清除全部文件(夹)？"
+                msg = "提示: 删除回收站中的文件将不可恢复，请确认。"
+            if action == "recovery" or action == "delete":
+                msg = "\t\t列表：\n"
+                for i in infos:
+                    msg += f"{i.time}\t{i.name}\t{i.size}\n"
+            message_box = QMessageBox(self)
+            message_box.setStyleSheet(btn_style)
+            message_box.setWindowTitle(title)
+            message_box.setText(msg)
+            message_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            buttonY = message_box.button(QMessageBox.Yes)
+            buttonY.setText('确定')
+            buttonN = message_box.button(QMessageBox.No)
+            buttonN.setText('取消')
+            message_box.exec_()
+            if message_box.clickedButton() == buttonY:
+                self.rec_manipulator.set_values(infos, action)
 
     def call_logout_update_ui(self):
         """菜单栏、工具栏登出"""
@@ -326,7 +365,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.tabWidget.setCurrentIndex(1)
             QCoreApplication.processEvents()  # 重绘界面
             # 刷新文件列表
-            self.list_refresher.set_values(self._work_id)
+            # self.list_refresher.set_values(self._work_id)
         else:
             self.show_status(msg, duration)
             self.tabWidget.setCurrentIndex(0)
@@ -360,16 +399,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         up_info = {"cookie": cookie}
         update_settings(self._config_file, up_info)
 
-    def set_file_icon(self, name):
-        suffix = name.split(".")[-1]
-        ico_path = "./icon/{}.gif".format(suffix)
-        if os.path.isfile(ico_path):
-            return QIcon(ico_path)
-        else:
-            return QIcon("./icon/file.ico")
-
     def show_file_and_folder_lists(self):
-        """显示文件和文件夹列表"""
+        """显示用户文件和文件夹列表"""
         self.model_disk.removeRows(0, self.model_disk.rowCount())  # 清理旧的内容
         file_count = len(self._file_list.keys())
         folder_count = len(self._folder_list.keys())
@@ -398,7 +429,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             size_ = QStandardItem(pwd_ico, "") if infos[5] else QStandardItem("")  # 提取码+size
             self.model_disk.appendRow([name, size_, QStandardItem("")])
         for infos in self._file_list.values():  # 文件
-            name = QStandardItem(self.set_file_icon(infos[1]), infos[1])
+            name = QStandardItem(set_file_icon(infos[1]), infos[1])
             name.setData(infos)
             tips = ""
             if infos[5] is not False:
@@ -415,7 +446,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.model_disk.item(row, 1).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             self.model_disk.item(row, 2).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
-    def update_lists(self, infos):
+    def update_disk_lists(self, infos):
+        """更新用户文件列表"""
         if not infos:
             return
         if infos['r']['files']:
@@ -424,22 +456,24 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self._folder_list = infos['folder_list']
         self._path_list = infos['path_list']
 
-        # current_folder = self._path_list[-1].name
         self._work_id = self._path_list[-1].id
         if infos['r']['fid'] != -1:
-            parent_folder_name = self._path_list[-2].name
             self._parent_id = self._path_list[-2].id
         self.show_file_and_folder_lists()
         if infos['r']['path']:
             self.show_full_path()
 
     def config_tableview(self, tab):
+        """Tab 初始化"""
         if tab == "share":
             model = self.model_share
             table = self.table_share
         elif tab == "disk":
             model = self.model_disk
             table = self.table_disk
+        elif tab == "rec":
+            model = self.model_rec
+            table = self.table_rec
 
         model.setHorizontalHeaderLabels(["文件名", "大小", "时间"])
         table.setModel(model)
@@ -461,8 +495,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         table.horizontalHeader().resizeSection(2, 80)
         # 设置第一列宽度自动调整，充满屏幕
         table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-        table.setContextMenuPolicy(Qt.CustomContextMenu)  # 允许右键产生子菜单
-        table.customContextMenuRequested.connect(self.generateMenu)  # 右键菜单
+        if tab != "rec":
+            table.setContextMenuPolicy(Qt.CustomContextMenu)  # 允许右键产生子菜单
+            table.customContextMenuRequested.connect(self.generateMenu)  # 右键菜单
 
     def create_left_menus(self):
         self.left_menus = QMenu()
@@ -570,7 +605,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         info_dialog.exec()
 
     def call_change_dir(self, folder_id=-1):
-        """按钮调用"""
+        """顶部路径按钮调用"""
         def callfunc():
             self.list_refresher.set_values(folder_id)
 
@@ -607,7 +642,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self._locs[index] = QPushButton(item.name, self.disk_tab)
             self._locs[index].setToolTip(f"fid:{item.id}")
             self._locs[index].setIcon(QIcon("./icon/folder.gif"))
-            self._locs[index].setStyleSheet("QPushButton {border: none; background:transparent;}")
+            self._locs[index].setStyleSheet("QPushButton {border:none; background:transparent;}")
             self.disk_loc.insertWidget(index, self._locs[index])
             self._locs[index].clicked.connect(self.call_change_dir(item.id))
             index += 1
@@ -623,7 +658,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             btn = self.btn_disk_select_all
             table = self.table_disk
         elif page == 2:
-            return
+            btn = self.btn_rec_select_all
+            table = self.table_rec
         else:
             return
         if btn.isEnabled():
@@ -652,6 +688,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self._old_work_id = self._work_id
         self.show_status("上传完成！", 7000)
 
+    # disk tab
     def init_disk_ui(self):
         self.model_disk = QStandardItemModel(1, 3)
         self.config_tableview("disk")
@@ -661,7 +698,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btn_disk_select_all.setToolTip("按下 Ctrl/Alt + A 全选或则取消全选")
         self.btn_disk_select_all.clicked.connect(lambda: self.select_all_btn("reverse"))
         self.table_disk.clicked.connect(lambda: self.select_all_btn("cancel"))
-        self.btn_disk_dl.clicked.connect(self.call_downloader)
+        self.btn_disk_dl.clicked.connect(lambda: self.call_multi_manipulator("download"))
         self.btn_disk_mkdir.setIcon(QIcon("./icon/add-folder.ico"))
         self.btn_disk_mkdir.clicked.connect(self.call_mkdir)
         self.btn_disk_delete.clicked.connect(self.call_remove_files)
@@ -672,12 +709,66 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.upload_worker.finished.connect(self.finished_upload)
         self.upload_worker.code.connect(self.show_status)
 
-    def show_status(self, msg, duration=0):
-        self._msg_label.setText(msg)
-        # self.statusbar.showMessage(msg, duration)
-        # QCoreApplication.processEvents()  # 重绘界面，在弱网络情况导致程序闪退
-        if duration != 0:
-            QTimer.singleShot(duration, lambda: self._msg_label.setText(""))
+    # rec tab
+    def pop_up_rec_folder_dialog(self, files):
+        # 弹出回收站文件夹内容对话框
+        if files:
+            rec_file_dialog = RecFolderDialog(files)
+            rec_file_dialog.exec()
+
+    def call_rec_folder_dialog(self, dir_name):
+        # 显示弹出对话框
+        dir_data = self.model_rec.item(dir_name.row(), 0).data()  # 文件夹信息
+        if isinstance(dir_data, RecFolder):
+            self.show_status(f"正在获取文件夹 {dir_data.name} 信息，稍后", 0)
+            self.get_rec_lists_worker.set_values(dir_data.id)
+
+    def update_rec_lists(self, dir_lists, file_lists):
+        """显示回收站文件和文件夹列表"""
+        self.model_rec.removeRows(0, self.model_rec.rowCount())  # 清理旧的内容
+        file_count = len(file_lists)
+        folder_count = len(dir_lists)
+        if ((not dir_lists) and (not file_lists)) or (file_count==0 and folder_count==0):
+            self.show_status("回收站为空！", 4000)
+            return
+        name_header = ["文件夹{}个".format(folder_count), ] if folder_count else []
+        if file_count:
+            name_header.append("文件{}个".format(file_count))
+        self.model_rec.setHorizontalHeaderLabels(["/".join(name_header), "大小", "时间"])
+        folder_ico = QIcon("./icon/folder.gif")
+
+        for item in iter(dir_lists):  # 文件夹
+            name = QStandardItem(folder_ico, item.name)
+            name.setData(item)
+            name.setToolTip("双击查看详情")
+            size_ = QStandardItem(item.size)
+            time_ = QStandardItem(item.time)
+            self.model_rec.appendRow([name, size_, time_])
+        for item in iter(file_lists):  # 文件
+            name = QStandardItem(set_file_icon(item.name), item.name)
+            name.setData(item)
+            size_ = QStandardItem(item.size)
+            time_ = QStandardItem(item.time)
+            self.model_rec.appendRow([name, size_, time_])
+        for row in range(self.model_rec.rowCount()):  # 右对齐
+            self.model_rec.item(row, 1).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self.model_rec.item(row, 2).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
+    def init_rec_ui(self):
+        """回收站ui初始化"""
+        self.model_rec = QStandardItemModel(1, 3)
+        self.config_tableview("rec")
+        self.table_rec.doubleClicked.connect(self.call_rec_folder_dialog)
+        self.btn_rec_select_all.setIcon(QIcon("./icon/select-all.ico"))
+        self.btn_rec_select_all.clicked.connect(lambda: self.select_all_btn("reverse"))
+        self.btn_rec_delete.clicked.connect(lambda: self.call_multi_manipulator("delete"))
+        self.btn_recovery.clicked.connect(lambda: self.call_multi_manipulator("recovery"))
+        self.btn_rec_delete.setToolTip("彻底删除选中文件(夹)")
+        self.btn_recovery.setToolTip("恢复选中文件(夹)")
+        self.btn_recovery_all.clicked.connect(lambda: self.call_multi_manipulator("recovery_all"))
+        self.btn_recovery_all.setToolTip("恢复全部")
+        self.btn_rec_clean.clicked.connect(lambda: self.call_multi_manipulator("clean"))
+        self.btn_rec_clean.setToolTip("清理回收站全部")
 
     # shared url
     def call_get_shared_info(self):
@@ -692,7 +783,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             file_count = len(infos["info"].keys())
             self.model_share.setHorizontalHeaderLabels(["文件{}个".format(file_count), "大小", "时间"])
             for infos in infos["info"].values():
-                name = QStandardItem(self.set_file_icon(infos[1]), infos[1])
+                name = QStandardItem(set_file_icon(infos[1]), infos[1])
                 name.setData(infos)
                 time = QStandardItem(time_format(infos[3])) if self.time_fmt else QStandardItem(infos[3])
                 self.model_share.appendRow([name, QStandardItem(infos[2]), time])
@@ -741,7 +832,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.line_share_url.setPlaceholderText("蓝奏云链接，如有提取码，放后面，空格或汉字等分割，回车键提取")
         self.line_share_url.returnPressed.connect(self.call_get_shared_info)
         self.btn_extract.clicked.connect(self.call_get_shared_info)
-        self.btn_share_dl.clicked.connect(self.call_downloader)
+        self.btn_share_dl.clicked.connect(lambda: self.call_multi_manipulator("download"))
         self.btn_share_dl.setIcon(QIcon("./icon/downloader.ico"))
         self.btn_share_select_all.setIcon(QIcon("./icon/select-all.ico"))
         self.btn_share_select_all.clicked.connect(lambda: self.select_all_btn("reverse"))
@@ -758,6 +849,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.label_share_url.setStyleSheet("#label_share_url {color: rgb(255,255,60);}")
         self.label_dl_path.setStyleSheet("#label_dl_path {color: rgb(255,255,60);}")
 
+    # others
+    def show_status(self, msg, duration=0):
+        self._msg_label.setText(msg)
+        if duration != 0:
+            QTimer.singleShot(duration, lambda: self._msg_label.setText(""))
+
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_A:  # Ctrl/Alt + A 全选
             if e.modifiers() and Qt.ControlModifier:
@@ -766,6 +863,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if self.tabWidget.currentIndex() == 1:  # disk 界面
                 self.show_status("正在更新当前目录...", 1000)
                 self.list_refresher.set_values(self._work_id)
+            elif self.tabWidget.currentIndex() == 2:  # rec 界面
+                self.show_status("正在更新回收站...", 1000)
+                self.get_rec_lists_worker.start()
+
+    def call_change_tab(self):
+        """切换标签页 动作"""
+        tab_index = self.tabWidget.currentIndex()
+        if tab_index == 2:
+            self.show_status("正在更新回收站...", 1000)
+            self.get_rec_lists_worker.start()
+        elif tab_index == 1:
+            self.show_status("正在更新当前目录...", 1000)
+            self.list_refresher.set_values(self._work_id)
 
     def set_window_at_center(self):
         screen = QDesktopWidget().screenGeometry()

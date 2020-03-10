@@ -179,42 +179,42 @@
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_rec">
           <item>
-           <widget class="QPushButton" name="pushButton">
+           <widget class="QPushButton" name="rec_select_all">
             <property name="text">
              <string>全选</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="pushButton_2">
+           <widget class="QPushButton" name="btn_recovery">
             <property name="text">
              <string>还原</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="pushButton_3">
+           <widget class="QPushButton" name="btn_rec_delete">
             <property name="text">
              <string>彻底删除</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="pushButton_4">
+           <widget class="QPushButton" name="btn_rec_clean">
             <property name="text">
              <string>清空回收站</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="pushButton_5">
+           <widget class="QPushButton" name="btn_recovery_all">
             <property name="text">
              <string>全部还原</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="pushButton_6">
+           <widget class="QPushButton" name="expire_files_btn">
             <property name="text">
              <string>过期文件</string>
             </property>
@@ -223,7 +223,7 @@
          </layout>
         </item>
         <item>
-         <widget class="QTableView" name="tableView_rec"/>
+         <widget class="QTableView" name="table_rec"/>
         </item>
        </layout>
       </widget>
