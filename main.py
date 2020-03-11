@@ -80,7 +80,7 @@ qssStyle = '''
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
-    __version__ = 'v0.1.0'
+    __version__ = 'v0.1.0-beta.2'
 
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
@@ -244,7 +244,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 回收站操作器
         self.rec_manipulator = RecManipulator(self._disk)
         self.rec_manipulator.msg.connect(self.show_status)
-        self.rec_manipulator.successed.connect(lambda: self.get_rec_lists_worker.start())
+        self.rec_manipulator.successed.connect(self.get_rec_lists_worker.start)
 
     def show_login_dialog(self):
         """显示登录对话框"""
@@ -253,10 +253,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         login_dialog.setWindowModality(Qt.ApplicationModal)
         login_dialog.exec()
 
-    def show_upload_dialog(self):
+    def show_upload_dialog(self, files):
         """显示上传文件对话框"""
-        self.upload_dialog.set_values(self._path_list[-1].name)
-        self.upload_dialog.exec()
+        if len(self._path_list) > 0:
+            self.upload_dialog.set_values(self._path_list[-1].name, files)
+        else:
+            self.show_status("等待文件列表更新...", 2000)
 
     def load_settings(self, ref_ui=False):
         """加载用户设置"""
@@ -316,6 +318,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 title = "确定清除全部文件(夹)？"
                 msg = "提示: 删除回收站中的文件将不可恢复，请确认。"
             if action == "recovery" or action == "delete":
+                if not infos:
+                    self.show_status("请先选中需要操作的文件！", 4000)
+                    return
                 msg = "\t\t列表：\n"
                 for i in infos:
                     msg += f"{i.time}\t{i.name}\t{i.size}\n"
@@ -344,7 +349,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.logout.setEnabled(False)
         self.toolbar.removeAction(self.upload)  # 上传文件工具栏
         self.upload.setEnabled(False)
-        self.upload.triggered.disconnect(self.show_upload_dialog)
+        self.upload.triggered.disconnect(lambda: self.show_upload_dialog(None))
 
     def login_update_ui(self, success, msg, duration):
         """根据登录是否成功更新UI"""
@@ -360,7 +365,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             # 菜单栏槽
             self.logout.setEnabled(True)
             self.upload.setEnabled(True)
-            self.upload.triggered.connect(self.show_upload_dialog)
+            self.upload.triggered.connect(lambda: self.show_upload_dialog(None))
             # 设置当前显示 tab
             self.tabWidget.setCurrentIndex(1)
             QCoreApplication.processEvents()  # 重绘界面
@@ -702,6 +707,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btn_disk_mkdir.setIcon(QIcon("./icon/add-folder.ico"))
         self.btn_disk_mkdir.clicked.connect(self.call_mkdir)
         self.btn_disk_delete.clicked.connect(self.call_remove_files)
+        # 文件拖拽上传
+        self.table_disk.drop_files.connect(self.show_upload_dialog)
 
         self.table_disk.doubleClicked.connect(self.change_dir)
         # 上传器

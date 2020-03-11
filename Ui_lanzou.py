@@ -8,7 +8,7 @@
 
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-
+from dialogs import MyTableView
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -73,7 +73,7 @@ class Ui_MainWindow(object):
         self.btn_disk_mkdir.setObjectName("btn_disk_mkdir")
         self.disk_locs.addWidget(self.btn_disk_mkdir)
         self.verticalLayout_3.addLayout(self.disk_locs)
-        self.table_disk = QtWidgets.QTableView(self.disk_tab)
+        self.table_disk = MyTableView(self.disk_tab)
         self.table_disk.setObjectName("table_disk")
         self.verticalLayout_3.addWidget(self.table_disk)
         self.horizontalLayout_disk_2 = QtWidgets.QHBoxLayout()

@@ -2,7 +2,7 @@ import os
 from pickle import dump, load
 from PyQt5.QtCore import Qt, pyqtSignal, QSize
 from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel, QPixmap, QLinearGradient
-from PyQt5.QtWidgets import (QAbstractItemView, QPushButton, QFileDialog, QLineEdit, QDialog, QLabel, QFormLayout,
+from PyQt5.QtWidgets import (QAbstractItemView, QPushButton, QFileDialog, QLineEdit, QDialog, QLabel, QFormLayout, QTableView,
                              QTextEdit, QGridLayout, QListView, QDialogButtonBox, QVBoxLayout, QHBoxLayout, QComboBox, QCheckBox)
 
 from Ui_share import Ui_Dialog
@@ -92,6 +92,72 @@ class MyLineEdit(QLineEdit):
             self.clicked.emit()
 
 
+class MyTableView(QTableView):
+    """加入拖拽功能的表格显示器"""
+    drop_files = pyqtSignal(object)
+
+    def __init__(self, parent):
+        super(MyTableView, self).__init__(parent)
+
+        self.setDragDropMode(QAbstractItemView.InternalMove)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
+
+    def dragEnterEvent(self, event):
+        m = event.mimeData()
+        if m.hasUrls():
+            for url in m.urls():
+                if url.isLocalFile():
+                    event.accept()
+                    return
+        event.ignore()
+
+    def dropEvent(self, event):
+        if event.source():
+            QListView.dropEvent(self, event)
+        else:
+            m = event.mimeData()
+            if m.hasUrls():
+                urls = [url.toLocalFile() for url in m.urls() if url.isLocalFile()]
+                if urls:
+                    self.drop_files.emit(urls)
+                    event.acceptProposedAction()
+
+
+class MyListView(QListView):
+    """加入拖拽功能的列表显示器"""
+    drop_files = pyqtSignal(object)
+
+    def __init__(self):
+        QListView.__init__(self)
+
+        self.setDragDropMode(QAbstractItemView.InternalMove)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
+
+    def dragEnterEvent(self, event):
+        m = event.mimeData()
+        if m.hasUrls():
+            for url in m.urls():
+                if url.isLocalFile():
+                    event.accept()
+                    return
+        event.ignore()
+
+    def dropEvent(self, event):
+        if event.source():
+            QListView.dropEvent(self, event)
+        else:
+            m = event.mimeData()
+            if m.hasUrls():
+                urls = [url.toLocalFile() for url in m.urls() if url.isLocalFile()]
+                if urls:
+                    self.drop_files.emit(urls)
+                    event.acceptProposedAction()
+
+
 class LoginDialog(QDialog):
     """登录对话框"""
 
@@ -152,7 +218,7 @@ class LoginDialog(QDialog):
             "cookie会保持在本地，下次使用。其格式如下：\n\n key1=value1; key2=value2"
         self.cookie_ed.setPlaceholderText(notice)
         self.cookie_lb.setBuddy(self.cookie_ed)
-        
+
         self.show_input_cookie_btn = QPushButton("显示Cookie输入框")
         self.show_input_cookie_btn.setToolTip(notice)
         self.show_input_cookie_btn.setStyleSheet("QPushButton {min-width: 110px;max-width: 110px;}")
@@ -216,13 +282,16 @@ class UploadDialog(QDialog):
         super().__init__()
         self.cwd = os.getcwd()
         self.selected = []
-        self.max_len = 400
         self.initUI()
         self.set_size()
         self.setStyleSheet(dialog_qss_style)
 
-    def set_values(self, folder_name):
+    def set_values(self, folder_name, files):
         self.setWindowTitle("上传文件至 ➩ " + str(folder_name))
+        if files:
+            self.selected = files
+            self.show_selected()
+        self.exec()
 
     def initUI(self):
         self.setWindowTitle("上传文件")
@@ -248,9 +317,11 @@ class UploadDialog(QDialog):
         self.btn_deleteSelect = QPushButton("移除", self)
         self.btn_deleteSelect.setObjectName("btn_deleteSelect")
         self.btn_deleteSelect.setIcon(QIcon("./icon/delete.ico"))
+        self.btn_deleteSelect.setToolTip("按 Delete 移除选中文件")
 
         # 列表
-        self.list_view = QListView(self)
+        self.list_view = MyListView()
+        self.list_view.drop_files.connect(self.add_drop_files)
         self.list_view.setViewMode(QListView.ListMode)
         self.slm = QStandardItem()
         self.model = QStandardItemModel()
@@ -266,16 +337,20 @@ class UploadDialog(QDialog):
         self.buttonBox.button(QDialogButtonBox.Ok).setText("确定")
         self.buttonBox.button(QDialogButtonBox.Cancel).setText("取消")
 
-        grid = QGridLayout()
-        grid.setSpacing(10)
-        grid.addWidget(self.logo, 1, 0, 1, 3)
-        grid.addWidget(self.btn_chooseDir, 2, 0)
-        grid.addWidget(self.btn_chooseMutiFile, 2, 2)
-        grid.addWidget(self.list_view, 3, 0, 2, 3)
-        grid.addWidget(self.btn_deleteSelect, 5, 0)
-        grid.addWidget(self.buttonBox, 5, 1, 1, 2)
-        self.setLayout(grid)
-
+        vbox = QVBoxLayout()
+        hbox_head = QHBoxLayout()
+        hbox_button = QHBoxLayout()
+        hbox_head.addWidget(self.btn_chooseDir)
+        hbox_head.addStretch(1)
+        hbox_head.addWidget(self.btn_chooseMutiFile)
+        hbox_button.addWidget(self.btn_deleteSelect)
+        hbox_button.addStretch(1)
+        hbox_button.addWidget(self.buttonBox)
+        vbox.addWidget(self.logo)
+        vbox.addLayout(hbox_head)
+        vbox.addWidget(self.list_view)
+        vbox.addLayout(hbox_button)
+        self.setLayout(vbox)
         self.setMinimumWidth(350)
 
         # 设置信号
@@ -289,18 +364,33 @@ class UploadDialog(QDialog):
         self.buttonBox.rejected.connect(self.reject)
 
     def set_size(self):
-        rows = self.model.rowCount()
-        for i in range(rows):
-            m_len = int(len(self.model.item(i, 0).text()) * 4)
-            if m_len > self.max_len:
-                self.max_len = m_len
-        rows = 10 if rows >= 10 else rows  # 限制最大高度
-        self.resize(self.max_len, 250+rows*28)
+        if self.selected:
+            h = 18 if len(self.selected) > 18 else 10
+            w = 40
+            for i in self.selected:
+                i_len = len(i)
+                if i_len > 100:
+                    w = 100
+                    break
+                if i_len > w:
+                    w = i_len
+            self.resize(120+w*7, h*30)
+        else:
+            self.resize(400, 300)
 
     def clear_old(self):
         self.selected = []
         self.model.removeRows(0, self.model.rowCount())
         self.set_size()
+
+    def show_selected(self):
+        self.model.removeRows(0, self.model.rowCount())
+        for item in self.selected:
+            if os.path.isfile(item):
+                self.model.appendRow(QStandardItem(QIcon("./icon/file.ico"), item))
+            else:
+                self.model.appendRow(QStandardItem(QIcon("./icon/folder.gif"), item))
+            self.set_size()
 
     def slot_btn_ok(self):
         if self.selected:
@@ -320,26 +410,32 @@ class UploadDialog(QDialog):
             self.model.removeRow(i)
         self.set_size()
 
+    def add_drop_files(self, files):
+        for item in files:
+            if item not in self.selected:
+                self.selected.append(item)
+            self.show_selected()
+
     def slot_btn_chooseDir(self):
         dir_choose = QFileDialog.getExistingDirectory(self, "选择文件夹", self.cwd)  # 起始路径
-
         if dir_choose == "":
             return
         if dir_choose not in self.selected:
             self.selected.append(dir_choose)
-            self.model.appendRow(QStandardItem(QIcon("./icon/folder.gif"), dir_choose))
-            self.set_size()
+        self.show_selected()
 
     def slot_btn_chooseMutiFile(self):
         files, _ = QFileDialog.getOpenFileNames(self, "选择多文件", self.cwd, "All Files (*)")
         if len(files) == 0:
             return
-
         for _file in files:
             if _file not in self.selected:
                 self.selected.append(_file)
-                self.model.appendRow(QStandardItem(QIcon("./icon/file.ico"), _file))
-        self.set_size()
+        self.show_selected()
+
+    def keyPressEvent(self, e):
+        if e.key() == Qt.Key_Delete:  # delete
+            self.slot_btn_deleteSelect()
 
 
 class InfoDialog(QDialog, Ui_Dialog):
