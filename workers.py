@@ -5,6 +5,8 @@ import re
 from random import random
 from time import sleep
 from PyQt5.QtCore import QThread, pyqtSignal, QMutex
+import requests
+
 from lanzou.api import LanZouCloud
 from lanzou.api.utils import is_folder_url, is_file_url
 from lanzou.api.types import RecFolder, RecFile
@@ -522,19 +524,27 @@ class RemoveFilesWorker(QThread):
 class GetMoreInfoWorker(QThread):
     '''获取文件直链、文件(夹)提取码描述，用于登录后显示更多信息'''
     infos = pyqtSignal(object)
+    dl_link = pyqtSignal(object)
     msg = pyqtSignal(str, int)
 
     def __init__(self, parent=None):
         super(GetMoreInfoWorker, self).__init__(parent)
         self._disk = LanZouCloud()
-        self.old_infos = None
+        self.emit_infos = None
+        self._url = ''
+        self._pwd = ''
         self._mutex = QMutex()
         self._is_work = False
 
     def set_values(self, infos, disk=None):
         if disk:  # 登录情况
             self._disk = disk
-        self.old_infos = infos
+        self.emit_infos = infos
+        self.start()
+    
+    def get_dl_link(self, url, pwd):
+        self._url = url
+        self._pwd = pwd
         self.start()
 
     def __del__(self):
@@ -546,35 +556,37 @@ class GetMoreInfoWorker(QThread):
         self._mutex.unlock()
 
     def run(self):
-        # infos: ID/None，文件名，大小，日期，下载次数(dl_count)，提取码(pwd)，描述(desc)，|链接(share-url)，直链
-        if not self._is_work and self.old_infos:
+        # infos: ID/None，文件名，大小，日期，下载次数(dl_count)，提取码(pwd)，描述(desc)，|链接(share-url)
+        if not self._is_work and self.emit_infos:
             self._mutex.lock()
             self._is_work = True
             try:
-                self.msg.emit("网络请求中，请稍后……", 0)
-                if self.old_infos[0]:  # 从 disk 运行
-                    if self.old_infos[2]:  # 文件
-                        _info = self._disk.get_share_info(self.old_infos[0], is_file=True)
-                    else:  # 文件夹
-                        _info = self._disk.get_share_info(self.old_infos[0], is_file=False)
-                    self.old_infos[5] = _info.pwd
-                    self.old_infos.append(_info.url)
-                if self.old_infos[2]:  # 是文件，解析下载直链
-                    res = self._disk.get_file_info_by_url(self.old_infos[-1], self.old_infos[5])
+                if not self._url:  # 获取普通星系
+                    if self.emit_infos[0]:  # 从 disk 运行
+                        self.msg.emit("网络请求中，请稍后……", 0)
+                        if self.emit_infos[2]:  # 文件
+                            _info = self._disk.get_share_info(self.emit_infos[0], is_file=True)
+                        else:  # 文件夹
+                            _info = self._disk.get_share_info(self.emit_infos[0], is_file=False)
+                        self.emit_infos[5] = _info.pwd
+                        self.emit_infos[6] = _info.desc
+                        self.emit_infos.append(_info.url)
+                        self.msg.emit("", 0)  # 删除提示信息
+
+                    self.infos.emit(self.emit_infos)
+                else:  # 获取下载直链
+                    res = self._disk.get_file_info_by_url(self._url, self._pwd)
                     if res.code == LanZouCloud.SUCCESS:
-                        self.old_infos.append("{}".format(res.durl or "无"))  # 下载直链
+                        self.dl_link.emit("{}".format(res.durl or "无"))  # 下载直链
                     elif res.code == LanZouCloud.NETWORK_ERROR:
-                        self.old_infos.append("网络错误！获取失败")  # 下载直链
+                        self.dl_link.emit("网络错误！获取失败")  # 下载直链
                     else:
-                        self.old_infos.append("其它错误！")  # 下载直链
-                else:
-                    self.old_infos.append("无")  # 下载直链
-                self.old_infos[5] = self.old_infos[5] or "无"  # 提取码
-                self.infos.emit(self.old_infos)
-                self.msg.emit("", 0)  # 删除提示信息
+                        self.dl_link.emit("其它错误！")  # 下载直链
             except TimeoutError:
                 self.msg.emit("网络超时！稍后重试", 6000)
             self._is_work = False
+            self._url = ''
+            self._pwd = ''
             self._mutex.unlock()
         else:
             self.msg.emit("后台正在运行，请稍后重试！", 2000)
@@ -956,3 +968,67 @@ class RecManipulator(QThread):
             self._mutex.unlock()
         else:
             self.msg.emit("后台正在运行，请稍后重试！", 2000)
+
+
+class CheckUpdateWorker(QThread):
+    '''检测软件更新'''
+    infos = pyqtSignal(object, object)
+    bg_update_infos = pyqtSignal(object, object)
+
+    def __init__(self, parent=None):
+        super(CheckUpdateWorker, self).__init__(parent)
+        self._ver = ''
+        self._manual = False
+        self._mutex = QMutex()
+        self._is_work = False
+        self._folder_id = None
+        self._api = 'https://api.github.com/repos/rachpt/lanzou-gui/releases/latest'
+
+    def set_values(self, ver: str, manual: bool=False):
+        # 用于获取回收站指定文件夹内文件信息
+        self._ver = ver
+        self._manual = manual
+        self.start()
+
+    def __del__(self):
+        self.wait()
+
+    def stop(self):
+        self._mutex.lock()
+        self._is_work = False
+        self._mutex.unlock()
+
+    def run(self):
+        if not self._is_work:
+            self._mutex.lock()
+            self._is_work = True
+            try:
+                resp = requests.get(self._api).json()
+                tag_name, msg = resp['tag_name'], resp['body']
+                update_url = resp['assets'][0]['browser_download_url'] if resp['assets'] else ''
+                ver = self._ver.replace('v', '').split('-')[0].split('.')
+                ver2 = tag_name.replace('v', '').split('.')
+                local_version = int(ver[0]) * 100 + int(ver[1]) * 10 + int(ver[2])
+                remote_version = int(ver2[0]) * 100 + int(ver2[1]) * 10 + int(ver2[2])
+                print(remote_version, local_version)
+                if remote_version > local_version:
+                    urls = re.findall(r'https?://[-\.a-zA-Z0-9/_#?&%@]+', msg)
+                    for url in urls:
+                        new_url = f'<a href="{url}">{url}</a>'
+                        msg = msg.replace(url, new_url)
+                    msg = msg.replace('\n', '<br />')
+                    self.infos.emit(tag_name, msg)
+                    if not self._manual:  # 打开软件时检测更新
+                        self.bg_update_infos.emit(tag_name, msg)
+            except requests.exceptions.ConnectionError:
+                if self._manual:
+                    self.infos.emit("v0.0.0", f"检查更新时 <a href='{self._api}'>api.github.com</a> 拒绝连接，稍后请重试！")
+            except (requests.RequestException, AttributeError, TimeoutError):
+                if self._manual:
+                    self.infos.emit("v0.0.0", "检查更新时发生异常，请重试！")
+            self._manual = False
+            self._is_work = False
+            self._mutex.unlock()
+        else:
+            if self._manual:
+                self.infos.emit("v0.0.0", "后台正在运行，请稍等！")

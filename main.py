@@ -15,10 +15,12 @@ from lanzou.api.utils import time_format
 from lanzou.api.models import FolderList
 from lanzou.api.types import RecFolder
 
-from workers import (DownloadManager, GetSharedInfo, UploadWorker, LoginLuncher, DescPwdFetcher, ListRefresher, GetRecListsWorker,
-                     RemoveFilesWorker, GetMoreInfoWorker, GetAllFoldersWorker, RenameMkdirWorker, SetPwdWorker, LogoutWorker, RecManipulator)
-from dialogs import (update_settings, set_file_icon, btn_style, LoginDialog, UploadDialog, InfoDialog, RenameDialog, SettingDialog, RecFolderDialog,
-                     SetPwdDialog, MoveFileDialog, DeleteDialog, MyLineEdit, AboutDialog)
+from workers import (DownloadManager, GetSharedInfo, UploadWorker, LoginLuncher, DescPwdFetcher, ListRefresher,
+                     GetRecListsWorker, RemoveFilesWorker, GetMoreInfoWorker, GetAllFoldersWorker, RenameMkdirWorker,
+                     SetPwdWorker, LogoutWorker, RecManipulator, CheckUpdateWorker)
+from dialogs import (update_settings, set_file_icon, btn_style, LoginDialog, UploadDialog, InfoDialog, RenameDialog, 
+                     SettingDialog, RecFolderDialog, SetPwdDialog, MoveFileDialog, DeleteDialog, MyLineEdit,
+                     AboutDialog)
 
 
 qssStyle = '''
@@ -80,7 +82,7 @@ qssStyle = '''
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
-    __version__ = 'v0.1.0-beta.2'
+    __version__ = 'v0.0.5-beta.2'
 
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
@@ -101,6 +103,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.setStyleSheet(qssStyle)
         self.tabWidget.setStyleSheet("QTabBar{ background-color: #AEEEEE; }")
+        self.check_update_worker.set_values(self.__version__, False)  # 检测新版
 
     def init_menu(self):
         self.login.triggered.connect(self.show_login_dialog)  # 登录
@@ -182,9 +185,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.download_manager.download_mgr_msg.connect(self.show_status)
         self.download_manager.finished.connect(lambda: self.show_status("所有下载任务已完成！", 7000))
         # 获取更多信息，直链、下载次数等
-        self.more_info_worker = GetMoreInfoWorker()
+        self.info_dialog = InfoDialog()  # 对话框
+        self.info_dialog.setWindowModality(Qt.ApplicationModal)  # 窗口前置
+        self.more_info_worker = GetMoreInfoWorker()  # 后台更新线程
         self.more_info_worker.msg.connect(self.show_status)
-        self.more_info_worker.infos.connect(self.show_info_dialog)
+        self.more_info_worker.infos.connect(self.info_dialog.set_values)
+        self.more_info_worker.dl_link.connect(self.info_dialog.tx_dl_link.setText)
+        self.info_dialog.get_dl_link.connect(self.more_info_worker.get_dl_link)
         # 登录文件列表更新器
         self.list_refresher = ListRefresher(self._disk)
         self.list_refresher.err_msg.connect(self.show_status)
@@ -232,6 +239,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 菜单栏关于
         self.about_dialog = AboutDialog()
         self.about_dialog.set_values(self.__version__)
+        
         # 菜单栏设置
         self.setting_dialog = SettingDialog(self._config_file, self._default_settings)
         self.setting_dialog.saved.connect(lambda: self.load_settings(ref_ui=True))
@@ -239,12 +247,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.get_rec_lists_worker = GetRecListsWorker(self._disk)
         self.get_rec_lists_worker.msg.connect(self.show_status)
         self.get_rec_lists_worker.infos.connect(self.update_rec_lists)
-        self.get_rec_lists_worker.folders.connect(self.pop_up_rec_folder_dialog)
         self.get_rec_lists_worker.folders.connect(lambda: self.show_status('', 0))
+        self.get_rec_lists_worker.folders.connect(self.pop_up_rec_folder_dialog)
         # 回收站操作器
         self.rec_manipulator = RecManipulator(self._disk)
         self.rec_manipulator.msg.connect(self.show_status)
         self.rec_manipulator.successed.connect(self.get_rec_lists_worker.start)
+        # 检查软件版本
+        self.check_update_worker = CheckUpdateWorker()
+        self.about_dialog.check_update.connect(self.check_update_worker.set_values)
+        self.check_update_worker.infos.connect(self.about_dialog.show_update)
+        self.check_update_worker.bg_update_infos.connect(self.show_new_version_msg)
 
     def show_login_dialog(self):
         """显示登录对话框"""
@@ -603,12 +616,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         move_file_dialog.new_infos.connect(self.all_folders_worker.move_file)  # 调用移动线程
         move_file_dialog.exec()
 
-    def show_info_dialog(self, infos):
-        '''显示更多信息对话框'''
-        info_dialog = InfoDialog(infos)
-        info_dialog.setWindowModality(Qt.ApplicationModal)  # 窗口前置
-        info_dialog.exec()
-
     def call_change_dir(self, folder_id=-1):
         """顶部路径按钮调用"""
         def callfunc():
@@ -722,6 +729,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if files:
             rec_file_dialog = RecFolderDialog(files)
             rec_file_dialog.exec()
+        else:
+            self.show_status("文件夹为空！", 4000)
 
     def call_rec_folder_dialog(self, dir_name):
         # 显示弹出对话框
@@ -896,6 +905,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         url = QUrl('https://github.com/rachpt/lanzou-gui/wiki')
         if not QDesktopServices.openUrl(url):
             self.show_status('Could not open wiki page!', 5000)
+
+    def show_new_version_msg(self, ver, msg):
+        message_box = QMessageBox(self)
+        message_box.setStyleSheet(btn_style)
+        message_box.setWindowTitle(f"检测到新版 {ver}")
+        message_box.setText(msg)
+        message_box.setStandardButtons(QMessageBox.Close)
+        buttonC = message_box.button(QMessageBox.Close)
+        buttonC.setText('关闭')
+        message_box.exec()
 
 
 if __name__ == "__main__":
