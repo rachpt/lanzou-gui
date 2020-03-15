@@ -4,6 +4,7 @@
 
 import os
 import re
+from time import sleep
 from datetime import datetime
 from urllib3 import disable_warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -1060,7 +1061,7 @@ class LanZouCloud(object):
 
     def get_share_folder_info(self, share_url, dir_pwd=""):
         """显示分享文件夹信息"""
-        if self.is_file_url(share_url):
+        if is_file_url(share_url):
             return {"code": LanZouCloud.URL_INVALID, "info": ""}
         r = requests.get(share_url, headers=self._headers)
         if r.status_code != requests.codes.OK:  # 可能有403状态码
