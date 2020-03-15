@@ -273,6 +273,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             self.show_status("等待文件列表更新...", 2000)
 
+    def show_upload_dialog_menus(self):
+        '''菜单栏显示上传对话框槽函数'''
+        self.show_upload_dialog(None)
+
     def load_settings(self, ref_ui=False):
         """加载用户设置"""
         try:
@@ -362,7 +366,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.logout.setEnabled(False)
         self.toolbar.removeAction(self.upload)  # 上传文件工具栏
         self.upload.setEnabled(False)
-        self.upload.triggered.disconnect(lambda: self.show_upload_dialog(None))
+        self.upload.triggered.disconnect(self.show_upload_dialog_menus)
 
     def login_update_ui(self, success, msg, duration):
         """根据登录是否成功更新UI"""
@@ -378,7 +382,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             # 菜单栏槽
             self.logout.setEnabled(True)
             self.upload.setEnabled(True)
-            self.upload.triggered.connect(lambda: self.show_upload_dialog(None))
+            self.upload.triggered.connect(self.show_upload_dialog_menus)
             # 设置当前显示 tab
             self.tabWidget.setCurrentIndex(1)
             QCoreApplication.processEvents()  # 重绘界面
