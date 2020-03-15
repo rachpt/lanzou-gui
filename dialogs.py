@@ -1,11 +1,10 @@
 import os
 from pickle import dump, load
-from PyQt5.QtCore import Qt, pyqtSignal, QSize
-from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel, QPixmap, QLinearGradient
-from PyQt5.QtWidgets import (QAbstractItemView, QPushButton, QFileDialog, QLineEdit, QDialog, QLabel, QFormLayout, QTableView,
-                             QTextEdit, QGridLayout, QListView, QDialogButtonBox, QVBoxLayout, QHBoxLayout, QComboBox, QCheckBox)
-
-from Ui_share import Ui_Dialog
+from PyQt5.QtCore import Qt, pyqtSignal, QSize, QLine, QPoint
+from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel, QPixmap, QLinearGradient, QFontMetrics, QPainter, QPen
+from PyQt5.QtWidgets import (QAbstractItemView, QPushButton, QFileDialog, QLineEdit, QDialog, QLabel, QFormLayout,
+                             QTableView, QTextEdit, QGridLayout, QListView, QDialogButtonBox, QVBoxLayout, QHBoxLayout,
+                             QComboBox, QCheckBox,  QSizePolicy, QMainWindow)
 
 
 def update_settings(config_file: str, up_info: dict, is_settings=False):
@@ -158,6 +157,89 @@ class MyListView(QListView):
                     event.acceptProposedAction()
 
 
+class AutoResizingTextEdit(QTextEdit):
+    """添加单击事件的自动改变大小的文本输入框，用于显示描述与下载直链"""
+    clicked = pyqtSignal()
+
+    def __init__(self, parent = None):
+        super(AutoResizingTextEdit, self).__init__(parent)
+
+        # This seems to have no effect. I have expected that it will cause self.hasHeightForWidth()
+        # to start returning True, but it hasn't - that's why I hardcoded it to True there anyway.
+        # I still set it to True in size policy just in case - for consistency.
+        size_policy = self.sizePolicy()
+        size_policy.setHeightForWidth(True)
+        size_policy.setVerticalPolicy(QSizePolicy.Preferred)
+        self.setSizePolicy(size_policy)
+
+        self.textChanged.connect(lambda: self.updateGeometry())
+
+    def setMinimumLines(self, num_lines):
+        """ Sets minimum widget height to a value corresponding to specified number of lines
+            in the default font. """
+
+        self.setMinimumSize(self.minimumSize().width(), self.lineCountToWidgetHeight(num_lines))
+
+    def hasHeightForWidth(self):
+        return True
+
+    def heightForWidth(self, width):
+        margins = self.contentsMargins()
+
+        if width >= margins.left() + margins.right():
+            document_width = width - margins.left() - margins.right()
+        else:
+            # If specified width can't even fit the margin, there's no space left for the document
+            document_width = 0
+
+        # Cloning the whole document only to check its size at different width seems wasteful
+        # but apparently it's the only and preferred way to do this in Qt >= 4. QTextDocument does not
+        # provide any means to get height for specified width (as some QWidget subclasses do).
+        # Neither does QTextEdit. In Qt3 Q3TextEdit had working implementation of heightForWidth()
+        # but it was allegedly just a hack and was removed.
+        #
+        # The performance probably won't be a problem here because the application is meant to
+        # work with a lot of small notes rather than few big ones. And there's usually only one
+        # editor that needs to be dynamically resized - the one having focus.
+        document = self.document().clone()
+        document.setTextWidth(document_width)
+
+        return margins.top() + document.size().height() + margins.bottom()
+
+    def sizeHint(self):
+        original_hint = super(AutoResizingTextEdit, self).sizeHint()
+        return QSize(original_hint.width(), self.heightForWidth(original_hint.width()))
+
+    
+    def mouseReleaseEvent(self, QMouseEvent):
+        if QMouseEvent.button() == Qt.LeftButton:
+            if not self.toPlainText():
+                self.clicked.emit()
+
+    def lineCountToWidgetHeight(self, num_lines):
+        """ Returns the number of pixels corresponding to the height of specified number of lines
+            in the default font. """
+
+        # ASSUMPTION: The document uses only the default font
+
+        assert num_lines >= 0
+
+        widget_margins  = self.contentsMargins()
+        document_margin = self.document().documentMargin()
+        font_metrics    = QFontMetrics(self.document().defaultFont())
+
+        # font_metrics.lineSpacing() is ignored because it seems to be already included in font_metrics.height()
+        return (
+            widget_margins.top()                      +
+            document_margin                           +
+            max(num_lines, 1) * font_metrics.height() +
+            self.document().documentMargin()          +
+            widget_margins.bottom()
+        )
+
+        return QSize(original_hint.width(), minimum_height_hint)
+
+
 class LoginDialog(QDialog):
     """登录对话框"""
 
@@ -229,6 +311,7 @@ class LoginDialog(QDialog):
         self.cancel_btn.clicked.connect(self.change_cancel_btn)
 
         self.form = QFormLayout()
+        self.form.setLabelAlignment(Qt.AlignRight)
         self.form.addRow(self.name_lb, self.name_ed)
         self.form.addRow(self.pwd_lb, self.pwd_ed)
 
@@ -437,76 +520,156 @@ class UploadDialog(QDialog):
         if e.key() == Qt.Key_Delete:  # delete
             self.slot_btn_deleteSelect()
 
-
-class InfoDialog(QDialog, Ui_Dialog):
+class InfoDialog(QDialog):
     """文件信息对话框"""
 
-    def __init__(self, infos, parent=None):
+    get_dl_link = pyqtSignal(str, str)
+
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.setupUi(self)
-        self.infos = infos
+        self.infos = None
         self.initUI()
         self.setStyleSheet(dialog_qss_style)
 
+    def update_ui(self):
+        self.tx_dl_link.setPlaceholderText("单击获取")
+        self.tx_name.setText(self.infos[1])
+        if self.infos[2]:
+            self.setWindowTitle("文件信息")
+            self.lb_name.setText("文件名：")
+            self.lb_desc.setText("文件描述：")
+            self.tx_dl_link.setText("")  # 清空旧的信息
+            self.lb_dl_link.setVisible(True)
+            self.tx_dl_link.setVisible(True)
+        else:
+            self.setWindowTitle("文件夹信息")
+            self.lb_name.setText("文件夹名：")
+            self.lb_desc.setText("文件夹描述：")
+            self.lb_dl_link.setVisible(False)
+            self.tx_dl_link.setVisible(False)
+
+        if self.infos[2]:
+            self.tx_size.setText(self.infos[2])
+            self.lb_size.setVisible(True)
+            self.tx_size.setVisible(True)
+        else:
+            self.tx_size.setVisible(False)
+            self.lb_size.setVisible(False)
+
+        if self.infos[3]:
+            self.lb_time.setVisible(True)
+            self.tx_time.setVisible(True)
+            self.tx_time.setText(self.infos[3])
+        else:
+            self.lb_time.setVisible(False)
+            self.tx_time.setVisible(False)
+
+        if self.infos[4]:
+            self.lb_dl_count.setVisible(True)
+            self.tx_dl_count.setVisible(True)
+            self.tx_dl_count.setText(str(self.infos[4]))
+        else:
+            self.tx_dl_count.setVisible(False)
+            self.lb_dl_count.setVisible(False)
+
+        if self.infos[5]:
+            self.tx_pwd.setText(self.infos[5])
+            self.tx_pwd.setPlaceholderText("")
+        else:
+            self.tx_pwd.setText("")
+            self.tx_pwd.setPlaceholderText("无")
+        
+        if self.infos[6]:
+            self.tx_desc.setText(self.infos[6])
+            self.tx_desc.setPlaceholderText("")
+        else:
+            self.tx_desc.setText("")
+            self.tx_desc.setPlaceholderText("无")
+
+        self.tx_share_url.setText(self.infos[7])
+
+    def set_values(self, infos):
+        self.infos = infos
+        self.update_ui()
+        self.exec()
+
+    def call_get_dl_link(self):
+        url = self.tx_share_url.text()
+        pwd = self.tx_pwd.text()
+        self.get_dl_link.emit(url, pwd)
+        self.tx_dl_link.setPlaceholderText("后台获取中，请稍后！")
+
     def initUI(self):
-        self.buttonBox.button(QDialogButtonBox.Close).setText("关闭")
-        self.setWindowTitle("文件信息" if self.infos[2] else "文件夹信息")
         self.setWindowIcon(QIcon("./icon/share.ico"))
+        self.setWindowTitle("文件信息")
+        self.buttonBox = QDialogButtonBox()
+        self.buttonBox.setOrientation(Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.Close)
+        self.buttonBox.button(QDialogButtonBox.Close).setText("关闭")
+        self.buttonBox.rejected.connect(self.reject)
+
+        self.logo = QLabel()
         self.logo.setPixmap(QPixmap("./icon/q9.gif"))
         self.logo.setAlignment(Qt.AlignCenter)
         self.logo.setStyleSheet("background-color:rgb(255,204,51);")
-        self.tx_name.setText(self.infos[1])
+
+        self.lb_name = QLabel()
+        self.lb_name.setText("文件名：")
+        self.tx_name = QLineEdit()
         self.tx_name.setReadOnly(True)
-        if self.infos[2]:
-            self.tx_size.setText(self.infos[2])
-        else:
-            self.tx_size.hide()
-            self.lb_size.hide()
-        if self.infos[3]:
-            self.tx_time.setText(self.infos[3])
-        else:
-            self.lb_time.hide()
-            self.tx_time.hide()
-        if self.infos[4]:
-            self.tx_dl_count.setText(str(self.infos[4]))
-        else:
-            self.tx_dl_count.hide()
-            self.lb_dl_count.hide()
-        self.tx_share_url.setText(self.infos[7])
+
+        self.lb_size = QLabel()
+        self.lb_size.setText("文件大小：")
+        self.tx_size = QLabel()
+
+        self.lb_time = QLabel()
+        self.lb_time.setText("上传时间：")
+        self.tx_time = QLabel()
+
+        self.lb_dl_count = QLabel()
+        self.lb_dl_count.setText("下载次数：")
+        self.tx_dl_count = QLabel()
+
+        self.lb_share_url = QLabel()
+        self.lb_share_url.setText("分享链接：")
+        self.tx_share_url = QLineEdit()
         self.tx_share_url.setReadOnly(True)
-        line_h = 28  # 行高
-        self.tx_share_url.setMinimumHeight(line_h)
-        self.tx_share_url.setMaximumHeight(line_h)
-        self.lb_share_url.setMinimumHeight(line_h)
-        self.lb_share_url.setMaximumHeight(line_h)
-        self.lb_name.setMinimumHeight(line_h)
-        self.lb_name.setMaximumHeight(line_h)
-        self.tx_name.setMinimumHeight(line_h)
-        self.tx_name.setMaximumHeight(line_h)
-        self.lb_pwd.setMinimumHeight(line_h)
-        self.lb_pwd.setMaximumHeight(line_h)
-        self.tx_pwd.setMinimumHeight(line_h)
-        self.tx_pwd.setMaximumHeight(line_h)
-        self.tx_pwd.setText(self.infos[5])
+
+        self.lb_pwd = QLabel()
+        self.lb_pwd.setText("提取码：")
+        self.tx_pwd = QLineEdit()
         self.tx_pwd.setReadOnly(True)
-        self.tx_dl_link.setText(self.infos[8])
-        min_width = int(len(self.infos[1]) * 7.8)
-        if self.infos[8] == "无":
-            if min_width < 380:
-                min_width = 380
-            min_height = 260
-            dl_link_height = line_h
-        else:
-            if min_width < 480:
-                min_width = 480
-            min_height = 420
-            dl_link_height = 120
-            self.setMinimumSize(QSize(min_width, min_height))
-        self.resize(min_width, min_height)
-        self.tx_dl_link.setMinimumHeight(dl_link_height)
-        self.tx_dl_link.setMaximumHeight(dl_link_height)
-        self.lb_dl_link.setMinimumHeight(dl_link_height)
-        self.lb_dl_link.setMaximumHeight(dl_link_height)
+
+        self.lb_desc = QLabel()
+        self.lb_desc.setText("文件描述：")
+        self.tx_desc = AutoResizingTextEdit()
+        self.tx_desc.setReadOnly(True)
+
+        self.lb_dl_link = QLabel()
+        self.lb_dl_link.setText("下载直链：")
+        self.tx_dl_link = AutoResizingTextEdit(self)
+        self.tx_dl_link.setPlaceholderText("单击获取")
+        self.tx_dl_link.clicked.connect(self.call_get_dl_link)
+        self.tx_dl_link.setReadOnly(True)
+
+        vbox = QVBoxLayout()
+        vbox.addWidget(self.logo)
+        vbox.addStretch(1)
+        form = QFormLayout()
+        form.setLabelAlignment(Qt.AlignRight)
+        form.addRow(self.lb_name, self.tx_name)
+        form.addRow(self.lb_size, self.tx_size)
+        form.addRow(self.lb_time, self.tx_time)
+        form.addRow(self.lb_dl_count, self.tx_dl_count)
+        form.addRow(self.lb_share_url, self.tx_share_url)
+        form.addRow(self.lb_pwd, self.tx_pwd)
+        form.addRow(self.lb_desc, self.tx_desc)
+        form.addRow(self.lb_dl_link, self.tx_dl_link)
+        vbox.addLayout(form)
+        vbox.addStretch(1)
+        vbox.addWidget(self.buttonBox)
+
+        self.setLayout(vbox)
 
 
 class RenameDialog(QDialog):
@@ -805,67 +968,97 @@ class DeleteDialog(QDialog):
 
 
 class AboutDialog(QDialog):
-    out = pyqtSignal(object)
+    check_update = pyqtSignal(str, bool)
 
     def __init__(self, parent=None):
         super(AboutDialog, self).__init__(parent)
+        self._ver = ''
         self.initUI()
-        self.setStyleSheet(dialog_qss_style)
+        self.setStyleSheet(others_style)
 
     def set_values(self, version):
-        self.lb_name_text.setText("<font color=blue>"+version+"</font>")  # 更新版本
+        self._ver = version
+        self.lb_name_text.setText(f"{version}  (点击检查更新)")  # 更新版本
+
+    def show_update(self, ver, msg):
+        self.lb_new_ver = QLabel("新版")  # 检测新版
+        self.lb_new_ver_msg = QLabel()
+        self.lb_new_ver_msg.setOpenExternalLinks(True)
+        self.lb_new_ver_msg.setWordWrap(True)
+        self.lb_name_text.setText(f"{self._ver}  ➡  {ver}")
+        self.lb_new_ver_msg.setText(msg)
+        if self.form.rowCount() < 5:
+            self.form.insertRow(1, self.lb_new_ver, self.lb_new_ver_msg)
 
     def initUI(self):
         about = '''
 本项目使用PyQt5实现图形界面，可以完成蓝奏云的大部分功能<br/>
-
 得益于 API 的功能，可以间接突破单文件最大 100MB 的限制，同时增加了批量上传/下载的功能<br/>
-
-Python 依赖见<a href="https://github.com/rachpt/lanzou-gui/blob/master/requirements.txt">requirements.txt</a>，<a href="https://github.com/rachpt/lanzou-gui/releases">releases</a> 有打包好了的 Windows 可执行程序，但可能不是最新的
+Python 依赖见<a href="https://github.com/rachpt/lanzou-gui/blob/master/requirements.txt">requirements.txt</a>，
+<a href="https://github.com/rachpt/lanzou-gui/releases">releases</a> 有打包好了的 Windows 可执行程序，但可能不是最新的
         '''
-        project_url = '''
-主 repo&nbsp; ： <a href="https://github.com/rachpt/lanzou-gui">https://github.com/rachpt/lanzou-gui</a><br/>
-镜像 repo ： <a href="https://gitee.com/rachpt/lanzou-gui">https://gitee.com/rachpt/lanzou-gui</a>
-        '''
+        project_url = '<a href="https://rachpt.cn/lanzou-gui/">主页</a> | \
+            <a href="https://github.com/rachpt/lanzou-gui">repo</a> | \
+            <a href="https://gitee.com/rachpt/lanzou-gui">mirror repo</a>'
         self.setWindowTitle("关于 lanzou-gui")
         self.logo = QLabel()  # logo
         self.logo.setPixmap(QPixmap("./icon/logo2.gif"))
         self.logo.setStyleSheet("background-color:rgb(255,255,255);")
         self.logo.setAlignment(Qt.AlignCenter)
         self.lb_name = QLabel("版本")  # 版本
-        self.lb_name_text = QLabel("")  # 版本
-        self.lb_about = QLabel("About")  # about
-        self.lb_about_text = QTextEdit(about)  # about
+        self.lb_name_text = QPushButton("")  # 版本
+        self.lb_name_text.setToolTip("点击检查更新")
+        ver_style = "QPushButton {border:none; background:transparent;font-weight:bold;color:blue;}"
+        self.lb_name_text.setStyleSheet(ver_style)
+        self.lb_name_text.clicked.connect(lambda: self.check_update.emit(self._ver, True))
+
+
+        self.lb_about = QLabel("关于")  # about
+        self.lb_about_text = QLabel()  # about
+        self.lb_about_text.setText(about)
         self.lb_about_text.setFocusPolicy(Qt.NoFocus)
-        self.lb_about_text.setReadOnly(True)
-        # self.lb_about_text.setOpenExternalLinks(True)
-        self.lb_author = QLabel("Author")  # author
-        self.lb_author_mail = QLabel("rachpt@126.com")  # author
-        self.lb_update = QLabel("更新地址")  # 更新
+        self.lb_author = QLabel("作者")  # author
+        self.lb_author_mail = QLabel("<a href='mailto:rachpt@126.com'>rachpt</a>")
+        self.lb_author_mail.setOpenExternalLinks(True)
+        self.lb_update = QLabel("项目")  # 更新
         self.lb_update_url = QLabel(project_url)
         self.lb_update_url.setOpenExternalLinks(True)
         self.buttonBox = QDialogButtonBox()
         self.buttonBox.setOrientation(Qt.Horizontal)
         self.buttonBox.setStandardButtons(QDialogButtonBox.Close)
         self.buttonBox.button(QDialogButtonBox.Close).setText("关闭")
-        self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
+        self.buttonBox.setStyleSheet(btn_style)
 
-        self.grid = QGridLayout()
-        self.grid.setSpacing(10)
-        self.grid.addWidget(self.logo, 1, 0, 2, 3)
-        self.grid.addWidget(self.lb_name, 3, 0)
-        self.grid.addWidget(self.lb_name_text, 3, 1)
-        self.grid.addWidget(self.lb_about, 4, 0)
-        self.grid.addWidget(self.lb_about_text, 4, 1, 3, 2)
-        self.grid.addWidget(self.lb_author, 7, 0)
-        self.grid.addWidget(self.lb_author_mail, 7, 1)
-        self.grid.addWidget(self.lb_update, 8, 0)
-        self.grid.addWidget(self.lb_update_url, 8, 1, 2, 2)
-        self.grid.addWidget(self.buttonBox, 10, 2)
-        self.setLayout(self.grid)
-        self.setFixedSize(660, 300)
+        self.line = QLine(QPoint(), QPoint(200, 0))
+        self.lb_line = QLabel()
+        self.lb_line.setText('<html><hr /></html>')
 
+        vbox = QVBoxLayout()
+        vbox.addWidget(self.logo)
+        vbox.addStretch(1)
+        self.form = QFormLayout()
+        self.form.setLabelAlignment(Qt.AlignRight)
+        self.form.setHorizontalSpacing(40)
+        self.form.setVerticalSpacing(15)
+        self.form.addRow(self.lb_name, self.lb_name_text)
+        self.form.addRow(self.lb_update, self.lb_update_url)
+        self.form.addRow(self.lb_author, self.lb_author_mail)
+        self.form.addRow(self.lb_about, self.lb_about_text)
+        vbox.addLayout(self.form)
+        vbox.addStretch(1)
+        vbox.addWidget(self.lb_line)
+        vbox.addWidget(self.buttonBox)
+        self.setLayout(vbox)
+        self.setMinimumWidth(720)
+
+    def paintEvent(self,event):
+        QMainWindow.paintEvent(self, event)
+        if not self.line.isNull():
+            painter = QPainter(self)
+            pen = QPen(Qt.red, 3)
+            painter.setPen(pen)
+            painter.drawLine(self.line)
 
 class SettingDialog(QDialog):
     saved = pyqtSignal()
@@ -991,6 +1184,7 @@ class SettingDialog(QDialog):
         buttonBox.rejected.connect(self.reject)
 
         form = QFormLayout()
+        form.setLabelAlignment(Qt.AlignRight)
         form.setSpacing(10)
         form.addRow(self.download_threads_lb, self.download_threads_var)
         form.addRow(self.timeout_lb, self.timeout_var)
@@ -1071,7 +1265,6 @@ class RecFolderDialog(QDialog):
         self.buttonBox.setStandardButtons(QDialogButtonBox.Close)
         self.buttonBox.button(QDialogButtonBox.Close).setText("关闭")
         self.buttonBox.setStyleSheet(btn_style)
-        self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
 
         vbox = QVBoxLayout()
