@@ -1089,6 +1089,7 @@ class SettingDialog(QDialog):
         self.rar_part_name = None
         self.dl_path = None
         self.time_fmt = False
+        self.to_tary = False
         self.initUI()
         self.set_values()
         self.setStyleSheet(dialog_qss_style)
@@ -1110,14 +1111,12 @@ class SettingDialog(QDialog):
 
     def show_values(self):
         """控件显示值"""
-        # self.rar_tool_var.setText(self.rar_tool)
         self.download_threads_var.setText(str(self.download_threads))
         self.max_size_var.setText(str(self.max_size))
         self.timeout_var.setText(str(self.timeout))
-        self.guise_suffix_var.setText(str(self.guise_suffix))
-        self.rar_part_name_var.setText(str(self.rar_part_name))
         self.dl_path_var.setText(str(self.dl_path))
         self.time_fmt_box.setChecked(self.time_fmt)
+        self.to_tray_box.setChecked(self.to_tray)
 
     def set_values(self, reset=False):
         """设置控件对应变量初始值"""
@@ -1130,20 +1129,18 @@ class SettingDialog(QDialog):
         self.rar_part_name = settings["rar_part_name"]
         self.dl_path = settings["dl_path"]
         self.time_fmt = settings["time_fmt"]
+        self.to_tray = settings["to_tray"] if "to_tray" in settings else False
         self.show_values()
 
     def get_values(self) -> dict:
         """读取控件值"""
-        # self.rar_tool = self.rar_tool_var.text()
         self.download_threads = int(self.download_threads_var.text())
         self.max_size = int(self.max_size_var.text())
         self.timeout = int(self.timeout_var.text())
-        self.guise_suffix = str(self.guise_suffix_var.text())
-        self.rar_part_name = str(self.rar_part_name_var.text())
         self.dl_path = str(self.dl_path_var.text())
-        return {"rar_tool": self.rar_tool, "download_threads": self.download_threads,
-                "max_size": self.max_size, "guise_suffix": self.guise_suffix, "dl_path": self.dl_path,
-                "timeout": self.timeout, "rar_part_name": self.rar_part_name, "time_fmt": self.time_fmt}
+        return {"download_threads": self.download_threads, "to_tray": self.to_tray,
+                "max_size": self.max_size, "dl_path": self.dl_path,
+                "timeout": self.timeout, "time_fmt": self.time_fmt}
 
     def initUI(self):
         self.setWindowTitle("设置")
@@ -1151,11 +1148,6 @@ class SettingDialog(QDialog):
         logo.setPixmap(QPixmap("./src/logo2.gif"))
         logo.setStyleSheet("background-color:rgb(255,255,255);")
         logo.setAlignment(Qt.AlignCenter)
-        self.rar_tool_lb = QLabel("rar路径")  # rar路径
-        # self.rar_tool_var = MyLineEdit(self)
-        # self.rar_tool_var.clicked.connect(self.set_rar_path)
-        # self.rar_tool_var.setPlaceholderText("用于大文件分卷压缩与分卷合并")
-        # self.rar_tool_var.setToolTip("用于大文件分卷压缩与分卷合并")
         self.download_threads_lb = QLabel("同时下载文件数")  # about
         self.download_threads_var = QLineEdit()
         self.download_threads_var.setPlaceholderText("范围：1-9")
@@ -1171,20 +1163,14 @@ class SettingDialog(QDialog):
         self.timeout_var.setPlaceholderText("范围：1-99")
         self.timeout_var.setToolTip("范围：1-99")
         self.timeout_var.setInputMask("D9")
-        self.guise_suffix_lb = QLabel("假后缀")
-        self.guise_suffix_var = QLineEdit()
-        self.guise_suffix_var.setPlaceholderText("让不支持的文件类型改成该后缀名，蒙混过关")
-        self.guise_suffix_var.setToolTip("让不支持的文件类型改成该后缀名，蒙混过关")
-        self.rar_part_name_lb = QLabel("rar分卷名")
-        self.rar_part_name_var = QLineEdit()
-        self.rar_part_name_var.setPlaceholderText("大文件分卷标识字符串，对抗封禁")
-        self.rar_part_name_var.setToolTip("大文件分卷标识字符串，对抗封禁")
         self.dl_path_lb = QLabel("下载保存路径")
         self.dl_path_var = MyLineEdit(self)
         self.dl_path_var.clicked.connect(self.set_download_path)
         self.time_fmt_box = QCheckBox("使用[年-月-日]时间格式")
+        self.to_tray_box = QCheckBox("关闭到系统托盘")
         self.time_fmt_box.toggle()
         self.time_fmt_box.stateChanged.connect(self.change_time_fmt)
+        self.to_tray_box.stateChanged.connect(self.change_to_tray)
 
         buttonBox = QDialogButtonBox()
         buttonBox.setOrientation(Qt.Horizontal)
@@ -1202,9 +1188,6 @@ class SettingDialog(QDialog):
         form.addRow(self.download_threads_lb, self.download_threads_var)
         form.addRow(self.timeout_lb, self.timeout_var)
         form.addRow(self.max_size_lb, self.max_size_var)
-        # form.addRow(self.guise_suffix_lb, self.guise_suffix_var)
-        # form.addRow(self.rar_part_name_lb, self.rar_part_name_var)
-        # form.addRow(self.rar_tool_lb, self.rar_tool_var)
         form.addRow(self.dl_path_lb, self.dl_path_var)
 
         vbox = QVBoxLayout()
@@ -1212,7 +1195,10 @@ class SettingDialog(QDialog):
         vbox.addStretch(1)
         vbox.addLayout(form)
         vbox.addStretch(1)
-        vbox.addWidget(self.time_fmt_box)
+        hbox = QHBoxLayout()
+        hbox.addWidget(self.time_fmt_box)
+        hbox.addWidget(self.to_tray_box)
+        vbox.addLayout(hbox)
         vbox.addStretch(1)
         vbox.addWidget(buttonBox)
         self.setLayout(vbox)
@@ -1224,14 +1210,11 @@ class SettingDialog(QDialog):
         else:
             self.time_fmt = False
 
-    def set_rar_path(self):
-        """设置RAR路径"""
-        rar_path, _ = QFileDialog.getOpenFileName(self, "选择 rar 路径", self.cwd, "All Files (*)")
-        if len(rar_path) == 0:
-            return
-        rar_path = os.path.normpath(rar_path)  # windows backslash
-        # self.rar_tool_var.setText(rar_path)
-        self.rar_tool = rar_path
+    def change_to_tray(self, state):
+        if state == Qt.Checked:
+            self.to_tray = True
+        else:
+            self.to_tray = False
 
     def set_download_path(self):
         """设置下载路径"""
