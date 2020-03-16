@@ -1040,6 +1040,7 @@ Python 依赖见<a href="{self._github }/blob/master/requirements.txt">requireme
         vbox.addStretch(1)
         self.form = QFormLayout()
         self.form.setLabelAlignment(Qt.AlignRight)
+        self.form.setFormAlignment(Qt.AlignLeft)
         self.form.setHorizontalSpacing(40)
         self.form.setVerticalSpacing(15)
         self.form.addRow(self.lb_name, self.lb_name_text)
@@ -1050,7 +1051,7 @@ Python 依赖见<a href="{self._github }/blob/master/requirements.txt">requireme
         vbox.addStretch(1)
         vbox.addWidget(self.lb_line)
         donate = QLabel()
-        donate.setText("<b>捐助我</b>&nbsp;&nbsp; <i>如果你愿意</i>")
+        donate.setText("<b>捐助我</b>&nbsp;如果你愿意")
         donate.setAlignment(Qt.AlignCenter)
         hbox = QHBoxLayout()
         hbox.addStretch(2)
@@ -1065,8 +1066,8 @@ Python 依赖见<a href="{self._github }/blob/master/requirements.txt">requireme
         self.setLayout(vbox)
         self.setMinimumWidth(720)
 
-    def paintEvent(self,event):
-        QMainWindow.paintEvent(self, event)
+    def paintEvent(self, event):
+        QDialog.paintEvent(self, event)
         if not self.line.isNull():
             painter = QPainter(self)
             pen = QPen(Qt.red, 3)

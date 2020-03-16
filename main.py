@@ -7,7 +7,7 @@ from pickle import dump, load
 from PyQt5.QtCore import Qt, QCoreApplication, QTimer, QUrl, QSize
 from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel, QDesktopServices, QMovie
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QHeaderView, QMenu, QAction, QLabel,
-                             QPushButton, QFileDialog, QDesktopWidget, QMessageBox, QSystemTrayIcon)
+                             QPushButton, QFileDialog, QDesktopWidget, QMessageBox, QSystemTrayIcon, qApp, QStyle   )
 
 from Ui_lanzou import Ui_MainWindow
 from lanzou.api import LanZouCloud
@@ -110,18 +110,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.check_update_worker.set_values(self.__version__, False)  # 检测新版
 
         # 系统托盘
-        self.tray = QSystemTrayIcon(QIcon('src/lanzou_logo2.png'), parent=self)  #系统托盘对象
+        self.tray = QSystemTrayIcon(QIcon('src/lanzou_logo2.png'), parent=self)
+        show_action = QAction("显示窗口", self)
+        hide_action = QAction("最小化到托盘", self)
+        quit_action = QAction("退出程序", self)
+        show_action.triggered.connect(self.show)
+        hide_action.triggered.connect(self.hide)
+        quit_action.triggered.connect(qApp.quit)
+        show_action.setIcon(self.style().standardIcon(QStyle.SP_ComputerIcon))
+        hide_action.setIcon(self.style().standardIcon(QStyle.SP_TitleBarMinButton))
+        quit_action.setIcon(self.style().standardIcon(QStyle.SP_TitleBarCloseButton))
         self.tray.activated.connect(self.show)  #托盘点击事件
         self.tray_menu = QMenu(QApplication.desktop())
-        self.restore_action = QAction('还原 ', self, triggered=self.show)  #还原主窗口
-        self.quit_action = QAction('退出', self, triggered=self.close_app)  #退出程序
-        self.tray_menu.addAction(self.restore_action)
-        self.tray_menu.addAction(self.quit_action)
+        self.tray_menu.addAction(show_action)
+        self.tray_menu.addAction(hide_action)
+        self.tray_menu.addAction(quit_action)
         self.tray.setContextMenu(self.tray_menu)
         self.tray.show()
-
-    def close_app(self):
-        sys.exit(0)
 
     def init_menu(self):
         self.login.triggered.connect(self.show_login_dialog)  # 登录
@@ -158,14 +163,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def init_default_settings(self):
         """初始化默认设置"""
-        # rar_part_name = 'abc'  # rar 分卷文件后缀 *.abc01.rar
-        # guise_suffix = '.dll'  # 不支持的文件伪装后缀
         download_threads = 3   # 同时三个下载任务
         max_size = 100         # 单个文件大小上限 MB
         timeout = 5            # 每个请求的超时 s(不包含下载响应体的用时)
         time_fmt = False       # 是否使用年月日时间格式
+        to_tray = False        # 关闭到系统托盘
         dl_path = os.path.dirname(os.path.abspath(__file__)) + os.sep + "downloads"
-        self._default_settings = {"download_threads": download_threads, "max_size": max_size,
+        self._default_settings = {"download_threads": download_threads, "max_size": max_size, "to_tray": to_tray,
                                   "dl_path": dl_path, "timeout": timeout, "time_fmt": time_fmt}
 
     def init_variables(self):
@@ -188,6 +192,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._disk.set_max_size(self.configs["settings"]["max_size"])
         self.download_threads = self.configs["settings"]["download_threads"]
         self.time_fmt = self.configs["settings"]["time_fmt"]  # 时间显示格式
+        self.to_tray = self.configs["settings"]["to_tray"] if "to_tray" in self.configs["settings"] else False
 
     def init_workers(self):
         # 登录器
@@ -361,7 +366,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 msg = "提示: 删除回收站中的文件将不可恢复，请确认。"
             if action == "recovery" or action == "delete":
                 if not infos:
-                    self.show_status("请先选中需要操作的文件！", 4000)
+                    self.show_status("请先选中需要操作的文件！", 2999)
                     return
                 msg = "\t\t列表：\n"
                 for i in infos:
@@ -758,7 +763,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             rec_file_dialog = RecFolderDialog(files)
             rec_file_dialog.exec()
         else:
-            self.show_status("文件夹为空！", 4000)
+            self.show_status("文件夹为空！", 2999)
 
     def call_rec_folder_dialog(self, dir_name):
         # 显示弹出对话框
@@ -955,11 +960,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         buttonC.setText('关闭')
         message_box.exec()
 
+    def closeEvent(self, event):
+        if self.to_tray:
+            event.ignore()
+            self.hide()
+            self.tray.showMessage(
+                "蓝奏云客户端",
+                "应用已经最小化到托盘，如需退出请右击",
+                QSystemTrayIcon.Information,
+                2500
+            )
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setWindowIcon(QIcon("./src/lanzou_logo2.png"))
     form = MainWindow()
-    # icon = QSystemTrayIcon(QIcon('src/lanzou_logo2.png'), parent=form)
     form.show()
     sys.exit(app.exec())
