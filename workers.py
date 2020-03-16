@@ -208,11 +208,11 @@ class GetSharedInfo(QThread):
             if is_file_url(share_url):  # 文件链接
                 is_file = True
                 is_folder = False
-                self.msg.emit("正在获取文件链接信息……", 0)
+                self.msg.emit("正在获取文件链接信息……", 20000)
             elif is_folder_url(share_url):  # 文件夹链接
                 is_folder = True
                 is_file = False
-                self.msg.emit("正在获取文件夹链接信息，可能需要几秒钟，请稍后……", 0)
+                self.msg.emit("正在获取文件夹链接信息，可能需要几秒钟，请稍后……", 30000)
             else:
                 self.msg.emit(f"{share_url} 为非法链接！", 0)
                 self.btn_extract.setEnabled(True)
@@ -236,7 +236,7 @@ class GetSharedInfo(QThread):
 
     def emit_msg(self, infos):
         '''根据查询信息发送状态信号'''
-        show_time = 7000  # 提示显示时间，单位 ms
+        show_time = 2999  # 提示显示时间，单位 ms
         if infos["code"] == LanZouCloud.FILE_CANCELLED:
             self.msg.emit("<font color='red'>文件不存在，或已删除！</font>", show_time)
         elif infos["code"] == LanZouCloud.URL_INVALID:
@@ -263,11 +263,11 @@ class GetSharedInfo(QThread):
                     self.emit_msg(_infos)
                 self.infos.emit(_infos)
             except TimeoutError:
-                self.msg.emit("font color='red'>网络超时！请稍后重试</font>", 8000)
+                self.msg.emit("font color='red'>网络超时！请稍后重试</font>", 5000)
             self._is_work = False
             self._mutex.unlock()
         else:
-            self.msg.emit("<font color='blue'>后台正在运行，稍后重试！</font>", 3000)
+            self.msg.emit("<font color='blue'>后台正在运行，稍后重试！</font>", 4000)
 
 
 class UploadWorker(QThread):
@@ -298,20 +298,20 @@ class UploadWorker(QThread):
             f = os.path.normpath(f)  # windows backslash
             if not os.path.exists(f):
                 msg = "<b>ERROR :</b> <font color='red'>文件不存在:{}</font>".format(f)
-                self.code.emit(msg, 0)
+                self.code.emit(msg, 3100)
                 continue
             if os.path.isdir(f):
                 msg = "<b>INFO :</b> <font color='#00CC00'>批量上传文件夹:{}</font>".format(f)
-                self.code.emit(msg, 0)
+                self.code.emit(msg, 30000)
                 self._disk.upload_dir(f, self._work_id, self._show_progress, None)
             else:
                 msg = "<b>INFO :</b> <font color='#00CC00'>上传文件:{}</font>".format(f)
-                self.code.emit(msg, 0)
+                self.code.emit(msg, 20000)
                 try:
                     self._disk.upload_file(f, self._work_id, self._show_progress)
                 except TimeoutError:
                     msg = "<b>ERROR :</b> <font color='red'>网络连接超时，请重试！</font>"
-                    self.code.emit(msg, 0)
+                    self.code.emit(msg, 3100)
 
 
 class LoginLuncher(QThread):
@@ -418,7 +418,7 @@ class DescPwdFetcher(QThread):
             self._is_work = False
             self._mutex.unlock()
         else:
-            self.msg.emit("后台正在运行指令！请稍后重试", 3000)
+            self.msg.emit("后台正在运行指令！请稍后重试", 3100)
 
 
 class ListRefresher(QThread):
@@ -444,7 +444,7 @@ class ListRefresher(QThread):
             self.r_path = r_path
             self.start()
         else:
-            self.err_msg.emit("正在更新目录，请稍后再试！", 4000)
+            self.err_msg.emit("正在更新目录，请稍后再试！", 3100)
 
     def __del__(self):
         self.wait()
@@ -518,7 +518,7 @@ class RemoveFilesWorker(QThread):
             self._is_work = False
             self._mutex.unlock()
         else:
-            self.msg.emit("后台正在运行删除指令！", 2000)
+            self.msg.emit("后台正在运行删除指令！", 3100)
 
 
 class GetMoreInfoWorker(QThread):
@@ -589,7 +589,7 @@ class GetMoreInfoWorker(QThread):
             self._pwd = ''
             self._mutex.unlock()
         else:
-            self.msg.emit("后台正在运行，请稍后重试！", 2000)
+            self.msg.emit("后台正在运行，请稍后重试！", 3100)
 
 
 class GetAllFoldersWorker(QThread):
@@ -652,7 +652,7 @@ class GetAllFoldersWorker(QThread):
             self._is_work = False
             self._mutex.unlock()
         else:
-            self.msg.emit("后台正在运行，请稍后重试！", 2000)
+            self.msg.emit("后台正在运行，请稍后重试！", 3100)
 
 
 class RenameMkdirWorker(QThread):
@@ -730,7 +730,7 @@ class RenameMkdirWorker(QThread):
             self._is_work = False
             self._mutex.unlock()
         else:
-            self.msg.emit("后台正在运行，请稍后重试！", 2000)
+            self.msg.emit("后台正在运行，请稍后重试！", 3100)
 
 
 class SetPwdWorker(QThread):
@@ -793,7 +793,7 @@ class SetPwdWorker(QThread):
             self._is_work = False
             self._mutex.unlock()
         else:
-            self.msg.emit("后台正在运行，请稍后重试！", 2000)
+            self.msg.emit("后台正在运行，请稍后重试！", 3100)
 
 
 class LogoutWorker(QThread):
@@ -839,7 +839,7 @@ class LogoutWorker(QThread):
             self._is_work = False
             self._mutex.unlock()
         else:
-            self.msg.emit("后台正在运行，请稍后重试！", 2000)
+            self.msg.emit("后台正在运行，请稍后重试！", 3100)
 
 
 class GetRecListsWorker(QThread):
@@ -889,7 +889,7 @@ class GetRecListsWorker(QThread):
             self._is_work = False
             self._mutex.unlock()
         else:
-            self.msg.emit("后台正在运行，请稍后重试！", 2000)
+            self.msg.emit("后台正在运行，请稍后重试！", 3100)
 
 
 class RecManipulator(QThread):
@@ -967,7 +967,7 @@ class RecManipulator(QThread):
             self._files= []
             self._mutex.unlock()
         else:
-            self.msg.emit("后台正在运行，请稍后重试！", 2000)
+            self.msg.emit("后台正在运行，请稍后重试！", 3100)
 
 
 class CheckUpdateWorker(QThread):
@@ -1010,7 +1010,6 @@ class CheckUpdateWorker(QThread):
                 ver2 = tag_name.replace('v', '').split('.')
                 local_version = int(ver[0]) * 100 + int(ver[1]) * 10 + int(ver[2])
                 remote_version = int(ver2[0]) * 100 + int(ver2[1]) * 10 + int(ver2[2])
-                print(remote_version, local_version)
                 if remote_version > local_version:
                     urls = re.findall(r'https?://[-\.a-zA-Z0-9/_#?&%@]+', msg)
                     for url in urls:
@@ -1020,9 +1019,11 @@ class CheckUpdateWorker(QThread):
                     self.infos.emit(tag_name, msg)
                     if not self._manual:  # 打开软件时检测更新
                         self.bg_update_infos.emit(tag_name, msg)
+                elif self._manual:
+                    self.infos.emit("0", "目前还没有发布新版本！")
             except requests.exceptions.ConnectionError:
                 if self._manual:
-                    self.infos.emit("v0.0.0", f"检查更新时 <a href='{self._api}'>api.github.com</a> 拒绝连接，稍后请重试！")
+                    self.infos.emit("v0.0.0", f"检查更新时 <a href='{self._api}'>api.github.com</a> 拒绝连接，请稍后重试！")
             except (requests.RequestException, AttributeError, TimeoutError):
                 if self._manual:
                     self.infos.emit("v0.0.0", "检查更新时发生异常，请重试！")

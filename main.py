@@ -4,10 +4,10 @@ import sys
 import os
 from pickle import dump, load
 
-from PyQt5.QtCore import Qt, QCoreApplication, QTimer, QUrl
-from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel, QDesktopServices
+from PyQt5.QtCore import Qt, QCoreApplication, QTimer, QUrl, QSize
+from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel, QDesktopServices, QMovie
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QHeaderView, QMenu, QAction, QLabel,
-                             QPushButton, QFileDialog, QDesktopWidget, QMessageBox  )
+                             QPushButton, QFileDialog, QDesktopWidget, QMessageBox, QSystemTrayIcon)
 
 from Ui_lanzou import Ui_MainWindow
 from lanzou.api import LanZouCloud
@@ -67,13 +67,13 @@ qssStyle = '''
         background:transparent;
     }
     #MainWindow {
-        border-image:url(./background.png);
+        border-image:url(./src/default_background_img.jpg);
     }
     #statusbar {
         font: 14px;
         color: white;
     }
-    #msg_label {
+    #msg_label, #msg_movie_lb {
         font: 14px;
         color: white;
         background:transparent;
@@ -82,7 +82,12 @@ qssStyle = '''
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
-    __version__ = 'v0.0.5-beta.2'
+    __version__ = 'v0.1.0'
+    if not os.path.isdir("./src") or not os.path.isfile("./src/file.ico"):
+        from src import release_src
+
+        os.makedirs("./src", exist_ok=True)
+        release_src()
 
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
@@ -98,41 +103,54 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.init_disk_ui()
         self.init_rec_ui()
         self.call_login_luncher()
-
         self.create_left_menus()
 
         self.setStyleSheet(qssStyle)
         self.tabWidget.setStyleSheet("QTabBar{ background-color: #AEEEEE; }")
         self.check_update_worker.set_values(self.__version__, False)  # 检测新版
 
+        # 系统托盘
+        self.tray = QSystemTrayIcon(QIcon('src/lanzou_logo2.png'), parent=self)  #系统托盘对象
+        self.tray.activated.connect(self.show)  #托盘点击事件
+        self.tray_menu = QMenu(QApplication.desktop())
+        self.restore_action = QAction('还原 ', self, triggered=self.show)  #还原主窗口
+        self.quit_action = QAction('退出', self, triggered=self.close_app)  #退出程序
+        self.tray_menu.addAction(self.restore_action)
+        self.tray_menu.addAction(self.quit_action)
+        self.tray.setContextMenu(self.tray_menu)
+        self.tray.show()
+
+    def close_app(self):
+        sys.exit(0)
+
     def init_menu(self):
         self.login.triggered.connect(self.show_login_dialog)  # 登录
-        self.login.setIcon(QIcon("./icon/login.ico"))
+        self.login.setIcon(QIcon("./src/login.ico"))
         self.login.setShortcut("Ctrl+L")
         self.toolbar.addAction(self.login)
         self.logout.triggered.connect(lambda: self.logout_worker.set_values(self._disk))  # 登出
-        self.logout.setIcon(QIcon("./icon/logout.ico"))
+        self.logout.setIcon(QIcon("./src/logout.ico"))
         self.logout.setShortcut("Ctrl+Q")    # 登出快捷键
-        self.download.setShortcut("Ctrl+J")  # 以下还未使用
-        self.download.setIcon(QIcon("./icon/download.ico"))
+        self.download.setShortcut("Ctrl+J")
+        self.download.setIcon(QIcon("./src/download.ico"))
         self.download.setEnabled(False)  # 暂时不用
         self.delete.setShortcut("Ctrl+D")
-        self.delete.setIcon(QIcon("./icon/delete.ico"))
+        self.delete.setIcon(QIcon("./src/delete.ico"))
         self.delete.setEnabled(False)  # 暂时不用
-        # self.how.setShortcut("Ctrl+H")
-        self.how.setIcon(QIcon("./icon/help.ico"))
+        self.how.setShortcut("F1")
+        self.how.setIcon(QIcon("./src/help.ico"))
         self.how.triggered.connect(self.open_wiki_url)
-        # self.about.setShortcut("Ctrl+O")
-        self.about.setIcon(QIcon("./icon/about.ico"))
+        self.about.setShortcut("Ctrl+B")
+        self.about.setIcon(QIcon("./src/about.ico"))
         self.about.triggered.connect(self.about_dialog.exec)
-        self.upload.setIcon(QIcon("./icon/upload.ico"))
+        self.upload.setIcon(QIcon("./src/upload.ico"))
         self.upload.setShortcut("Ctrl+U")  # 上传快捷键
         # 添加设置菜单，暂时放这里
         self.setting_menu = QAction(self)  # 设置菜单
         self.setting_menu.setObjectName("setting_menu")
         self.setting_menu.setText("设置")
         self.files.addAction(self.setting_menu)
-        self.setting_menu.setIcon(QIcon("./icon/about.ico"))
+        self.setting_menu.setIcon(QIcon("./src/settings.ico"))
         self.setting_menu.triggered.connect(self.setting_dialog.open_dialog)
         self.setting_menu.setShortcut("Ctrl+P")  # 设置快捷键
         # tab 切换时更新
@@ -183,7 +201,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.download_manager = DownloadManager()
         self.download_manager.downloaders_msg.connect(self.show_status)
         self.download_manager.download_mgr_msg.connect(self.show_status)
-        self.download_manager.finished.connect(lambda: self.show_status("所有下载任务已完成！", 7000))
+        self.download_manager.finished.connect(lambda: self.show_status("所有下载任务已完成！", 2999))
         # 获取更多信息，直链、下载次数等
         self.info_dialog = InfoDialog()  # 对话框
         self.info_dialog.setWindowModality(Qt.ApplicationModal)  # 窗口前置
@@ -196,6 +214,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.list_refresher = ListRefresher(self._disk)
         self.list_refresher.err_msg.connect(self.show_status)
         self.list_refresher.infos.connect(self.update_disk_lists)
+        self.list_refresher.infos.connect(lambda: self.show_status(""))
         # 获取所有文件夹fid，并移动
         self.all_folders_worker = GetAllFoldersWorker()
         self.all_folders_worker.msg.connect(self.show_status)
@@ -228,7 +247,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.rec_tab.setEnabled(False)
         # 状态栏
         self._msg_label = QLabel()
+        self._msg_movie_lb = QLabel()
+        self._msg_movie = QMovie("src/loading_more.gif")
+        self._msg_movie.setScaledSize(QSize(24,24))
+        self._msg_movie_lb.setMovie(self._msg_movie)
         self._msg_label.setObjectName("msg_label")
+        self._msg_movie_lb.setObjectName("msg_movie_lb")
+        self.statusbar.addWidget(self._msg_movie_lb)
         self.statusbar.addWidget(self._msg_label)
         # 重命名、修改简介与新建文件夹对话框
         self.rename_dialog = RenameDialog()
@@ -430,8 +455,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if file_count:
             name_header.append("文件{}个".format(file_count))
         self.model_disk.setHorizontalHeaderLabels(["/".join(name_header), "大小", "时间"])
-        folder_ico = QIcon("./icon/folder.gif")
-        pwd_ico = QIcon("./icon/keys.ico")
+        folder_ico = QIcon("./src/folder.gif")
+        pwd_ico = QIcon("./src/keys.ico")
         # infos: ID/None，文件名，大小，日期，下载次数(dl_count)，提取码(pwd)，描述(desc)，|链接(share-url)，直链
         if self._work_id != -1:
             _back = QStandardItem(folder_ico, "..")
@@ -524,13 +549,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def create_left_menus(self):
         self.left_menus = QMenu()
         self.left_menu_share_url = self.left_menus.addAction("外链分享地址等")
-        self.left_menu_share_url.setIcon(QIcon("./icon/share.ico"))
+        self.left_menu_share_url.setIcon(QIcon("./src/share.ico"))
         self.left_menu_rename_set_desc = self.left_menus.addAction("修改文件夹名与描述")
-        self.left_menu_rename_set_desc.setIcon(QIcon("./icon/desc.ico"))
+        self.left_menu_rename_set_desc.setIcon(QIcon("./src/desc.ico"))
         self.left_menu_set_pwd = self.left_menus.addAction("设置访问密码")
-        self.left_menu_set_pwd.setIcon(QIcon("./icon/password.ico"))
+        self.left_menu_set_pwd.setIcon(QIcon("./src/password.ico"))
         self.left_menu_move = self.left_menus.addAction("移动（支持批量）")
-        self.left_menu_move.setIcon(QIcon("./icon/move.ico"))
+        self.left_menu_move.setIcon(QIcon("./src/move.ico"))
 
     def call_rename_mkdir_worker(self, infos):
         """重命名、修改简介与新建文件夹"""
@@ -645,7 +670,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def show_full_path(self):
         """路径框显示当前路径"""
         index = 1
-        for _ in range(len(self._path_list_old)):
+        for _ in iter(self._path_list_old):
             self._locs[index].clicked.disconnect()
             self.disk_loc.removeWidget(self._locs[index])
             self._locs[index].deleteLater()
@@ -653,11 +678,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             del self._locs[index]
             index += 1
         index = 1
-        for i in range(len(self._path_list)):
-            item = self._path_list[i]
+        for item in iter(self._path_list):
             self._locs[index] = QPushButton(item.name, self.disk_tab)
             self._locs[index].setToolTip(f"fid:{item.id}")
-            self._locs[index].setIcon(QIcon("./icon/folder.gif"))
+            self._locs[index].setIcon(QIcon("./src/folder.gif"))
             self._locs[index].setStyleSheet("QPushButton {border:none; background:transparent;}")
             self.disk_loc.insertWidget(index, self._locs[index])
             self._locs[index].clicked.connect(self.call_change_dir(item.id))
@@ -683,18 +707,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 if btn.text() == "全选":
                     table.selectAll()
                     btn.setText("取消")
-                    btn.setIcon(QIcon("./icon/select-none.ico"))
+                    btn.setIcon(QIcon("./src/select_none.ico"))
                 elif btn.text() == "取消":
                     table.clearSelection()
                     btn.setText("全选")
-                    btn.setIcon(QIcon("./icon/select-all.ico"))
+                    btn.setIcon(QIcon("./src/select_all.ico"))
             elif action == "cancel":  # 点击列表其中一个就表示放弃全选
                 btn.setText("全选")
-                btn.setIcon(QIcon("./icon/select-all.ico"))
+                btn.setIcon(QIcon("./src/select_all.ico"))
             else:
                 table.selectAll()
                 btn.setText("取消")
-                btn.setIcon(QIcon("./icon/select-none.ico"))
+                btn.setIcon(QIcon("./src/select_none.ico"))
 
     def finished_upload(self):
         """上传完成调用"""
@@ -708,14 +732,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def init_disk_ui(self):
         self.model_disk = QStandardItemModel(1, 3)
         self.config_tableview("disk")
-        self.btn_disk_delete.setIcon(QIcon("./icon/delete.ico"))
-        self.btn_disk_dl.setIcon(QIcon("./icon/downloader.ico"))
-        self.btn_disk_select_all.setIcon(QIcon("./icon/select-all.ico"))
+        self.btn_disk_delete.setIcon(QIcon("./src/delete.ico"))
+        self.btn_disk_dl.setIcon(QIcon("./src/downloader.ico"))
+        self.btn_disk_select_all.setIcon(QIcon("./src/select_all.ico"))
         self.btn_disk_select_all.setToolTip("按下 Ctrl/Alt + A 全选或则取消全选")
         self.btn_disk_select_all.clicked.connect(lambda: self.select_all_btn("reverse"))
         self.table_disk.clicked.connect(lambda: self.select_all_btn("cancel"))
         self.btn_disk_dl.clicked.connect(lambda: self.call_multi_manipulator("download"))
-        self.btn_disk_mkdir.setIcon(QIcon("./icon/add-folder.ico"))
+        self.btn_disk_mkdir.setIcon(QIcon("./src/add_folder.ico"))
         self.btn_disk_mkdir.clicked.connect(self.call_mkdir)
         self.btn_disk_delete.clicked.connect(self.call_remove_files)
         # 文件拖拽上传
@@ -740,7 +764,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 显示弹出对话框
         dir_data = self.model_rec.item(dir_name.row(), 0).data()  # 文件夹信息
         if isinstance(dir_data, RecFolder):
-            self.show_status(f"正在获取文件夹 {dir_data.name} 信息，稍后", 0)
+            self.show_status(f"正在获取文件夹 {dir_data.name} 信息，稍后", 10000)
             self.get_rec_lists_worker.set_values(dir_data.id)
 
     def update_rec_lists(self, dir_lists, file_lists):
@@ -755,7 +779,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if file_count:
             name_header.append("文件{}个".format(file_count))
         self.model_rec.setHorizontalHeaderLabels(["/".join(name_header), "大小", "时间"])
-        folder_ico = QIcon("./icon/folder.gif")
+        folder_ico = QIcon("./src/folder.gif")
 
         for item in iter(dir_lists):  # 文件夹
             name = QStandardItem(folder_ico, item.name)
@@ -779,7 +803,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.model_rec = QStandardItemModel(1, 3)
         self.config_tableview("rec")
         self.table_rec.doubleClicked.connect(self.call_rec_folder_dialog)
-        self.btn_rec_select_all.setIcon(QIcon("./icon/select-all.ico"))
+        self.btn_rec_select_all.setIcon(QIcon("./src/select_all.ico"))
         self.btn_rec_select_all.clicked.connect(lambda: self.select_all_btn("reverse"))
         self.btn_rec_delete.clicked.connect(lambda: self.call_multi_manipulator("delete"))
         self.btn_recovery.clicked.connect(lambda: self.call_multi_manipulator("recovery"))
@@ -853,8 +877,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.line_share_url.returnPressed.connect(self.call_get_shared_info)
         self.btn_extract.clicked.connect(self.call_get_shared_info)
         self.btn_share_dl.clicked.connect(lambda: self.call_multi_manipulator("download"))
-        self.btn_share_dl.setIcon(QIcon("./icon/downloader.ico"))
-        self.btn_share_select_all.setIcon(QIcon("./icon/select-all.ico"))
+        self.btn_share_dl.setIcon(QIcon("./src/downloader.ico"))
+        self.btn_share_select_all.setIcon(QIcon("./src/select_all.ico"))
         self.btn_share_select_all.clicked.connect(lambda: self.select_all_btn("reverse"))
         self.table_share.clicked.connect(lambda: self.select_all_btn("cancel"))  # 全选按钮
 
@@ -870,10 +894,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.label_dl_path.setStyleSheet("#label_dl_path {color: rgb(255,255,60);}")
 
     # others
+    def clean_status(self):
+        self._msg_label.setText("")
+        self._msg_movie_lb.clear()
+        self._msg_movie.stop()
+
     def show_status(self, msg, duration=0):
         self._msg_label.setText(msg)
+        if msg and duration >= 3000:
+            self._msg_movie_lb.setMovie(self._msg_movie)
+            self._msg_movie.start()
+        else:
+            self._msg_movie_lb.clear()
+            self._msg_movie.stop()
         if duration != 0:
-            QTimer.singleShot(duration, lambda: self._msg_label.setText(""))
+            QTimer.singleShot(duration, self.clean_status)
 
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_A:  # Ctrl/Alt + A 全选
@@ -881,20 +916,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.select_all_btn()
         elif e.key() == Qt.Key_F5:  # 刷新
             if self.tabWidget.currentIndex() == 1:  # disk 界面
-                self.show_status("正在更新当前目录...", 1000)
+                self.show_status("正在更新当前目录...", 10000)
                 self.list_refresher.set_values(self._work_id)
             elif self.tabWidget.currentIndex() == 2:  # rec 界面
-                self.show_status("正在更新回收站...", 1000)
+                self.show_status("正在更新回收站...", 10000)
                 self.get_rec_lists_worker.start()
 
     def call_change_tab(self):
         """切换标签页 动作"""
         tab_index = self.tabWidget.currentIndex()
         if tab_index == 2:
-            self.show_status("正在更新回收站...", 1000)
+            self.show_status("正在更新回收站...", 10000)
             self.get_rec_lists_worker.start()
         elif tab_index == 1:
-            self.show_status("正在更新当前目录...", 1000)
+            self.show_status("正在更新当前目录...", 10000)
             self.list_refresher.set_values(self._work_id)
 
     def set_window_at_center(self):
@@ -923,7 +958,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    app.setWindowIcon(QIcon("./icon/lanzou-logo2.png"))
+    app.setWindowIcon(QIcon("./src/lanzou_logo2.png"))
     form = MainWindow()
+    # icon = QSystemTrayIcon(QIcon('src/lanzou_logo2.png'), parent=form)
     form.show()
     sys.exit(app.exec())

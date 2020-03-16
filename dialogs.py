@@ -27,11 +27,11 @@ def update_settings(config_file: str, up_info: dict, is_settings=False):
 
 def set_file_icon(name):
     suffix = name.split(".")[-1]
-    ico_path = "./icon/{}.gif".format(suffix)
+    ico_path = "./src/{}.gif".format(suffix)
     if os.path.isfile(ico_path):
         return QIcon(ico_path)
     else:
-        return QIcon("./icon/file.ico")
+        return QIcon("./src/file.ico")
 
 btn_style = """
 QPushButton {
@@ -278,9 +278,9 @@ class LoginDialog(QDialog):
 
     def initUI(self):
         self.setWindowTitle("登录蓝奏云")
-        self.setWindowIcon(QIcon("./icon/login.ico"))
+        self.setWindowIcon(QIcon("./src/login.ico"))
         logo = QLabel()
-        logo.setPixmap(QPixmap("./icon/logo3.gif"))
+        logo.setPixmap(QPixmap("./src/logo3.gif"))
         logo.setStyleSheet("background-color:rgb(0,153,255);")
         logo.setAlignment(Qt.AlignCenter)
         self.name_lb = QLabel("&User")
@@ -378,9 +378,9 @@ class UploadDialog(QDialog):
 
     def initUI(self):
         self.setWindowTitle("上传文件")
-        self.setWindowIcon(QIcon("./icon/upload.ico"))
+        self.setWindowIcon(QIcon("./src/upload.ico"))
         self.logo = QLabel()
-        self.logo.setPixmap(QPixmap("./icon/logo3.gif"))
+        self.logo.setPixmap(QPixmap("./src/logo3.gif"))
         self.logo.setStyleSheet("background-color:rgb(0,153,255);")
         self.logo.setAlignment(Qt.AlignCenter)
 
@@ -388,18 +388,18 @@ class UploadDialog(QDialog):
         self.btn_chooseDir = QPushButton("选择文件夹", self)
         self.btn_chooseDir.setObjectName("btn_chooseDir")
         self.btn_chooseDir.setObjectName("btn_chooseDir")
-        self.btn_chooseDir.setIcon(QIcon("./icon/folder.gif"))
+        self.btn_chooseDir.setIcon(QIcon("./src/folder.gif"))
 
         # btn 2
         self.btn_chooseMutiFile = QPushButton("选择多文件", self)
         self.btn_chooseDir.setObjectName("btn_chooseMutiFile")
         self.btn_chooseMutiFile.setObjectName("btn_chooseMutiFile")
-        self.btn_chooseMutiFile.setIcon(QIcon("./icon/file.ico"))
+        self.btn_chooseMutiFile.setIcon(QIcon("./src/file.ico"))
 
         # btn 3
         self.btn_deleteSelect = QPushButton("移除", self)
         self.btn_deleteSelect.setObjectName("btn_deleteSelect")
-        self.btn_deleteSelect.setIcon(QIcon("./icon/delete.ico"))
+        self.btn_deleteSelect.setIcon(QIcon("./src/delete.ico"))
         self.btn_deleteSelect.setToolTip("按 Delete 移除选中文件")
 
         # 列表
@@ -470,9 +470,9 @@ class UploadDialog(QDialog):
         self.model.removeRows(0, self.model.rowCount())
         for item in self.selected:
             if os.path.isfile(item):
-                self.model.appendRow(QStandardItem(QIcon("./icon/file.ico"), item))
+                self.model.appendRow(QStandardItem(QIcon("./src/file.ico"), item))
             else:
-                self.model.appendRow(QStandardItem(QIcon("./icon/folder.gif"), item))
+                self.model.appendRow(QStandardItem(QIcon("./src/folder.gif"), item))
             self.set_size()
 
     def slot_btn_ok(self):
@@ -600,7 +600,7 @@ class InfoDialog(QDialog):
         self.tx_dl_link.setPlaceholderText("后台获取中，请稍后！")
 
     def initUI(self):
-        self.setWindowIcon(QIcon("./icon/share.ico"))
+        self.setWindowIcon(QIcon("./src/share.ico"))
         self.setWindowTitle("文件信息")
         self.buttonBox = QDialogButtonBox()
         self.buttonBox.setOrientation(Qt.Horizontal)
@@ -609,7 +609,7 @@ class InfoDialog(QDialog):
         self.buttonBox.rejected.connect(self.reject)
 
         self.logo = QLabel()
-        self.logo.setPixmap(QPixmap("./icon/q9.gif"))
+        self.logo.setPixmap(QPixmap("./src/q9.gif"))
         self.logo.setAlignment(Qt.AlignCenter)
         self.logo.setStyleSheet("background-color:rgb(255,204,51);")
 
@@ -688,7 +688,7 @@ class RenameDialog(QDialog):
         self.update_text()  # 更新界面
 
     def initUI(self):
-        self.setWindowIcon(QIcon("./icon/desc.ico"))
+        self.setWindowIcon(QIcon("./src/desc.ico"))
         self.lb_name = QLabel()
         self.lb_name.setText("文件夹名：")
         self.lb_name.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
@@ -791,7 +791,7 @@ class SetPwdDialog(QDialog):
 
     def initUI(self):
         self.setWindowTitle("请稍等……")
-        self.setWindowIcon(QIcon("./icon/password.ico"))
+        self.setWindowIcon(QIcon("./src/password.ico"))
         self.lb_oldpwd = QLabel()
         self.lb_oldpwd.setText("当前提取码：")
         self.lb_oldpwd.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
@@ -865,7 +865,7 @@ class MoveFileDialog(QDialog):
             if not i[2]:  # 非文件
                 self.infos.remove(i)
         self.setWindowTitle("移动文件")
-        self.setWindowIcon(QIcon("./icon/move.ico"))
+        self.setWindowIcon(QIcon("./src/move.ico"))
         self.lb_name = QLabel()
         self.lb_name.setText("文件路径：")
         self.lb_name.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
@@ -883,7 +883,7 @@ class MoveFileDialog(QDialog):
             Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter
         )
         self.tx_new_path = QComboBox()
-        f_icon = QIcon("./icon/folder.gif")
+        f_icon = QIcon("./src/folder.gif")
         for f_name, fid in self.dirs.items():
             if len(f_name) > 50:  # 防止文件夹名字过长？
                 f_name = f_name[:47] + "..."
@@ -925,7 +925,7 @@ class DeleteDialog(QDialog):
 
     def initUI(self):
         self.setWindowTitle("确认删除")
-        self.setWindowIcon(QIcon("./icon/delete.ico"))
+        self.setWindowIcon(QIcon("./src/delete.ico"))
         self.layout = QVBoxLayout()
         self.list_view = QListView()
         self.list_view.setViewMode(QListView.ListMode)
@@ -938,7 +938,7 @@ class DeleteDialog(QDialog):
             if i[2]:  # 有大小，是文件
                 self.model.appendRow(QStandardItem(set_file_icon(i[1]), i[1]))
             else:
-                self.model.appendRow(QStandardItem(QIcon("./icon/folder.gif"), i[1]))
+                self.model.appendRow(QStandardItem(QIcon("./src/folder.gif"), i[1]))
             self.out.append({'fid': i[0], 'is_file': True if i[2] else False, 'name': i[1]})  # id，文件标示, 文件名
             count += 1
             if max_len < len(i[1]):  # 使用最大文件名长度
@@ -973,6 +973,10 @@ class AboutDialog(QDialog):
     def __init__(self, parent=None):
         super(AboutDialog, self).__init__(parent)
         self._ver = ''
+        self._github = 'https://github.com/rachpt/lanzou-gui'
+        self._api_url = 'https://github.com/zaxtyson/LanZouCloud-API'
+        self._gitee = 'https://gitee.com/rachpt/lanzou-gui'
+        self._home_page = 'https://rachpt.cn/lanzou-gui/'
         self.initUI()
         self.setStyleSheet(others_style)
 
@@ -985,24 +989,23 @@ class AboutDialog(QDialog):
         self.lb_new_ver_msg = QLabel()
         self.lb_new_ver_msg.setOpenExternalLinks(True)
         self.lb_new_ver_msg.setWordWrap(True)
-        self.lb_name_text.setText(f"{self._ver}  ➡  {ver}")
+        if ver != '0':
+            self.lb_name_text.setText(f"{self._ver}  ➡  {ver}")
         self.lb_new_ver_msg.setText(msg)
+        self.lb_new_ver_msg.setMinimumWidth(700)
         if self.form.rowCount() < 5:
             self.form.insertRow(1, self.lb_new_ver, self.lb_new_ver_msg)
 
     def initUI(self):
-        about = '''
-本项目使用PyQt5实现图形界面，可以完成蓝奏云的大部分功能<br/>
-得益于 API 的功能，可以间接突破单文件最大 100MB 的限制，同时增加了批量上传/下载的功能<br/>
-Python 依赖见<a href="https://github.com/rachpt/lanzou-gui/blob/master/requirements.txt">requirements.txt</a>，
-<a href="https://github.com/rachpt/lanzou-gui/releases">releases</a> 有打包好了的 Windows 可执行程序，但可能不是最新的
-        '''
-        project_url = '<a href="https://rachpt.cn/lanzou-gui/">主页</a> | \
-            <a href="https://github.com/rachpt/lanzou-gui">repo</a> | \
-            <a href="https://gitee.com/rachpt/lanzou-gui">mirror repo</a>'
         self.setWindowTitle("关于 lanzou-gui")
+        about = f'本项目使用PyQt5实现图形界面，可以完成蓝奏云的大部分功能<br/> \
+    得益于 <a href="{self._api_url}">API</a> 的功能，可以间接突破单文件最大 100MB 的限制，同时增加了批量上传/下载的功能<br/> \
+Python 依赖见<a href="{self._github }/blob/master/requirements.txt">requirements.txt</a>，\
+<a href="{self._github}/releases">releases</a> 有打包好了的 Windows 可执行程序，但可能不是最新的'
+        project_url = f'<a href="{self._home_page}">主页</a> | <a href="{self._github}">repo</a> | \
+                        <a href="{self._gitee}">mirror repo</a>'
         self.logo = QLabel()  # logo
-        self.logo.setPixmap(QPixmap("./icon/logo2.gif"))
+        self.logo.setPixmap(QPixmap("./src/logo2.gif"))
         self.logo.setStyleSheet("background-color:rgb(255,255,255);")
         self.logo.setAlignment(Qt.AlignCenter)
         self.lb_name = QLabel("版本")  # 版本
@@ -1011,12 +1014,10 @@ Python 依赖见<a href="https://github.com/rachpt/lanzou-gui/blob/master/requir
         ver_style = "QPushButton {border:none; background:transparent;font-weight:bold;color:blue;}"
         self.lb_name_text.setStyleSheet(ver_style)
         self.lb_name_text.clicked.connect(lambda: self.check_update.emit(self._ver, True))
-
-
         self.lb_about = QLabel("关于")  # about
-        self.lb_about_text = QLabel()  # about
+        self.lb_about_text = QLabel()
         self.lb_about_text.setText(about)
-        self.lb_about_text.setFocusPolicy(Qt.NoFocus)
+        self.lb_about_text.setOpenExternalLinks(True)
         self.lb_author = QLabel("作者")  # author
         self.lb_author_mail = QLabel("<a href='mailto:rachpt@126.com'>rachpt</a>")
         self.lb_author_mail.setOpenExternalLinks(True)
@@ -1030,7 +1031,7 @@ Python 依赖见<a href="https://github.com/rachpt/lanzou-gui/blob/master/requir
         self.buttonBox.rejected.connect(self.reject)
         self.buttonBox.setStyleSheet(btn_style)
 
-        self.line = QLine(QPoint(), QPoint(200, 0))
+        self.line = QLine(QPoint(), QPoint(550, 0))
         self.lb_line = QLabel()
         self.lb_line.setText('<html><hr /></html>')
 
@@ -1048,7 +1049,19 @@ Python 依赖见<a href="https://github.com/rachpt/lanzou-gui/blob/master/requir
         vbox.addLayout(self.form)
         vbox.addStretch(1)
         vbox.addWidget(self.lb_line)
-        vbox.addWidget(self.buttonBox)
+        donate = QLabel()
+        donate.setText("<b>捐助我</b>&nbsp;&nbsp; <i>如果你愿意</i>")
+        donate.setAlignment(Qt.AlignCenter)
+        hbox = QHBoxLayout()
+        hbox.addStretch(2)
+        for it in ["wechat", "alipay", "qqpay"]:
+            lb = QLabel()
+            lb.setPixmap(QPixmap(f"./src/{it}.jpg"))
+            hbox.addWidget(lb)
+        hbox.addStretch(1)
+        hbox.addWidget(self.buttonBox)
+        vbox.addWidget(donate)
+        vbox.addLayout(hbox)
         self.setLayout(vbox)
         self.setMinimumWidth(720)
 
@@ -1135,7 +1148,7 @@ class SettingDialog(QDialog):
     def initUI(self):
         self.setWindowTitle("设置")
         logo = QLabel()  # logo
-        logo.setPixmap(QPixmap("./icon/logo2.gif"))
+        logo.setPixmap(QPixmap("./src/logo2.gif"))
         logo.setStyleSheet("background-color:rgb(255,255,255);")
         logo.setAlignment(Qt.AlignCenter)
         self.rar_tool_lb = QLabel("rar路径")  # rar路径
