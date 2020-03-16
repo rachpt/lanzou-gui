@@ -1122,12 +1122,9 @@ class SettingDialog(QDialog):
     def set_values(self, reset=False):
         """设置控件对应变量初始值"""
         settings = self._default_settings if reset else self.read_values()
-        self.rar_tool = settings["rar_tool"]
         self.download_threads = settings["download_threads"]
         self.max_size = settings["max_size"]
         self.timeout = settings["timeout"]
-        self.guise_suffix = settings["guise_suffix"]
-        self.rar_part_name = settings["rar_part_name"]
         self.dl_path = settings["dl_path"]
         self.time_fmt = settings["time_fmt"]
         self.to_tray = settings["to_tray"] if "to_tray" in settings else False
