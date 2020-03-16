@@ -121,11 +121,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         hide_action.setIcon(self.style().standardIcon(QStyle.SP_TitleBarMinButton))
         quit_action.setIcon(self.style().standardIcon(QStyle.SP_TitleBarCloseButton))
         self.tray.activated.connect(self.show)  #托盘点击事件
-        self.tray_menu = QMenu(QApplication.desktop())
-        self.tray_menu.addAction(show_action)
-        self.tray_menu.addAction(hide_action)
-        self.tray_menu.addAction(quit_action)
-        self.tray.setContextMenu(self.tray_menu)
+        tray_menu = QMenu(QApplication.desktop())
+        tray_menu.addAction(show_action)
+        tray_menu.addAction(hide_action)
+        tray_menu.addAction(quit_action)
+        self.tray.setContextMenu(tray_menu)
         self.tray.show()
 
     def init_menu(self):
