@@ -2,6 +2,7 @@
 
 import sys
 import os
+import re
 from pickle import dump, load
 
 from PyQt5.QtCore import Qt, QCoreApplication, QTimer, QUrl, QSize
@@ -108,6 +109,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.setStyleSheet(qssStyle)
         self.tabWidget.setStyleSheet("QTabBar{ background-color: #AEEEEE; }")
         self.check_update_worker.set_values(self.__version__, False)  # 检测新版
+        self.clipboard_listener()  # 系统粘贴板
 
         # 系统托盘
         self.tray = QSystemTrayIcon(QIcon('src/lanzou_logo2.png'), parent=self)
@@ -116,17 +118,28 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         quit_action = QAction("退出程序", self)
         show_action.triggered.connect(self.show)
         hide_action.triggered.connect(self.hide)
-        quit_action.triggered.connect(qApp.quit)
+        # quit_action.triggered.connect(qApp.quit)
+        quit_action.triggered.connect(self.Exit)
         show_action.setIcon(self.style().standardIcon(QStyle.SP_ComputerIcon))
         hide_action.setIcon(self.style().standardIcon(QStyle.SP_TitleBarMinButton))
         quit_action.setIcon(self.style().standardIcon(QStyle.SP_TitleBarCloseButton))
-        self.tray.activated.connect(self.show)  #托盘点击事件
+        self.tray.activated[QSystemTrayIcon.ActivationReason].connect(self.icon_activated)  #托盘点击事件
         tray_menu = QMenu(QApplication.desktop())
         tray_menu.addAction(show_action)
         tray_menu.addAction(hide_action)
         tray_menu.addAction(quit_action)
         self.tray.setContextMenu(tray_menu)
+        self.tray.setToolTip("双击隐藏")
         self.tray.show()
+
+    def icon_activated(self, reason):
+        if reason == QSystemTrayIcon.DoubleClick:
+            if self.isHidden():
+                self.show()
+                self.tray.setToolTip("双击隐藏")
+            else:
+                self.hide()
+                self.tray.setToolTip("双击显示")
 
     def init_menu(self):
         self.login.triggered.connect(self.show_login_dialog)  # 登录
@@ -163,14 +176,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def init_default_settings(self):
         """初始化默认设置"""
-        download_threads = 3   # 同时三个下载任务
-        max_size = 100         # 单个文件大小上限 MB
-        timeout = 5            # 每个请求的超时 s(不包含下载响应体的用时)
-        time_fmt = False       # 是否使用年月日时间格式
-        to_tray = False        # 关闭到系统托盘
+        download_threads = 3           # 同时三个下载任务
+        max_size = 100                 # 单个文件大小上限 MB
+        timeout = 5                    # 每个请求的超时 s(不包含下载响应体的用时)
+        time_fmt = False               # 是否使用年月日时间格式
+        to_tray = False                # 关闭到系统托盘
+        watch_clipboard = False        # 监听系统剪切板
         dl_path = os.path.dirname(os.path.abspath(__file__)) + os.sep + "downloads"
         self._default_settings = {"download_threads": download_threads, "max_size": max_size, "to_tray": to_tray,
-                                  "dl_path": dl_path, "timeout": timeout, "time_fmt": time_fmt}
+                                  "dl_path": dl_path, "timeout": timeout, "time_fmt": time_fmt, "watch_clipboard": watch_clipboard}
 
     def init_variables(self):
         self._disk = LanZouCloud()
@@ -193,6 +207,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.download_threads = self.configs["settings"]["download_threads"]
         self.time_fmt = self.configs["settings"]["time_fmt"]  # 时间显示格式
         self.to_tray = self.configs["settings"]["to_tray"] if "to_tray" in self.configs["settings"] else False
+        self.watch_clipboard = self.configs["settings"]["watch_clipboard"] if "watch_clipboard" in self.configs["settings"] else False
 
     def init_workers(self):
         # 登录器
@@ -269,7 +284,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 菜单栏关于
         self.about_dialog = AboutDialog()
         self.about_dialog.set_values(self.__version__)
-        
+
         # 菜单栏设置
         self.setting_dialog = SettingDialog(self._config_file, self._default_settings)
         self.setting_dialog.saved.connect(lambda: self.load_settings(ref_ui=True))
@@ -970,6 +985,32 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 QSystemTrayIcon.Information,
                 2500
             )
+
+    def Exit(self):
+        # 点击关闭按钮或者点击退出事件会出现图标无法消失的bug，需要手动将图标内存清除
+        self.tray = None
+        sys.exit(app.exec_())
+
+    def auto_extract_clipboard(self):
+        if not self.watch_clipboard:
+            return
+        text = self.clipboard.text()
+        pat = r"(https?://(www\.)?lanzous.com/[bi][a-z0-9]+)[^0-9a-z]*([a-z0-9]+)?"
+        for share_url, _, pwd in re.findall(pat, text):
+            if share_url and not self.get_shared_info_thread.isRunning():
+                self.line_share_url.setEnabled(False)
+                self.btn_extract.setEnabled(False)
+                txt = share_url + "提取码：" + pwd if pwd else share_url
+                self.line_share_url.setText(txt)
+                self.get_shared_info_thread.set_values(txt)
+                self.tabWidget.setCurrentIndex(0)
+                self.show()
+                break
+
+    def clipboard_listener(self):
+        """监听系统剪切板"""
+        self.clipboard = QApplication.clipboard()
+        self.clipboard.dataChanged.connect(self.auto_extract_clipboard)
 
 
 if __name__ == "__main__":

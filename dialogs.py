@@ -1091,6 +1091,7 @@ class SettingDialog(QDialog):
         self.dl_path = None
         self.time_fmt = False
         self.to_tary = False
+        self.watch_clipboard = False
         self.initUI()
         self.set_values()
         self.setStyleSheet(dialog_qss_style)
@@ -1118,6 +1119,7 @@ class SettingDialog(QDialog):
         self.dl_path_var.setText(str(self.dl_path))
         self.time_fmt_box.setChecked(self.time_fmt)
         self.to_tray_box.setChecked(self.to_tray)
+        self.watch_clipboard_box.setChecked(self.watch_clipboard)
 
     def set_values(self, reset=False):
         """设置控件对应变量初始值"""
@@ -1128,6 +1130,7 @@ class SettingDialog(QDialog):
         self.dl_path = settings["dl_path"]
         self.time_fmt = settings["time_fmt"]
         self.to_tray = settings["to_tray"] if "to_tray" in settings else False
+        self.watch_clipboard = settings["watch_clipboard"] if "watch_clipboard" in settings else False
         self.show_values()
 
     def get_values(self) -> dict:
@@ -1137,7 +1140,7 @@ class SettingDialog(QDialog):
         self.timeout = int(self.timeout_var.text())
         self.dl_path = str(self.dl_path_var.text())
         return {"download_threads": self.download_threads, "to_tray": self.to_tray,
-                "max_size": self.max_size, "dl_path": self.dl_path,
+                "max_size": self.max_size, "dl_path": self.dl_path, "watch_clipboard": self.watch_clipboard,
                 "timeout": self.timeout, "time_fmt": self.time_fmt}
 
     def initUI(self):
@@ -1166,9 +1169,11 @@ class SettingDialog(QDialog):
         self.dl_path_var.clicked.connect(self.set_download_path)
         self.time_fmt_box = QCheckBox("使用[年-月-日]时间格式")
         self.to_tray_box = QCheckBox("关闭到系统托盘")
+        self.watch_clipboard_box = QCheckBox("监听系统剪切板")
         self.time_fmt_box.toggle()
         self.time_fmt_box.stateChanged.connect(self.change_time_fmt)
         self.to_tray_box.stateChanged.connect(self.change_to_tray)
+        self.watch_clipboard_box.stateChanged.connect(self.change_watch_clipboard)
 
         buttonBox = QDialogButtonBox()
         buttonBox.setOrientation(Qt.Horizontal)
@@ -1196,6 +1201,7 @@ class SettingDialog(QDialog):
         hbox = QHBoxLayout()
         hbox.addWidget(self.time_fmt_box)
         hbox.addWidget(self.to_tray_box)
+        hbox.addWidget(self.watch_clipboard_box)
         vbox.addLayout(hbox)
         vbox.addStretch(1)
         vbox.addWidget(buttonBox)
@@ -1213,6 +1219,12 @@ class SettingDialog(QDialog):
             self.to_tray = True
         else:
             self.to_tray = False
+
+    def change_watch_clipboard(self, state):
+        if state == Qt.Checked:
+            self.watch_clipboard = True
+        else:
+            self.watch_clipboard = False
 
     def set_download_path(self):
         """设置下载路径"""
