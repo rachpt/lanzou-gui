@@ -1,13 +1,13 @@
 import os
 from pickle import dump, load
-from PyQt5.QtCore import Qt, pyqtSignal, QSize, QLine, QPoint
+from PyQt5.QtCore import Qt, pyqtSignal, QSize, QLine, QPoint, QTimer
 from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel, QPixmap, QLinearGradient, QFontMetrics, QPainter, QPen
 from PyQt5.QtWidgets import (QAbstractItemView, QPushButton, QFileDialog, QLineEdit, QDialog, QLabel, QFormLayout,
                              QTableView, QTextEdit, QGridLayout, QListView, QDialogButtonBox, QVBoxLayout, QHBoxLayout,
                              QComboBox, QCheckBox,  QSizePolicy, QMainWindow)
 
 
-def update_settings(config_file: str, up_info: dict, user: str=None, is_settings=False):
+def update_settings(config_file: str, up_info: dict, user: str=None, is_settings=False, action="noml"):
     """更新配置文件"""
     try:
         with open(config_file, "rb") as _file:
@@ -23,14 +23,17 @@ def update_settings(config_file: str, up_info: dict, user: str=None, is_settings
             except Exception:
                 _settings = {}
             _settings.update(up_info)
-            _info.update(_settings)
+            _info.update({"settings": _settings})
             _infos.update({user: _info, "choose": str(user)})
         else:
             try: _settings = _infos["settings"]
             except Exception:
                 _settings = {}
             _settings.update(up_info)
-            _infos.update(_settings)
+            _infos.update({"settings": _settings})
+    elif action == "del":
+        try: del _infos[user]
+        except: pass
     elif user:
         if user in _infos:
             _user_infos = _infos[user]
@@ -94,6 +97,25 @@ QTextEdit {
 dialog_qss_style = others_style + btn_style
 # https://thesmithfam.org/blog/2009/09/10/qt-stylesheets-tutorial/
 
+
+class QDoublePushButton(QPushButton):
+    """加入了双击事件的按钮"""
+    doubleClicked = pyqtSignal()
+    clicked = pyqtSignal()
+
+    def __init__(self, *args, **kwargs):
+        QPushButton.__init__(self, *args, **kwargs)
+        self.timer = QTimer()
+        self.timer.setSingleShot(True)
+        self.timer.timeout.connect(self.clicked.emit)
+        super().clicked.connect(self.checkDoubleClick)
+
+    def checkDoubleClick(self):
+        if self.timer.isActive():
+            self.doubleClicked.emit()
+            self.timer.stop()
+        else:
+            self.timer.start(250)
 
 class MyLineEdit(QLineEdit):
     """添加单击事件的输入框，用于设置下载路径"""
@@ -267,6 +289,7 @@ class LoginDialog(QDialog):
         self._config = config
         self._infos = {}
         self._user = ""
+        self._del_user = ""
         self._pwd = ""
         self._choose = ""
         self._cookie = {}
@@ -281,8 +304,7 @@ class LoginDialog(QDialog):
     def default_var(self):
         try:
             with open(self._config, "rb") as _file:
-                _infos = load(_file)
-            self._infos = _infos
+                self._infos = load(_file)
             self._choose = self._infos["choose"]
         except Exception:
             pass
@@ -352,15 +374,20 @@ class LoginDialog(QDialog):
         self.default_var()
 
         user_box = QHBoxLayout()
+        self.user_num = 0
+        self.user_btns = {}
         for user in self._infos.keys():
+            user = str(user)
             if user not in ["settings", "choose"]:
-                user_btn = QPushButton(str(user))
-                user_btn.setStyleSheet("QPushButton {border:none;}")
+                self.user_btns[user] = QDoublePushButton(user)
+                self.user_btns[user].setStyleSheet("QPushButton {border:none;}")
                 if user == self._choose:
-                    user_btn.setStyleSheet("QPushButton {background-color:rgb(0,153,2);}")
-                user_btn.setToolTip(f"点击切换至用户：{user}")
-                user_btn.clicked.connect(self.choose_user)
-                user_box.addWidget(user_btn)
+                    self.user_btns[user].setStyleSheet("QPushButton {background-color:rgb(0,153,2);}")
+                self.user_btns[user].setToolTip(f"点击选中，双击切换至用户：{user}")
+                self.user_btns[user].doubleClicked.connect(self.choose_user)
+                self.user_btns[user].clicked.connect(self.delete_chose_user)
+                user_box.addWidget(self.user_btns[user])
+                self.user_num += 1
             user_box.addStretch(1)
 
         vbox = QVBoxLayout()
@@ -370,12 +397,32 @@ class LoginDialog(QDialog):
             vbox.addWidget(lb_line_1)
             vbox.addLayout(user_box)
             vbox.addWidget(lb_line_2)
+            if self.user_num > 1:
+                self.del_user_btn = QPushButton("删除账户")
+                self.del_user_btn.setIcon(QIcon("src/delete.ico"))
+                self.del_user_btn.setStyleSheet("QPushButton {max-width: 180px;}")
+                self.del_user_btn.clicked.connect(self.call_del_chose_user)
+                vbox.addWidget(self.del_user_btn)
             vbox.addStretch(1)
         vbox.addLayout(self.form)
         vbox.addStretch(1)
         vbox.addLayout(hbox)
         self.setLayout(vbox)
         self.update_selection()
+
+    def call_del_chose_user(self):
+        if self._del_user:
+            self.user_num -= 1
+            update_settings(self._config, {}, str(self._del_user), action="del")
+            self.user_btns[str(self._del_user)].close()
+            self._del_user = ""
+            if self.user_num <= 1:
+                self.del_user_btn.close()
+
+    def delete_chose_user(self):
+        user = str(self.sender().text())
+        self._del_user = user
+        self.del_user_btn.setText(f"删除 <{user}>")
 
     def choose_user(self):
         user = str(self.sender().text())
@@ -1158,12 +1205,10 @@ class SettingDialog(QDialog):
         self.cwd = os.getcwd()
         self._config_file = config_file
         self._default_settings = default_settings
-        self.rar_tool = None
+        self._user = None
         self.download_threads = None
         self.max_size = None
         self.timeout = None
-        self.guise_suffix = None
-        self.rar_part_name = None
         self.dl_path = None
         self.time_fmt = False
         self.to_tary = False
@@ -1172,8 +1217,13 @@ class SettingDialog(QDialog):
         self.set_values()
         self.setStyleSheet(dialog_qss_style)
 
-    def open_dialog(self):
+    def open_dialog(self, user=None):
         """"打开前先更新一下显示界面"""
+        if user:
+            self._user = user
+            self.setWindowTitle(f"设置 <{user}>")
+        else:
+            self.setWindowTitle("设置")
         self.set_values()
         self.exec()
 
@@ -1182,7 +1232,10 @@ class SettingDialog(QDialog):
         try:
             with open(self._config_file, "rb") as _file:
                 configs = load(_file)
-            settings = configs["settings"]
+            if self._user:
+                settings = configs[self._user]["settings"]
+            else:
+                settings = configs["settings"]
         except Exception:
             settings = self._default_settings
         return settings
@@ -1313,7 +1366,7 @@ class SettingDialog(QDialog):
 
     def slot_save(self):
         """保存槽函数"""
-        update_settings(self._config_file, self.get_values(), is_settings=True)
+        update_settings(self._config_file, self.get_values(), self._user, is_settings=True)
         self.saved.emit()
         self.close()
 

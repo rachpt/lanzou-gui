@@ -169,7 +169,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.setting_menu.setText("设置")
         self.files.addAction(self.setting_menu)
         self.setting_menu.setIcon(QIcon("./src/settings.ico"))
-        self.setting_menu.triggered.connect(self.setting_dialog.open_dialog)
+        self.setting_menu.triggered.connect(lambda: self.setting_dialog.open_dialog(self._user))
         self.setting_menu.setShortcut("Ctrl+P")  # 设置快捷键
         # tab 切换时更新
         self.tabWidget.currentChanged.connect(self.call_change_tab)
@@ -189,6 +189,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def init_variables(self):
         self._disk = LanZouCloud()
         self._config_file = "./config.pkl"
+        self._user = None    # 当前登录用户名
         self._folder_list = {}
         self._file_list = {}
         self._path_list = FolderList()
@@ -327,8 +328,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         try:
             with open(self._config_file, "rb") as _file:
                 _configs = load(_file)
-                _choose = _configs["choose"]
-                self.configs = _configs[_choose]
+                self._user = _configs["choose"]
+                self.configs = _configs[self._user]
         except:
             self.configs = {"settings": self._default_settings}
             with open(self._config_file, "wb") as _file:

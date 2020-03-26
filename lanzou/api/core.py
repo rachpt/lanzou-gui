@@ -72,6 +72,7 @@ class LanZouCloud(object):
         return LanZouCloud.SUCCESS
 
     def login(self, username, passwd) -> int:
+        self._session.cookies.clear()
         """登录蓝奏云控制台"""
         login_data = {"action": "login", "task": "login", "setSessionId": "", "setToken": "", "setSig": "",
                       "setScene": "", "username": username, "password": passwd}
@@ -325,6 +326,9 @@ class LanZouCloud(object):
             else:
                 page += 1  # 下一页
             # 文件信息处理
+            if resp["zt"]  == 9:  # login not
+                print(resp)
+                break
             for file in resp["text"]:
                 file_list.append(File(
                     id=int(file['id']),
