@@ -984,6 +984,7 @@ class CheckUpdateWorker(QThread):
         self._is_work = False
         self._folder_id = None
         self._api = 'https://api.github.com/repos/rachpt/lanzou-gui/releases/latest'
+        self._api_mirror = 'https://gitee.com/api/v5/repos/rachpt/lanzou-gui/releases/latest'
 
     def set_values(self, ver: str, manual: bool=False):
         # 用于获取回收站指定文件夹内文件信息
@@ -1005,29 +1006,35 @@ class CheckUpdateWorker(QThread):
             self._is_work = True
             try:
                 resp = requests.get(self._api).json()
-                tag_name, msg = resp['tag_name'], resp['body']
-                update_url = resp['assets'][0]['browser_download_url'] if resp['assets'] else ''
-                ver = self._ver.replace('v', '').split('-')[0].split('.')
-                ver2 = tag_name.replace('v', '').split('.')
-                local_version = int(ver[0]) * 100 + int(ver[1]) * 10 + int(ver[2])
-                remote_version = int(ver2[0]) * 100 + int(ver2[1]) * 10 + int(ver2[2])
-                if remote_version > local_version:
-                    urls = re.findall(r'https?://[-\.a-zA-Z0-9/_#?&%@]+', msg)
-                    for url in urls:
-                        new_url = f'<a href="{url}">{url}</a>'
-                        msg = msg.replace(url, new_url)
-                    msg = msg.replace('\n', '<br />')
-                    self.infos.emit(tag_name, msg)
-                    if not self._manual:  # 打开软件时检测更新
-                        self.bg_update_infos.emit(tag_name, msg)
-                elif self._manual:
-                    self.infos.emit("0", "目前还没有发布新版本！")
-            except requests.exceptions.ConnectionError:
+            except (requests.RequestException, TimeoutError, requests.exceptions.ConnectionError):
+                try: resp = requests.get(self._api_mirror).json()
+                except: pass
+                # if self._manual:
+            if resp:
+                try:
+                    tag_name, msg = resp['tag_name'], resp['body']
+                    # update_url = resp['assets'][0]['browser_download_url'] if resp['assets'] else ''
+                    ver = self._ver.replace('v', '').split('-')[0].split('.')
+                    ver2 = tag_name.replace('v', '').split('.')
+                    local_version = int(ver[0]) * 100 + int(ver[1]) * 10 + int(ver[2])
+                    remote_version = int(ver2[0]) * 100 + int(ver2[1]) * 10 + int(ver2[2])
+                    if remote_version > local_version:
+                        urls = re.findall(r'https?://[-\.a-zA-Z0-9/_#?&%@]+', msg)
+                        for url in urls:
+                            new_url = f'<a href="{url}">{url}</a>'
+                            msg = msg.replace(url, new_url)
+                        msg = msg.replace('\n', '<br />')
+                        self.infos.emit(tag_name, msg)
+                        if not self._manual:  # 打开软件时检测更新
+                            self.bg_update_infos.emit(tag_name, msg)
+                    elif self._manual:
+                        self.infos.emit("0", "目前还没有发布新版本！")
+                except AttributeError:
+                    if self._manual:
+                        self.infos.emit("v0.0.0", "检查更新时发生异常，请重试！")
+            else:
                 if self._manual:
-                    self.infos.emit("v0.0.0", f"检查更新时 <a href='{self._api}'>api.github.com</a> 拒绝连接，请稍后重试！")
-            except (requests.RequestException, AttributeError, TimeoutError):
-                if self._manual:
-                    self.infos.emit("v0.0.0", "检查更新时发生异常，请重试！")
+                    self.infos.emit("v0.0.0", f"检查更新时 <a href='{self._api}'>api.github.com</a>、<a href='{self._api_mirror}'>gitee.com</a> 拒绝连接，请稍后重试！")
             self._manual = False
             self._is_work = False
             self._mutex.unlock()
