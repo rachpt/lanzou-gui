@@ -658,7 +658,7 @@ class LanZouCloud(object):
             need_delete = True
 
         # 文件已经存在同名文件就删除
-        filename = os.path.basename(file_path)
+        filename = name_format(os.path.basename(file_path))
         file_list = self.get_file_list(folder_id)
         if file_list.find_by_name(filename):
             self.delete(file_list.find_by_name(filename).id)
@@ -736,11 +736,11 @@ class LanZouCloud(object):
         if not os.path.isfile(file_path):
             return LanZouCloud.PATH_ERROR
 
-        # 单个文件不超过 100MB 时直接上传
+        # 单个文件不超过 max_size 直接上传
         if os.path.getsize(file_path) <= self._max_size * 1048576:
             return self._upload_small_file(file_path, folder_id, callback)
 
-        # 上传超过 100M 的文件
+        # 上传超过 max_size 的文件
         folder_name = os.path.basename(file_path).replace('.', '')  # 保存分段文件的文件夹名
         dir_id = self.mkdir(folder_id, folder_name, 'Big File')
         if dir_id == LanZouCloud.MKDIR_ERROR:
@@ -807,7 +807,7 @@ class LanZouCloud(object):
                         callback(info.name, total_size, now_size)
         # 尝试解析文件报尾
         file_info = un_serialize(last_512_bytes[-512:])
-        if file_info is not None:
+        if file_info is not None and 'padding' in file_info:  # 大文件的记录文件也可以反序列化出 name,但是没有 padding
             real_name = file_info['name']
             new_file_path = save_path + os.sep + real_name
             logger.debug(f"Find meta info: {real_name=}")
@@ -834,7 +834,7 @@ class LanZouCloud(object):
             html = requests.get(share_url, headers=self._headers).text
         except requests.RequestException:
             return FolderDetail(LanZouCloud.NETWORK_ERROR)
-        if '文件不存在' in html:
+        if "文件不存在" in html or "文件取消分享了" in html:
             return FolderDetail(LanZouCloud.FILE_CANCELLED)
         if '请输入密码' in html and len(dir_pwd) == 0:
             return FolderDetail(LanZouCloud.LACK_PASSWORD)
@@ -859,7 +859,7 @@ class LanZouCloud(object):
             try:
                 # 这里不用封装好的 post 函数是为了支持未登录的用户通过 URL 下载, 无密码时设置 pwd 字段也不影响
                 post_data = {'lx': lx, 'pg': page, 'k': k, 't': t, 'fid': folder_id, 'pwd': dir_pwd}
-                resp = requests.post(self._host_url + '/filemoreajax.php', data=post_data, headers=self._headers).json()
+                resp = self._post(self._host_url + '/filemoreajax.php', data=post_data, headers=self._headers).json()
             except requests.RequestException:
                 return FolderDetail(LanZouCloud.NETWORK_ERROR)
             if resp['zt'] == 1:  # 成功获取一页文件信息
@@ -1071,7 +1071,7 @@ class LanZouCloud(object):
         if r.status_code != requests.codes.OK:  # 可能有403状态码
             return {"code": LanZouCloud.NETWORK_ERROR, "info": r.status_code}
         html = remove_notes(r.text)
-        if "文件不存在" in html:
+        if "文件不存在" in html or "文件取消分享了" in html:
             return {"code": LanZouCloud.FILE_CANCELLED, "info": ""}
         lx = re.findall(r"'lx':'?(\d)'?,", html)[0]
         t = re.findall(r"var [0-9a-z]{6} = '(\d{10})';", html)[0]
