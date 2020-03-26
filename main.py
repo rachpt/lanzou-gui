@@ -8,7 +8,7 @@ from pickle import dump, load
 from PyQt5.QtCore import Qt, QCoreApplication, QTimer, QUrl, QSize
 from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel, QDesktopServices, QMovie
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QHeaderView, QMenu, QAction, QLabel,
-                             QPushButton, QFileDialog, QDesktopWidget, QMessageBox, QSystemTrayIcon, qApp, QStyle   )
+                             QPushButton, QFileDialog, QDesktopWidget, QMessageBox, QSystemTrayIcon, QStyle)
 
 from Ui_lanzou import Ui_MainWindow
 from lanzou.api import LanZouCloud
@@ -83,7 +83,7 @@ qssStyle = '''
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
-    __version__ = 'v0.1.0'
+    __version__ = 'v0.2.0'
     if not os.path.isdir("./src") or not os.path.isfile("./src/file.ico"):
         from src import release_src
 
@@ -118,7 +118,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         quit_action = QAction("退出程序", self)
         show_action.triggered.connect(self.show)
         hide_action.triggered.connect(self.hide)
-        # quit_action.triggered.connect(qApp.quit)
         quit_action.triggered.connect(self.Exit)
         show_action.setIcon(self.style().standardIcon(QStyle.SP_ComputerIcon))
         hide_action.setIcon(self.style().standardIcon(QStyle.SP_TitleBarMinButton))
@@ -129,17 +128,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         tray_menu.addAction(hide_action)
         tray_menu.addAction(quit_action)
         self.tray.setContextMenu(tray_menu)
-        self.tray.setToolTip("双击隐藏")
+        self.tray.setToolTip("蓝奏云客户端\n双击到托盘")
         self.tray.show()
 
     def icon_activated(self, reason):
         if reason == QSystemTrayIcon.DoubleClick:
             if self.isHidden():
                 self.show()
-                self.tray.setToolTip("双击隐藏")
+                self.tray.setToolTip("蓝奏云客户端\n双击到托盘")
             else:
                 self.hide()
-                self.tray.setToolTip("双击显示")
+                self.tray.setToolTip("蓝奏云客户端\n双击显示")
 
     def init_menu(self):
         self.login.triggered.connect(self.show_login_dialog)  # 登录
@@ -199,6 +198,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._work_name = ""  # share disk rec, not use now
         self._work_id = -1    # disk folder id
         self._old_work_id = self._work_id  # 用于上传完成后判断是否需要更新disk界面
+        self._show_to_tray_msg = True
         self.load_settings()
 
     def update_lanzoucloud_settings(self):
@@ -827,13 +827,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btn_rec_select_all.setIcon(QIcon("./src/select_all.ico"))
         self.btn_rec_select_all.clicked.connect(lambda: self.select_all_btn("reverse"))
         self.btn_rec_delete.clicked.connect(lambda: self.call_multi_manipulator("delete"))
+        self.btn_rec_delete.setIcon(QIcon("./src/delete.ico"))
         self.btn_recovery.clicked.connect(lambda: self.call_multi_manipulator("recovery"))
+        self.btn_recovery.setIcon(QIcon("./src/rec_folder.ico"))
         self.btn_rec_delete.setToolTip("彻底删除选中文件(夹)")
         self.btn_recovery.setToolTip("恢复选中文件(夹)")
         self.btn_recovery_all.clicked.connect(lambda: self.call_multi_manipulator("recovery_all"))
+        self.btn_recovery_all.setIcon(QIcon("./src/rec_folder.ico"))
         self.btn_recovery_all.setToolTip("恢复全部")
         self.btn_rec_clean.clicked.connect(lambda: self.call_multi_manipulator("clean"))
+        self.btn_rec_clean.setIcon(QIcon("./src/rec_bin.ico"))
         self.btn_rec_clean.setToolTip("清理回收站全部")
+        self.expire_files_btn.setToolTip("暂时无效！")
 
     # shared url
     def call_get_shared_info(self):
@@ -980,16 +985,22 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.to_tray:
             event.ignore()
             self.hide()
-            self.tray.showMessage(
-                "蓝奏云客户端",
-                "应用已经最小化到托盘，如需退出请右击",
-                QSystemTrayIcon.Information,
-                2500
-            )
+            if self._show_to_tray_msg:
+                self.tray.showMessage(
+                    "蓝奏云客户端",
+                    "已经最小化到托盘，退出请右击",
+                    QSystemTrayIcon.Information,
+                    2500
+                )
+                self._show_to_tray_msg = False  # 提示一次
+        else:
+            self.tray.hide()
+            del self.tray
 
     def Exit(self):
-        # 点击关闭按钮或者点击退出事件会出现图标无法消失的bug，需要手动将图标内存清除
-        self.tray = None
+        # 点击关闭按钮或者点击退出事件会出现图标无法消失的bug，那就先隐藏吧(｡･ω･｡)
+        self.tray.hide()
+        del self.tray
         sys.exit(app.exec_())
 
     def auto_extract_clipboard(self):
