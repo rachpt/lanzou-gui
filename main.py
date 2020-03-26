@@ -987,10 +987,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.hide()
             if self._show_to_tray_msg:
                 self.tray.showMessage(
-                    "蓝奏云客户端",
-                    "已经最小化到托盘，退出请右击",
+                    "已经最小化到托盘",
+                    "双击显示/隐藏窗口，退出请右击",
                     QSystemTrayIcon.Information,
-                    2500
+                    3000
                 )
                 self._show_to_tray_msg = False  # 提示一次
         else:
