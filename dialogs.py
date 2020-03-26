@@ -7,23 +7,41 @@ from PyQt5.QtWidgets import (QAbstractItemView, QPushButton, QFileDialog, QLineE
                              QComboBox, QCheckBox,  QSizePolicy, QMainWindow)
 
 
-def update_settings(config_file: str, up_info: dict, is_settings=False):
+def update_settings(config_file: str, up_info: dict, user: str=None, is_settings=False):
     """更新配置文件"""
     try:
         with open(config_file, "rb") as _file:
-            _info = load(_file)
+            _infos = load(_file)
     except Exception:
-        _info = {}
+        _infos = {}
     if is_settings:
-        try: _settings = _info["settings"]
-        except Exception:
-            _settings = {}
-        _settings.update(up_info)
-        _info.update(_settings)
+        if user:
+            try: _info = _infos[user]
+            except Exception:
+                _info = {}
+            try: _settings = _info["settings"]
+            except Exception:
+                _settings = {}
+            _settings.update(up_info)
+            _info.update(_settings)
+            _infos.update({user: _info, "choose": str(user)})
+        else:
+            try: _settings = _infos["settings"]
+            except Exception:
+                _settings = {}
+            _settings.update(up_info)
+            _infos.update(_settings)
+    elif user:
+        if user in _infos:
+            _user_infos = _infos[user]
+            _user_infos.update(up_info)
+        else:
+            _user_infos = up_info
+        _infos.update({user: _user_infos, "choose": str(user)})
     else:
-        _info.update(up_info)
+        _infos.update(up_info)
     with open(config_file, "wb") as _file:
-        dump(_info, _file)
+        dump(_infos, _file)
 
 def set_file_icon(name):
     suffix = name.split(".")[-1]
@@ -47,7 +65,6 @@ QPushButton {
     padding-left: 5px;
     padding-right: 5px;
     min-width: 70px;
-    max-width: 70px;
     min-height: 14px;
     max-height: 14px;
 }
@@ -248,8 +265,10 @@ class LoginDialog(QDialog):
     def __init__(self, config):
         super().__init__()
         self._config = config
+        self._infos = {}
         self._user = ""
         self._pwd = ""
+        self._choose = ""
         self._cookie = {}
         self.initUI()
         self.setStyleSheet(dialog_qss_style)
@@ -262,16 +281,22 @@ class LoginDialog(QDialog):
     def default_var(self):
         try:
             with open(self._config, "rb") as _file:
-                _info = load(_file)
+                _infos = load(_file)
+            self._infos = _infos
+            self._choose = self._infos["choose"]
+        except Exception:
+            pass
+
+    def update_selection(self):
+        if self._infos and "choose" in self._infos:
+            _info = self._infos[self._choose]
             self._user = _info["user"]
             self._pwd = _info["pwd"]
             self._cookie = _info["cookie"]
-        except Exception:
-            pass
         self.name_ed.setText(self._user)
         self.pwd_ed.setText(self._pwd)
         if self._cookie:
-            _text = str(";".join([str(k) +'='+ str(v) for k,v in self._cookie.items()]))
+            _text = str(";".join([str(k) +'='+ str(v) for k, v in self._cookie.items()]))
             self.cookie_ed.setPlainText(_text)
         else:
             self.cookie_ed.setPlainText("")
@@ -283,12 +308,12 @@ class LoginDialog(QDialog):
         logo.setPixmap(QPixmap("./src/logo3.gif"))
         logo.setStyleSheet("background-color:rgb(0,153,255);")
         logo.setAlignment(Qt.AlignCenter)
-        self.name_lb = QLabel("&User")
+        self.name_lb = QLabel("&U 用户")
         self.name_lb.setAlignment(Qt.AlignCenter)
         self.name_ed = QLineEdit()
         self.name_lb.setBuddy(self.name_ed)
 
-        self.pwd_lb = QLabel("&Password")
+        self.pwd_lb = QLabel("&P 密码")
         self.pwd_lb.setAlignment(Qt.AlignCenter)
         self.pwd_ed = QLineEdit()
         self.pwd_ed.setEchoMode(QLineEdit.Password)
@@ -296,8 +321,8 @@ class LoginDialog(QDialog):
 
         self.cookie_lb = QLabel("&Cookie")
         self.cookie_ed = QTextEdit()
-        notice = "如果由于滑动验证，无法使用用户名与密码登录，则需要输入cookie，自行使用浏览器获取，\n" \
-            "cookie会保持在本地，下次使用。其格式如下：\n\n key1=value1; key2=value2"
+        notice = "如果由于滑动验证，无法使用用户名与密码登录，则需要输入cookie，自行使用浏览器获取，\n" + \
+            "cookie会保存在本地，下次使用。其格式如下：\n key1=value1; key2=value2"
         self.cookie_ed.setPlaceholderText(notice)
         self.cookie_lb.setBuddy(self.cookie_ed)
 
@@ -309,6 +334,10 @@ class LoginDialog(QDialog):
         self.ok_btn.clicked.connect(self.change_ok_btn)
         self.cancel_btn = QPushButton("取消")
         self.cancel_btn.clicked.connect(self.change_cancel_btn)
+        lb_line_1 = QLabel()
+        lb_line_1.setText('<html><hr />切换用户</html>')
+        lb_line_2 = QLabel()
+        lb_line_2.setText('<html><hr /></html>')
 
         self.form = QFormLayout()
         self.form.setLabelAlignment(Qt.AlignRight)
@@ -320,23 +349,67 @@ class LoginDialog(QDialog):
         hbox.addStretch(1)
         hbox.addWidget(self.ok_btn)
         hbox.addWidget(self.cancel_btn)
+        self.default_var()
+
+        user_box = QHBoxLayout()
+        for user in self._infos.keys():
+            if user not in ["settings", "choose"]:
+                user_btn = QPushButton(str(user))
+                user_btn.setStyleSheet("QPushButton {border:none;}")
+                if user == self._choose:
+                    user_btn.setStyleSheet("QPushButton {background-color:rgb(0,153,2);}")
+                user_btn.setToolTip(f"点击切换至用户：{user}")
+                user_btn.clicked.connect(self.choose_user)
+                user_box.addWidget(user_btn)
+            user_box.addStretch(1)
+
         vbox = QVBoxLayout()
         vbox.addWidget(logo)
         vbox.addStretch(1)
+        if self._choose:
+            vbox.addWidget(lb_line_1)
+            vbox.addLayout(user_box)
+            vbox.addWidget(lb_line_2)
+            vbox.addStretch(1)
         vbox.addLayout(self.form)
         vbox.addStretch(1)
         vbox.addLayout(hbox)
         self.setLayout(vbox)
-        self.default_var()
+        self.update_selection()
+
+    def choose_user(self):
+        user = str(self.sender().text())
+        if user != self._choose:
+            self.ok_btn.setText("切换用户")
+        else:
+            self.ok_btn.setText("登录")
+        self._choose = user
+        self.update_selection()
 
     def change_show_input_cookie(self):
-        self.form.addRow(self.cookie_lb, self.cookie_ed)
-        pass
+        if self.form.rowCount() < 3:
+            self.form.addRow(self.cookie_lb, self.cookie_ed)
+            self.show_input_cookie_btn.setText("隐藏Cookie输入框")
+        else:
+            if self.cookie_ed.isVisible():
+                self.cookie_lb.setVisible(False)
+                self.cookie_ed.setVisible(False)
+                self.show_input_cookie_btn.setText("显示Cookie输入框")
+            else:
+                self.cookie_lb.setVisible(True)
+                self.cookie_ed.setVisible(True)
+                self.show_input_cookie_btn.setText("隐藏Cookie输入框")
 
     def set_user(self, user):
         self._user = user
+        if self._user not in self._infos:
+            self.ok_btn.setText("添加用户")
+        else:
+            self.ok_btn.setText("切换用户")
 
     def set_pwd(self, pwd):
+        if self._user in self._infos and pwd != self._infos[self._user]["pwd"]:
+            self._cookie = None
         self._pwd = pwd
 
     def set_cookie(self):
@@ -348,11 +421,14 @@ class LoginDialog(QDialog):
 
     def change_cancel_btn(self):
         self.default_var()
+        self.update_selection()
         self.close()
 
     def change_ok_btn(self):
+        if self._user and self._pwd and self._user not in self._infos:
+            self._cookie = None
         up_info = {"user": self._user, "pwd": self._pwd, "cookie": self._cookie}
-        update_settings(self._config, up_info)
+        update_settings(self._config, up_info, str(self._user))
         self.clicked_ok.emit()
         self.close()
 

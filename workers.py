@@ -317,7 +317,7 @@ class UploadWorker(QThread):
 class LoginLuncher(QThread):
     '''登录线程'''
     code = pyqtSignal(bool, str, int)
-    update_cookie = pyqtSignal(object)
+    update_cookie = pyqtSignal(object, str)
 
     def __init__(self, disk, parent=None):
         super(LoginLuncher, self).__init__(parent)
@@ -330,6 +330,7 @@ class LoginLuncher(QThread):
         self.username = username
         self.password = password
         self.cookie = cookie
+        self.start()
 
     def __del__(self):
         self.wait()
@@ -348,10 +349,10 @@ class LoginLuncher(QThread):
                 if res == LanZouCloud.SUCCESS:
                     self.code.emit(True, "<font color='#00CC00'>登录<b>成功</b>！ ≧◉◡◉≦</font>", 5000)
                     _cookie = self._disk.get_cookie()
-                    self.update_cookie.emit(_cookie)
+                    self.update_cookie.emit(_cookie, str(self.username))
                 else:
                     self.code.emit(False, "<font color='red'>登录失败，可能是用户名或密码错误！</font>", 8000)
-                    self.update_cookie.emit(None)
+                    self.update_cookie.emit(None, str(self.username))
         except TimeoutError:
             self.code.emit(False, "<font color='red'>网络超时！</font>", 3000)
 

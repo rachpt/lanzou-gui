@@ -326,9 +326,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """加载用户设置"""
         try:
             with open(self._config_file, "rb") as _file:
-                self.configs = load(_file)
+                _configs = load(_file)
+                _choose = _configs["choose"]
+                self.configs = _configs[_choose]
         except:
-            self.configs = {"user": "", "pwd": "", "cookie": "", "settings": self._default_settings}
+            self.configs = {"settings": self._default_settings}
             with open(self._config_file, "wb") as _file:
                 dump(self.configs, _file)
         # 兼容以前的平配置文件
@@ -456,15 +458,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             password = self.configs["pwd"]
             cookie = self.configs["cookie"]
             self.login_luncher.set_values(username, password, cookie)
-            self.login_luncher.start()
-        except Exception as exp:
-            print(exp)
+        except Exception:
             pass
 
-    def call_update_cookie(self, cookie):
+    def call_update_cookie(self, cookie, user):
         """更新cookie至config文件"""
         up_info = {"cookie": cookie}
-        update_settings(self._config_file, up_info)
+        update_settings(self._config_file, up_info, user=user)
 
     def show_file_and_folder_lists(self):
         """显示用户文件和文件夹列表"""
@@ -559,7 +559,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         table.setSelectionBehavior(QAbstractItemView.SelectRows)
         # 设置第二三列的宽度
         table.horizontalHeader().resizeSection(1, 90)
-        table.horizontalHeader().resizeSection(2, 80)
+        table.horizontalHeader().resizeSection(2, 84)
         # 设置第一列宽度自动调整，充满屏幕
         table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         if tab != "rec":
