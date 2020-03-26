@@ -106,6 +106,7 @@ class Ui_MainWindow(object):
         self.btn_rec_delete = QtWidgets.QPushButton(self.rec_tab)
         self.btn_rec_delete.setObjectName("btn_rec_delete")
         self.horizontalLayout_rec.addWidget(self.btn_rec_delete)
+        self.horizontalLayout_rec.addStretch(1)
         self.btn_rec_clean = QtWidgets.QPushButton(self.rec_tab)
         self.btn_rec_clean.setObjectName("btn_rec_clean")
         self.horizontalLayout_rec.addWidget(self.btn_rec_clean)
