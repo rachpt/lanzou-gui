@@ -349,7 +349,8 @@ class LanZouCloud(object):
         html = self._get(self._mydisk_url, params=para)
         if not html:
             return folder_list
-        info = re.findall(r'&nbsp;(.+?)</a>&nbsp;.+"folk(\d+)"(.*?)>.+#BBBBBB">\[?(.*?)\.*\]?</font>', html.text)
+        comp = re.compile(r'&nbsp;([^\n]+?)</a>&nbsp;[^\n]+"folk(\d+)"([^\n]*?)>[^\n]+#BBBBBB">\[?(.*?)?\]?</font>', re.DOTALL)
+        info = comp.findall(html.text)
         for folder_name, fid, pwd_flag, desc in info:
             folder_list.append(Folder(
                 id=int(fid),
