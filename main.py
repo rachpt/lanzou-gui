@@ -5,10 +5,11 @@ import os
 import re
 from pickle import dump, load
 
-from PyQt5.QtCore import Qt, QCoreApplication, QTimer, QUrl, QSize
-from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel, QDesktopServices, QMovie
+from PyQt5.QtCore import Qt, QCoreApplication, QTimer, QUrl, QSize, QRectF
+from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel, QDesktopServices, QMovie, QTextDocument, QAbstractTextDocumentLayout, QPalette
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QHeaderView, QMenu, QAction, QLabel,
-                             QPushButton, QFileDialog, QDesktopWidget, QMessageBox, QSystemTrayIcon, QStyle)
+                             QPushButton, QFileDialog, QDesktopWidget, QMessageBox, QSystemTrayIcon, QStyle,
+                             QStyledItemDelegate, QStyleOptionViewItem)
 
 from Ui_lanzou import Ui_MainWindow
 from lanzou.api import LanZouCloud
@@ -22,6 +23,56 @@ from workers import (DownloadManager, GetSharedInfo, UploadWorker, LoginLuncher,
 from dialogs import (update_settings, set_file_icon, btn_style, LoginDialog, UploadDialog, InfoDialog, RenameDialog, 
                      SettingDialog, RecFolderDialog, SetPwdDialog, MoveFileDialog, DeleteDialog, MyLineEdit,
                      AboutDialog)
+
+class ItemDelegate(QStyledItemDelegate):
+    def __init__(self, parent=None):
+        super(ItemDelegate, self).__init__(parent)
+        self.doc = QTextDocument(self)
+
+    def paint(self, painter, option, index):
+        painter.save()
+        options = QStyleOptionViewItem(option)
+        self.initStyleOption(options, index)
+        self.doc.setHtml(options.text)
+        options.text = ""
+        style = QApplication.style() if options.widget is None \
+            else options.widget.style()
+        style.drawControl(QStyle.CE_ItemViewItem, options, painter)
+
+        ctx = QAbstractTextDocumentLayout.PaintContext()
+
+        if option.state & QStyle.State_Selected:
+            ctx.palette.setColor(QPalette.Text, option.palette.color(
+                QPalette.Active, QPalette.HighlightedText))
+        else:
+            ctx.palette.setColor(QPalette.Text, option.palette.color(
+                QPalette.Active, QPalette.Text))
+
+        textRect = style.subElementRect(
+            QStyle.SE_ItemViewItemText, options)
+
+        if index.column() != 0:
+            textRect.adjust(5, 0, 0, 0)
+
+        thefuckyourshitup_constant = 0
+        margin = (option.rect.height() - options.fontMetrics.height()) // 2
+        margin = margin - thefuckyourshitup_constant
+        # textRect.setTop(textRect.top() + margin)
+        textRect.setTop(textRect.top())
+
+        painter.translate(textRect.topLeft())
+        painter.setClipRect(textRect.translated(-textRect.topLeft()))
+        self.doc.documentLayout().draw(painter, ctx)
+
+        painter.restore()
+
+    def sizeHint(self, option, index):
+        options = QStyleOptionViewItem(option)
+        self.initStyleOption(options, index)
+        self.doc.setHtml(options.text)
+        self.doc.setTextWidth(options.rect.width())
+
+        return QSize(self.doc.idealWidth(), self.doc.size().height())
 
 
 qssStyle = '''
@@ -481,10 +532,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # infos: ID/None，文件名，大小，日期，下载次数(dl_count)，提取码(pwd)，描述(desc)，|链接(share-url)，直链
         if self._work_id != -1:
             _back = QStandardItem(folder_ico, "..")
+            _back.setData(["..", ".."])
             _back.setToolTip("双击返回上层文件夹，选中无效")
             self.model_disk.appendRow([_back, QStandardItem(""), QStandardItem("")])
         for infos in self._folder_list.values():  # 文件夹
-            name = QStandardItem(folder_ico, infos[1])
+            name = QStandardItem()
+            name.setIcon(folder_ico)
+            txt = "<span style='float:left'>"+infos[1]
+            txt = txt+"</span> <span style='font-size:20px;color:blue;text-align:right;float:right'>"+infos[6]+"</span>" if infos[6] else txt
+            name.setText(txt)
             name.setData(infos)
             tips = ""
             if infos[5] is not False:
@@ -544,6 +600,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             table = self.table_rec
 
         model.setHorizontalHeaderLabels(["文件名", "大小", "时间"])
+        table.setItemDelegateForColumn(0, ItemDelegate())
         table.setModel(model)
         # 是否显示网格线
         table.setShowGrid(False)
@@ -675,7 +732,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def change_dir(self, dir_name):
         """双击切换工作目录"""
-        dir_name = self.model_disk.item(dir_name.row(), 0).text()  # 文件夹名
+        dir_name = self.model_disk.item(dir_name.row(), 0).data()[1]  # 文件夹名
         if dir_name == "..":  # 返回上级路径
             self.list_refresher.set_values(self._parent_id)
         elif dir_name in self._folder_list.keys():
@@ -701,7 +758,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         index = 1
         for item in iter(self._path_list):
             self._locs[index] = QPushButton(item.name, self.disk_tab)
-            self._locs[index].setToolTip(f"fid:{item.id}")
+            tip = f"fid:{item.id} | 描述:{item.desc}" if item.desc else f"fid:{item.id}"
+            self._locs[index].setToolTip(tip)
             self._locs[index].setIcon(QIcon("./src/folder.gif"))
             self._locs[index].setStyleSheet("QPushButton {border:none; background:transparent;}")
             self.disk_loc.insertWidget(index, self._locs[index])
