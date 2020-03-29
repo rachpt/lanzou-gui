@@ -342,41 +342,31 @@ class LanZouCloud(object):
                 ))
         return file_list
 
-    def get_dir_list(self, folder_id=-1) -> FolderList:
-        """获取子文件夹列表"""
+    def get_dir_list(self, folder_id=-1) -> (FolderList, FolderList):
+        """获取子文件夹列表与全路径"""
         folder_list = FolderList()
-        para = {'item': 'files', 'action': 'index', 'folder_node': 1, 'folder_id': folder_id}
-        html = self._get(self._mydisk_url, params=para)
-        if not html:
-            return folder_list
-        comp = re.compile(r'&nbsp;([^\n]+?)</a>&nbsp;[^\n]+"folk(\d+)"([^\n]*?)>[^\n]+#BBBBBB">\[?(.*?)?\]?</font>', re.DOTALL)
-        info = comp.findall(html.text)
-        for folder_name, fid, pwd_flag, desc in info:
-            folder_list.append(Folder(
-                id=int(fid),
-                name=folder_name.replace('&amp;', '&'),  # 修复网页中的 &amp; 为 &
-                has_pwd=True if pwd_flag else False,  # 有密码时 pwd_flag 值为 style="display:initial"
-                desc=desc  # 文件夹描述信息
-            ))
-        return folder_list
-
-    def get_full_path(self, folder_id=-1) -> FolderList:
-        """获取文件夹完整路径"""
         path_list = FolderList()
-        path_list.append(FolderId('LanZouCloud', -1))
-        html = self._get(self._mydisk_url, params={'item': 'files', 'action': 'index', 'folder_id': folder_id})
-        if not html:
-            return path_list
-        html = remove_notes(html.text)
-        path = re.findall(r'&raquo;&nbsp;.+?folder_id=(\d+)">.+?&nbsp;(.+?)</a>', html)
-        for fid, name in path:
-            path_list.append(FolderId(name, int(fid)))
-        # 获取当前文件夹名称
-        if folder_id != -1:
-            current_folder = re.search(r'align="(top|absmiddle)" />&nbsp;(.+?)\s<(span|font)', html).group(2).replace(
-                '&amp;', '&')
-            path_list.append(FolderId(current_folder, folder_id))
-        return path_list
+        path_list.append(FolderId('LanZouCloud', -1, '根目录', -1))
+        post_data = {'task': 47, 'folder_id': folder_id}
+        resp = self._post(self._doupload_url, post_data)
+        if resp:  # 网络异常，重试
+            resp = resp.json()
+            # if resp["zt"] == 1:  # 成功
+            for folder in resp["text"]:
+                folder_list.append(Folder(
+                    id=folder['fol_id'],
+                    name=folder['name'],
+                    has_pwd=True if int(folder['onof']) == 1 else False,  # 是否存在提取码
+                    desc=folder['folder_des'][1:-1]
+                ))
+            for folder in resp["info"]:
+                path_list.append(FolderId(
+                    name=folder['name'],
+                    id=folder['folderid'],
+                    desc=folder['folder_des'][1:-1],
+                    now=int(folder['now'])
+                ))
+        return folder_list, path_list
 
     def get_file_info_by_url(self, share_url, pwd='') -> FileDetail:
         """获取直链"""

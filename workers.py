@@ -467,12 +467,14 @@ class ListRefresher(QThread):
                     info = {i.name: [i.id, i.name, i.size, i.time, i.downs, i.has_pwd, i.has_des] for i in self._disk.get_file_list(self._fid)}
                     emit_infos['file_list'] = {key: info.get(key) for key in sorted(info.keys())}  # {name-[id,...]}
                 if self.r_folders:
-                    info = {i.name: [i.id, i.name,  "", "", "", i.has_pwd, i.desc] for i in self._disk.get_dir_list(self._fid)}
+                    folders, full_path = self._disk.get_dir_list(self._fid)
+                    info = {i.name: [i.id, i.name,  "", "", "", i.has_pwd, i.desc] for i in folders}
                     emit_infos['folder_list'] = {key: info.get(key) for key in sorted(info.keys())}  # {name-[id,...]}
-                emit_infos['path_list'] = self._disk.get_full_path(self._fid)
+                emit_infos['path_list'] = full_path
             except TimeoutError:
                 self.err_msg.emit("网络超时，无法更新目录，稍后再试！", 7000)
             else:
+                # print(emit_infos)
                 self.infos.emit(emit_infos)
             self._is_work = False
             self._mutex.unlock()
