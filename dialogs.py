@@ -722,6 +722,23 @@ class InfoDialog(QDialog):
         self.get_dl_link.emit(url, pwd)
         self.tx_dl_link.setPlaceholderText("后台获取中，请稍后！")
 
+    def call_get_short_url(self):
+        self.tx_short.setPlaceholderText("后台获取中，请稍后！")
+        url = self.tx_share_url.text()
+        from tools import get_short_url
+
+        short_url = get_short_url(url)
+        if short_url:
+            self.tx_short.setText(short_url)
+            self.tx_short.setPlaceholderText("")
+        else:
+            self.tx_short.setText("")
+            self.tx_short.setPlaceholderText("生成失败！")
+
+    def clean(self):
+        self.tx_short.setText("")
+        self.tx_short.setPlaceholderText("单击获取")
+
     def initUI(self):
         self.setWindowIcon(QIcon("./src/share.ico"))
         self.setWindowTitle("文件信息")
@@ -730,6 +747,7 @@ class InfoDialog(QDialog):
         self.buttonBox.setStandardButtons(QDialogButtonBox.Close)
         self.buttonBox.button(QDialogButtonBox.Close).setText("关闭")
         self.buttonBox.rejected.connect(self.reject)
+        self.buttonBox.rejected.connect(self.clean)
 
         self.logo = QLabel()
         self.logo.setPixmap(QPixmap("./src/q9.gif"))
@@ -763,6 +781,13 @@ class InfoDialog(QDialog):
         self.tx_pwd = QLineEdit()
         self.tx_pwd.setReadOnly(True)
 
+        self.lb_short = QLabel()
+        self.lb_short.setText("短链接：")
+        self.tx_short = AutoResizingTextEdit(self)
+        self.tx_short.setPlaceholderText("单击获取")
+        self.tx_short.clicked.connect(self.call_get_short_url)
+        self.tx_short.setReadOnly(True)
+
         self.lb_desc = QLabel()
         self.lb_desc.setText("文件描述：")
         self.tx_desc = AutoResizingTextEdit()
@@ -786,6 +811,7 @@ class InfoDialog(QDialog):
         form.addRow(self.lb_dl_count, self.tx_dl_count)
         form.addRow(self.lb_share_url, self.tx_share_url)
         form.addRow(self.lb_pwd, self.tx_pwd)
+        form.addRow(self.lb_short, self.tx_short)
         form.addRow(self.lb_desc, self.tx_desc)
         form.addRow(self.lb_dl_link, self.tx_dl_link)
         vbox.addLayout(form)
