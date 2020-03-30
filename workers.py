@@ -598,7 +598,7 @@ class GetAllFoldersWorker(QThread):
     '''获取所有文件夹name与fid，用于文件移动'''
     infos = pyqtSignal(object, object)
     msg = pyqtSignal(str, int)
-    moved = pyqtSignal()
+    moved = pyqtSignal(bool, bool, bool)
 
     def __init__(self, parent=None):
         super(GetAllFoldersWorker, self).__init__(parent)
@@ -617,7 +617,7 @@ class GetAllFoldersWorker(QThread):
 
     def move_file(self, info):
         '''移动文件至新的文件夹'''
-        self.move_infos = info # file_id, folder_id, f_name
+        self.move_infos = info # file_id, folder_id, f_name, type(size)
         self.start()
 
     def __del__(self):
@@ -628,21 +628,47 @@ class GetAllFoldersWorker(QThread):
         self._is_work = False
         self._mutex.unlock()
 
+    def move_file_folder(self, info:list, no_err:bool, r_files:bool, r_folders:bool):
+        """移动文件(夹)"""
+        # no_err 判断是否需要更新 UI
+        fid = int(info[0])
+        target_id = int(info[1])
+        fname = info[2]
+        is_file = True if info[3] else False
+        if is_file:  # 文件
+            if self._disk.move_file(fid, target_id) == LanZouCloud.SUCCESS:
+                self.msg.emit(f"{fname} 移动成功！", 3000)
+                no_err = True
+                r_files = True
+            else:
+                self.msg.emit(f"移动文件{fname}失败！", 4000)
+        else:  # 文件夹
+            if self._disk.move_folder(fid, target_id) == LanZouCloud.SUCCESS:
+                self.msg.emit(f"{fname} 移动成功！", 3000)
+                no_err = True
+                r_folders = True
+            else:
+                self.msg.emit(f"移动文件夹 {fname} 失败！移动的文件夹中不能包含子文件夹！", 4000)
+        return no_err, r_files, r_folders
+
     def run(self):
         if not self._is_work:
             self._mutex.lock()
             self._is_work = True
             if self.move_infos:  # 移动文件
+                no_err = False
+                r_files = False
+                r_folders = False
                 for info in self.move_infos:
                     try:
-                        if self._disk.move_file(info[0], info[1]) == LanZouCloud.SUCCESS:
-                            self.msg.emit(f"{info[2]} 移动成功！", 3000)
-                            sleep(2.1)  # 等一段时间后才更新文件列表
-                            self.moved.emit()
-                        else:
-                            self.msg.emit(f"移动文件{info[2]}失败！", 4000)
+                        no_err, r_files, r_folders = self.move_file_folder(info, no_err, r_files, r_folders)
                     except TimeoutError:
-                        self.msg.emit(f"移动文件{info[2]}失败，网络超时！请稍后重试", 5000)
+                        self.msg.emit(f"移动文件(夹) {info[2]} 失败，网络超时！请稍后重试", 5000)
+                    except:
+                        self.msg.emit(f"移动文件(夹) {info[2]} 失败，未知错误！", 5000)
+                if no_err:  # 没有错误就更新ui
+                    sleep(2.1)  # 等一段时间后才更新文件列表
+                    self.moved.emit(r_files, r_folders, False)
             else:  # 获取所有文件夹
                 try:
                     self.msg.emit("网络请求中，请稍后……", 0)

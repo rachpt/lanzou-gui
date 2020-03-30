@@ -1010,13 +1010,10 @@ class MoveFileDialog(QDialog):
         self.setStyleSheet(dialog_qss_style)
 
     def initUI(self):
-        for i in self.infos:
-            if not i[2]:  # 非文件
-                self.infos.remove(i)
-        self.setWindowTitle("移动文件")
+        self.setWindowTitle("移动文件(夹)")
         self.setWindowIcon(QIcon("./src/move.ico"))
         self.lb_name = QLabel()
-        self.lb_name.setText("文件路径：")
+        self.lb_name.setText("文件(夹)名：")
         self.lb_name.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
         self.tx_name = QLineEdit()
         names = " | ".join([i[1] for i in self.infos])
@@ -1059,7 +1056,8 @@ class MoveFileDialog(QDialog):
 
     def btn_ok(self):
         selected = self.tx_new_path.currentText().split("，")[0].split("：")[1]
-        self.new_infos.emit([(info[0], selected, info[1]) for info in self.infos])
+        # file_id, folder_id, f_name, type(size)
+        self.new_infos.emit([(info[0], selected, info[1], info[2]) for info in self.infos])
 
 
 class DeleteDialog(QDialog):

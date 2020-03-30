@@ -130,7 +130,7 @@ class TableDelegate(QStyledItemDelegate):
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
-    __version__ = 'v0.2.1'
+    __version__ = 'v0.2.2'
     if not os.path.isdir("./src") or not os.path.isfile("./src/file.ico"):
         from src import release_src
 
@@ -299,7 +299,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.all_folders_worker = GetAllFoldersWorker()
         self.all_folders_worker.msg.connect(self.show_status)
         self.all_folders_worker.infos.connect(self.show_move_file_dialog)
-        self.all_folders_worker.moved.connect(lambda: self.list_refresher.set_values(self._work_id, True, False, False)) # 更新文件列表
+        self.all_folders_worker.moved.connect(self.on_moved) # 更新文件列表
         # 重命名、修改简介、新建文件夹
         self.rename_mkdir_worker = RenameMkdirWorker()
         self.rename_mkdir_worker.msg.connect(self.show_status)
@@ -600,7 +600,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self._file_list = infos['file_list']
         if infos['r']['folders']:
             self._folder_list = infos['folder_list']
-        self._path_list = infos['path_list']
+            self._path_list = infos['path_list']
 
         self._work_id = self._path_list[-1].id
         if infos['r']['fid'] != -1:
@@ -664,6 +664,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def set_passwd(self, infos):
         """设置文件(夹)提取码"""
         self.set_pwd_worker.set_values(self._disk, infos, self._work_id)
+    
+    def on_moved(self, r_files=True, r_folders=True, r_path=True):
+        """移动文件(夹)后更新界面槽函数"""
+        self.list_refresher.set_values(self._work_id, r_files, r_folders, r_path)
 
     def call_mkdir(self):
         """弹出新建文件夹对话框"""
@@ -705,13 +709,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if info[0]:
             self.left_menu_rename_set_desc.setEnabled(True)
             self.left_menu_set_pwd.setEnabled(True)
+            self.left_menu_move.setEnabled(True)
             # 通过infos第3个字段 size 判断是否为文件夹，文件夹不能移动，设置不同的显示菜单名
             if info[2]:
                 self.left_menu_rename_set_desc.setText("修改文件描述")
                 self.left_menu_move.setEnabled(True)
             else:
                 self.left_menu_rename_set_desc.setText("修改文件夹名与描述")
-                self.left_menu_move.setDisabled(True)
+                # self.left_menu_move.setDisabled(True)
         else:
             self.left_menu_rename_set_desc.setDisabled(True)
             self.left_menu_move.setDisabled(True)
