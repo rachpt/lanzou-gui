@@ -6,7 +6,8 @@ import re
 from pickle import dump, load
 
 from PyQt5.QtCore import Qt, QCoreApplication, QTimer, QUrl, QSize, QRectF
-from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel, QDesktopServices, QMovie, QTextDocument, QAbstractTextDocumentLayout, QPalette
+from PyQt5.QtGui import (QIcon, QStandardItem, QStandardItemModel, QDesktopServices, QMovie, QTextDocument,
+                         QAbstractTextDocumentLayout, QPalette)
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QHeaderView, QMenu, QAction, QLabel,
                              QPushButton, QFileDialog, QDesktopWidget, QMessageBox, QSystemTrayIcon, QStyle,
                              QStyledItemDelegate, QStyleOptionViewItem)
@@ -23,56 +24,6 @@ from workers import (DownloadManager, GetSharedInfo, UploadWorker, LoginLuncher,
 from dialogs import (update_settings, set_file_icon, btn_style, LoginDialog, UploadDialog, InfoDialog, RenameDialog, 
                      SettingDialog, RecFolderDialog, SetPwdDialog, MoveFileDialog, DeleteDialog, MyLineEdit,
                      AboutDialog)
-
-class ItemDelegate(QStyledItemDelegate):
-    def __init__(self, parent=None):
-        super(ItemDelegate, self).__init__(parent)
-        self.doc = QTextDocument(self)
-
-    def paint(self, painter, option, index):
-        painter.save()
-        options = QStyleOptionViewItem(option)
-        self.initStyleOption(options, index)
-        self.doc.setHtml(options.text)
-        options.text = ""
-        style = QApplication.style() if options.widget is None \
-            else options.widget.style()
-        style.drawControl(QStyle.CE_ItemViewItem, options, painter)
-
-        ctx = QAbstractTextDocumentLayout.PaintContext()
-
-        if option.state & QStyle.State_Selected:
-            ctx.palette.setColor(QPalette.Text, option.palette.color(
-                QPalette.Active, QPalette.HighlightedText))
-        else:
-            ctx.palette.setColor(QPalette.Text, option.palette.color(
-                QPalette.Active, QPalette.Text))
-
-        textRect = style.subElementRect(
-            QStyle.SE_ItemViewItemText, options)
-
-        if index.column() != 0:
-            textRect.adjust(5, 0, 0, 0)
-
-        thefuckyourshitup_constant = 0
-        margin = (option.rect.height() - options.fontMetrics.height()) // 2
-        margin = margin - thefuckyourshitup_constant
-        # textRect.setTop(textRect.top() + margin)
-        textRect.setTop(textRect.top())
-
-        painter.translate(textRect.topLeft())
-        painter.setClipRect(textRect.translated(-textRect.topLeft()))
-        self.doc.documentLayout().draw(painter, ctx)
-
-        painter.restore()
-
-    def sizeHint(self, option, index):
-        options = QStyleOptionViewItem(option)
-        self.initStyleOption(options, index)
-        self.doc.setHtml(options.text)
-        self.doc.setTextWidth(options.rect.width())
-
-        return QSize(self.doc.idealWidth(), self.doc.size().height())
 
 
 qssStyle = '''
@@ -133,8 +84,53 @@ qssStyle = '''
 '''
 
 
+class TableDelegate(QStyledItemDelegate):
+    """Table 富文本"""
+    def __init__(self, parent=None):
+        super(TableDelegate, self).__init__(parent)
+        self.doc = QTextDocument(self)
+
+    def paint(self, painter, option, index):
+        painter.save()
+        options = QStyleOptionViewItem(option)
+        self.initStyleOption(options, index)
+        self.doc.setHtml(options.text)
+        options.text = ""  # 原字符
+        style = QApplication.style() if options.widget is None else options.widget.style()
+        style.drawControl(QStyle.CE_ItemViewItem, options, painter)
+
+        ctx = QAbstractTextDocumentLayout.PaintContext()
+
+        if option.state & QStyle.State_Selected:
+            ctx.palette.setColor(QPalette.Text, option.palette.color(
+                QPalette.Active, QPalette.HighlightedText))
+        else:
+            ctx.palette.setColor(QPalette.Text, option.palette.color(
+                QPalette.Active, QPalette.Text))
+
+        text_rect = style.subElementRect(QStyle.SE_ItemViewItemText, options)
+
+        the_fuck_your_shit_up_constant = 3  # ￣へ￣ #
+        margin = (option.rect.height() - options.fontMetrics.height()) // 2
+        margin = margin - the_fuck_your_shit_up_constant
+        text_rect.setTop(text_rect.top() + margin)
+
+        painter.translate(text_rect.topLeft())
+        painter.setClipRect(text_rect.translated(-text_rect.topLeft()))
+        self.doc.documentLayout().draw(painter, ctx)
+
+        painter.restore()
+
+    def sizeHint(self, option, index):
+        options = QStyleOptionViewItem(option)
+        self.initStyleOption(options, index)
+        self.doc.setHtml(options.text)
+        self.doc.setTextWidth(options.rect.width())
+        return QSize(self.doc.idealWidth(), self.doc.size().height())
+
+
 class MainWindow(QMainWindow, Ui_MainWindow):
-    __version__ = 'v0.2.0'
+    __version__ = 'v0.2.1'
     if not os.path.isdir("./src") or not os.path.isfile("./src/file.ico"):
         from src import release_src
 
@@ -162,34 +158,39 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.check_update_worker.set_values(self.__version__, False)  # 检测新版
         self.clipboard_listener()  # 系统粘贴板
 
-        # 系统托盘
-        self.tray = QSystemTrayIcon(QIcon('src/lanzou_logo2.png'), parent=self)
-        show_action = QAction("显示窗口", self)
-        hide_action = QAction("最小化到托盘", self)
-        quit_action = QAction("退出程序", self)
-        show_action.triggered.connect(self.show)
-        hide_action.triggered.connect(self.hide)
-        quit_action.triggered.connect(self.Exit)
-        show_action.setIcon(self.style().standardIcon(QStyle.SP_ComputerIcon))
-        hide_action.setIcon(self.style().standardIcon(QStyle.SP_TitleBarMinButton))
-        quit_action.setIcon(self.style().standardIcon(QStyle.SP_TitleBarCloseButton))
-        self.tray.activated[QSystemTrayIcon.ActivationReason].connect(self.icon_activated)  #托盘点击事件
-        tray_menu = QMenu(QApplication.desktop())
-        tray_menu.addAction(show_action)
-        tray_menu.addAction(hide_action)
-        tray_menu.addAction(quit_action)
-        self.tray.setContextMenu(tray_menu)
-        self.tray.setToolTip("蓝奏云客户端\n双击到托盘")
-        self.tray.show()
+    def create_tray(self):
+        """创建 系统托盘"""
+        if not self._created_tray:
+            self.tray = QSystemTrayIcon(QIcon('src/lanzou_logo2.png'), parent=self)
+            show_action = QAction("显示窗口", self)
+            hide_action = QAction("最小化到托盘", self)
+            quit_action = QAction("退出程序", self)
+            show_action.triggered.connect(self.show)
+            hide_action.triggered.connect(self.hide)
+            quit_action.triggered.connect(self.Exit)
+            show_action.setIcon(self.style().standardIcon(QStyle.SP_ComputerIcon))
+            hide_action.setIcon(self.style().standardIcon(QStyle.SP_TitleBarMinButton))
+            quit_action.setIcon(self.style().standardIcon(QStyle.SP_TitleBarCloseButton))
+            self.tray.activated[QSystemTrayIcon.ActivationReason].connect(self.icon_activated)  #托盘点击事件
+            tray_menu = QMenu(QApplication.desktop())
+            tray_menu.addAction(show_action)
+            tray_menu.addAction(hide_action)
+            tray_menu.addAction(quit_action)
+            self.tray.setContextMenu(tray_menu)
+            tip_title = f"蓝奏云客户端 <{self._user}>" if self._user else "蓝奏云客户端"
+            self.tray.setToolTip(f"{tip_title}\n双击到托盘")
+            self.tray.show()
+            self._created_tray = True
 
     def icon_activated(self, reason):
         if reason == QSystemTrayIcon.DoubleClick:
+            tip_title = f"蓝奏云客户端 <{self._user}>" if self._user else "蓝奏云客户端"
             if self.isHidden():
                 self.show()
-                self.tray.setToolTip("蓝奏云客户端\n双击到托盘")
+                self.tray.setToolTip(f"{tip_title}\n双击到托盘")
             else:
                 self.hide()
-                self.tray.setToolTip("蓝奏云客户端\n双击显示")
+                self.tray.setToolTip(f"{tip_title}\n双击显示")
 
     def init_menu(self):
         self.login.triggered.connect(self.show_login_dialog)  # 登录
@@ -250,6 +251,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._work_id = -1    # disk folder id
         self._old_work_id = self._work_id  # 用于上传完成后判断是否需要更新disk界面
         self._show_to_tray_msg = True
+        self._created_tray = False
         self.load_settings()
 
     def update_lanzoucloud_settings(self):
@@ -260,6 +262,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.time_fmt = self.configs["settings"]["time_fmt"]  # 时间显示格式
         self.to_tray = self.configs["settings"]["to_tray"] if "to_tray" in self.configs["settings"] else False
         self.watch_clipboard = self.configs["settings"]["watch_clipboard"] if "watch_clipboard" in self.configs["settings"] else False
+        if self.to_tray:
+            self.create_tray()
+        elif self._created_tray:
+            self.tray.hide()
+            del self.tray
+            self._created_tray = False
 
     def init_workers(self):
         # 登录器
@@ -466,6 +474,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.toolbar.removeAction(self.upload)  # 上传文件工具栏
         self.upload.setEnabled(False)
         self.upload.triggered.disconnect(self.show_upload_dialog_menus)
+        self._user = None
 
     def login_update_ui(self, success, msg, duration):
         """根据登录是否成功更新UI"""
@@ -473,6 +482,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.show_status(msg, duration)
             self.tabWidget.insertTab(1, self.disk_tab, "我的蓝奏云")
             self.tabWidget.insertTab(2, self.rec_tab, "回收站")
+            if self._user:
+                self.tabWidget.setToolTip(f"当前登录用户：{self._user}")
+            else:
+                self.tabWidget.setToolTip("")
             self.disk_tab.setEnabled(True)
             self.rec_tab.setEnabled(True)
             # 更新快捷键与工具栏
@@ -523,13 +536,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.model_disk.removeRows(0, self.model_disk.rowCount())  # 清理旧的内容
         file_count = len(self._file_list.keys())
         folder_count = len(self._folder_list.keys())
-        name_header = ["文件夹{}个".format(folder_count), ] if folder_count else []
+        name_header = [f"文件夹{folder_count}个"] if folder_count else []
         if file_count:
-            name_header.append("文件{}个".format(file_count))
+            name_header.append(f"文件{file_count}个")
         self.model_disk.setHorizontalHeaderLabels(["/".join(name_header), "大小", "时间"])
         folder_ico = QIcon("./src/folder.gif")
-        pwd_ico = QIcon("./src/keys.ico")
-        # infos: ID/None，文件名，大小，日期，下载次数(dl_count)，提取码(pwd)，描述(desc)，|链接(share-url)，直链
+        desc_style = ' <span style="font-size:14px;color:blue;text-align:right">'
+        pwd_ico = ' <img src="./src/keys.ico" width="14" height="14" />'
+        dl_count_style = ' <span style="font-size:14px;color:red;text-align:right">'
+        # infos: ID/None，文件名，大小，日期，下载次数(dl_count)，提取码(pwd)，描述(desc)，|链接(share-url)
         if self._work_id != -1:
             _back = QStandardItem(folder_ico, "..")
             _back.setData(["..", ".."])
@@ -538,8 +553,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         for infos in self._folder_list.values():  # 文件夹
             name = QStandardItem()
             name.setIcon(folder_ico)
-            txt = "<span style='float:left'>"+infos[1]
-            txt = txt+"</span> <span style='font-size:20px;color:blue;text-align:right;float:right'>"+infos[6]+"</span>" if infos[6] else txt
+            txt = infos[1] + desc_style + infos[6] + "</span>" if infos[6] else infos[1]
+            if infos[5]:
+                txt = txt + pwd_ico
             name.setText(txt)
             name.setData(infos)
             tips = ""
@@ -550,10 +566,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             elif infos[6] is not False:
                 tips = "描述：" + str(infos[6])
             name.setToolTip(tips)
-            size_ = QStandardItem(pwd_ico, "") if infos[5] else QStandardItem("")  # 提取码+size
+            size_ = QStandardItem("")  # size
             self.model_disk.appendRow([name, size_, QStandardItem("")])
         for infos in self._file_list.values():  # 文件
             name = QStandardItem(set_file_icon(infos[1]), infos[1])
+            txt = infos[1] + desc_style + "有描述" + "</span>" if infos[6] else infos[1]
+            if infos[5]:
+                txt = txt + pwd_ico
+            if infos[4]:
+                txt = txt + dl_count_style + str(infos[4]) + "</span>"
+            name.setText(txt)
             name.setData(infos)
             tips = ""
             if infos[5] is not False:
@@ -563,7 +585,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             elif infos[6] is not False:
                 tips = "描述：" + str(infos[6])
             name.setToolTip(tips)
-            size_ = QStandardItem(pwd_ico, infos[2]) if infos[5] else QStandardItem(infos[2])  # 提取码+size
+            size_ = QStandardItem(infos[2])  # size
             time_ = QStandardItem(time_format(infos[3])) if self.time_fmt else QStandardItem(infos[3])
             self.model_disk.appendRow([name, size_, time_])
         for row in range(self.model_disk.rowCount()):  # 右对齐
@@ -600,7 +622,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             table = self.table_rec
 
         model.setHorizontalHeaderLabels(["文件名", "大小", "时间"])
-        table.setItemDelegateForColumn(0, ItemDelegate())
+        table.setItemDelegateForColumn(0, TableDelegate())  # table 支持富文本
         table.setModel(model)
         # 是否显示网格线
         table.setShowGrid(False)
@@ -616,7 +638,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 设置 不可选择单个单元格，只可选择一行。
         table.setSelectionBehavior(QAbstractItemView.SelectRows)
         # 设置第二三列的宽度
-        table.horizontalHeader().resizeSection(1, 90)
+        table.horizontalHeader().resizeSection(1, 64)
         table.horizontalHeader().resizeSection(2, 84)
         # 设置第一列宽度自动调整，充满屏幕
         table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
@@ -1051,9 +1073,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     3000
                 )
                 self._show_to_tray_msg = False  # 提示一次
-        else:
-            self.tray.hide()
-            del self.tray
 
     def Exit(self):
         # 点击关闭按钮或者点击退出事件会出现图标无法消失的bug，那就先隐藏吧(｡･ω･｡)
