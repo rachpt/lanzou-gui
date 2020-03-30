@@ -647,6 +647,7 @@ class InfoDialog(QDialog):
     """文件信息对话框"""
 
     get_dl_link = pyqtSignal(str, str)
+    closed = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -748,6 +749,7 @@ class InfoDialog(QDialog):
         self.buttonBox.button(QDialogButtonBox.Close).setText("关闭")
         self.buttonBox.rejected.connect(self.reject)
         self.buttonBox.rejected.connect(self.clean)
+        self.buttonBox.rejected.connect(self.closed.emit)
 
         self.logo = QLabel()
         self.logo.setPixmap(QPixmap("./src/q9.gif"))
