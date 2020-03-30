@@ -287,9 +287,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.info_dialog.setWindowModality(Qt.ApplicationModal)  # 窗口前置
         self.more_info_worker = GetMoreInfoWorker()  # 后台更新线程
         self.more_info_worker.msg.connect(self.show_status)
+        self.more_info_worker.infos.connect(lambda: self.pause_extract_clipboard(True))  # 禁用剪切板监听
         self.more_info_worker.infos.connect(self.info_dialog.set_values)
         self.more_info_worker.dl_link.connect(self.info_dialog.tx_dl_link.setText)
         self.info_dialog.get_dl_link.connect(self.more_info_worker.get_dl_link)
+        self.info_dialog.closed.connect(lambda: self.pause_extract_clipboard(False))  # 恢复剪切板监听
         # 登录文件列表更新器
         self.list_refresher = ListRefresher(self._disk)
         self.list_refresher.err_msg.connect(self.show_status)
@@ -1085,6 +1087,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         del self.tray
         sys.exit(app.exec_())
 
+    def pause_extract_clipboard(self, show=False):
+        """登录文件界面屏蔽剪切板监听功能"""
+        if show:
+            self._watch_clipboard_old = self.watch_clipboard
+            self.watch_clipboard = False
+        else:
+            self.watch_clipboard = self._watch_clipboard_old
+
     def auto_extract_clipboard(self):
         if not self.watch_clipboard:
             return
@@ -1098,6 +1108,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.line_share_url.setText(txt)
                 self.get_shared_info_thread.set_values(txt)
                 self.tabWidget.setCurrentIndex(0)
+                self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)  # 窗口最前
+                self.show()
+                self.setWindowFlags(Qt.WindowCloseButtonHint | Qt.WindowMinMaxButtonsHint)  # 窗口恢复
                 self.show()
                 break
 
