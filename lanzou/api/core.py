@@ -506,7 +506,7 @@ class LanZouCloud(object):
         """创建文件夹(同时设置描述)"""
         folder_name = folder_name.replace(' ', '_')  # 文件夹名称不能包含空格
         folder_name = name_format(folder_name)  # 去除非法字符
-        folder_list = self.get_dir_list(parent_id)
+        folder_list, _ = self.get_dir_list(parent_id)
         if folder_list.find_by_name(folder_name):  # 如果文件夹已经存在，直接返回 id
             return folder_list.find_by_name(folder_name).id
         raw_folders = self.get_move_folders()
@@ -570,13 +570,13 @@ class LanZouCloud(object):
         """获取全部文件夹 id-name 列表，用于移动文件至新的文件夹"""
         # 这里 file_id 可以为任意值,不会对结果产生影响
         result = FolderList()
-        result.append(FolderId(name='LanZouCloud', id=-1))
+        result.append(FolderId(name='LanZouCloud', id=-1, desc="", now=""))
         resp = self._post(self._doupload_url, data={"task": 19, "file_id": -1})
         if not resp or resp.json()['zt'] != 1:  # 获取失败或者网络异常
             return result
         for folder in resp.json()['info']:
             folder_id, folder_name = int(folder['folder_id']), folder['folder_name']
-            result.append(FolderId(folder_name, folder_id))
+            result.append(FolderId(folder_name, folder_id, "", ""))
         return result
 
     def get_move_paths(self) -> List[FolderList]:
@@ -606,7 +606,7 @@ class LanZouCloud(object):
             return LanZouCloud.NETWORK_ERROR
         return LanZouCloud.SUCCESS if result.json()['zt'] == 1 else LanZouCloud.FAILED
 
-    def move_folder(self, folder_id, parent_folder_id=-1) -> int:
+    def move_folder(self, folder_id: int, parent_folder_id: int=-1) -> int:
         """移动文件夹(官方并没有直接支持此功能)"""
         if folder_id == parent_folder_id or parent_folder_id < -1:
             return LanZouCloud.FAILED  # 禁止移动文件夹到自身，禁止移动到 -2 这样的文件夹(文件还在,但是从此不可见)
@@ -616,7 +616,8 @@ class LanZouCloud(object):
             logger.debug(f"Not found folder :{folder_id=}")
             return LanZouCloud.FAILED
 
-        if self.get_dir_list(folder_id):
+        _folders, _ = self.get_dir_list(folder_id)
+        if _folders:
             logger.debug(f"Found subdirectory in {folder=}")
             return LanZouCloud.FAILED  # 递归操作可能会产生大量请求,这里只移动单层文件夹
 
