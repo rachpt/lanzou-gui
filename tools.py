@@ -2,8 +2,8 @@ import re
 import requests
 from random import choice
 
-
 headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:74.0) Gecko/20100101 Firefox/74.0'}
+KEY = 152
 
 def get_short_url(url: str):
     """短链接生成器"""
@@ -47,3 +47,96 @@ def get_short_url(url: str):
                 short_url = short_url[0] 
         except: pass
     return short_url
+
+
+class UserInfo():
+    """存储登录用户信息"""
+    def __init__(self, name=None, pwd=None, cookie=None):
+        self._username = self.encode(name)
+        self._pwd = self.encode(pwd)
+        self._cookie = self.encode(cookie)
+        self._settings = {}
+
+    def encode(self, var):
+        if isinstance(var, dict):
+            for k, v in var.items():
+                var[k] = encrypt(KEY, str(v))
+        elif var:
+            var = encrypt(KEY, str(var))
+        return var
+
+    def decode(self, var):
+        if isinstance(var, dict):
+            for k, v in var.items():
+                var[k] = decrypt(KEY, str(v))
+        elif var:
+            var = decrypt(KEY, var)
+        return var
+
+    @property
+    def name(self):
+        return self.decode(self._username)
+
+    @property
+    def pwd(self):
+        return self.decode(self._pwd)
+
+    @property
+    def cookie(self):
+        return self.decode(self._cookie)
+
+    @property
+    def settings(self):
+        return self._settings
+
+    def set_cookie(self, cookie):
+        self._cookie = self.encode(cookie)
+
+    def set_settings(self, settings):
+        self._settings = settings
+
+    def set_infos(self, infos: dict):
+        if "name" in infos:
+            self._username = self.encode(infos["name"])
+        if "pwd" in infos:
+            self._pwd = self.encode(infos["pwd"])
+        if "cookie" in infos:
+            self._cookie = self.encode(infos["cookie"])
+
+
+def encrypt(key, s):
+    b = bytearray(str(s).encode("utf-8"))
+    n = len(b)
+    c = bytearray(n*2)
+    j = 0
+    for i in range(0, n):
+        b1 = b[i]
+        b2 = b1 ^ key
+        c1 = b2 % 19
+        c2 = b2 // 19
+        c1 = c1 + 46
+        c2 = c2 + 46
+        c[j] = c1
+        c[j+1] = c2
+        j = j+2
+    return c.decode("utf-8")
+
+
+def decrypt(ksa, s):
+    c = bytearray(str(s).encode("utf-8"))
+    n = len(c)
+    if n % 2 != 0:
+        return ""
+    n = n // 2
+    b = bytearray(n)
+    j = 0
+    for i in range(0, n):
+        c1 = c[j]
+        c2 = c[j + 1]
+        j = j + 2
+        c1 = c1 - 46
+        c2 = c2 - 46
+        b2 = c2 * 19 + c1
+        b1 = b2 ^ ksa
+        b[i] = b1
+    return b.decode("utf-8")

@@ -22,8 +22,9 @@ from workers import (DownloadManager, GetSharedInfo, UploadWorker, LoginLuncher,
                      GetRecListsWorker, RemoveFilesWorker, GetMoreInfoWorker, GetAllFoldersWorker, RenameMkdirWorker,
                      SetPwdWorker, LogoutWorker, RecManipulator, CheckUpdateWorker)
 from dialogs import (update_settings, set_file_icon, btn_style, LoginDialog, UploadDialog, InfoDialog, RenameDialog, 
-                     SettingDialog, RecFolderDialog, SetPwdDialog, MoveFileDialog, DeleteDialog, MyLineEdit,
+                     SettingDialog, RecFolderDialog, SetPwdDialog, MoveFileDialog, DeleteDialog, MyLineEdit, KEY,
                      AboutDialog)
+from tools import UserInfo, decrypt
 
 
 qssStyle = '''
@@ -52,7 +53,7 @@ qssStyle = '''
         subcontrol-position:center;
     }
     QTabBar::tab {
-        min-width:120px;
+        min-width:150px;
         min-height:30px;
         background:transparent;
     }
@@ -239,7 +240,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def init_variables(self):
         self._disk = LanZouCloud()
-        self._config_file = "./config.pkl"
+        self._config_file = "./config.pickle"
+        self._configs = UserInfo()
         self._user = None    # 当前登录用户名
         self._folder_list = {}
         self._file_list = {}
@@ -256,12 +258,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def update_lanzoucloud_settings(self):
         """更新LanzouCloud实例设置"""
-        self._disk.set_timeout(self.configs["settings"]["timeout"])
-        self._disk.set_max_size(self.configs["settings"]["max_size"])
-        self.download_threads = self.configs["settings"]["download_threads"]
-        self.time_fmt = self.configs["settings"]["time_fmt"]  # 时间显示格式
-        self.to_tray = self.configs["settings"]["to_tray"] if "to_tray" in self.configs["settings"] else False
-        self.watch_clipboard = self.configs["settings"]["watch_clipboard"] if "watch_clipboard" in self.configs["settings"] else False
+        settings = self._configs.settings
+        self._disk.set_timeout(settings["timeout"])
+        self._disk.set_max_size(settings["max_size"])
+        self.download_threads = settings["download_threads"]
+        self.time_fmt = settings["time_fmt"]  # 时间显示格式
+        self.to_tray = settings["to_tray"] if "to_tray" in settings else False
+        self.watch_clipboard = settings["watch_clipboard"] if "watch_clipboard" in settings else False
         if self.to_tray:
             self.create_tray()
         elif self._created_tray:
@@ -388,23 +391,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """加载用户设置"""
         try:
             with open(self._config_file, "rb") as _file:
-                _configs = load(_file)
-                self._user = _configs["choose"]
-                self.configs = _configs[self._user]
+                all_configs = load(_file)
+            self._user = decrypt(KEY, all_configs["choose"])
+            self._configs = all_configs["users"][self._user]
         except:
-            self.configs = {"settings": self._default_settings}
+            self._configs.set_settings(self._default_settings)
             with open(self._config_file, "wb") as _file:
-                dump(self.configs, _file)
-        # 兼容以前的平配置文件
-        if "settings" not in self.configs or not self.configs["settings"]:
-            self.configs.update({"settings": self._default_settings})
-            update_settings(self._config_file, {"settings": self._default_settings})
+                dump({"none_user": self._configs}, _file)
+        if not self._configs.settings:
+            self._configs.set_settings(self._default_settings)
         self.update_lanzoucloud_settings()
         if ref_ui and self.tabWidget.currentIndex() == 1:  # 更新文件界面的时间
             self.show_file_and_folder_lists()
 
     def call_download_manager_thread(self, tasks):
-        self.download_manager.set_values(tasks, self.configs["settings"]["dl_path"], self.download_threads)
+        self.download_manager.set_values(tasks, self._configs.settings["dl_path"], self.download_threads)
         self.download_manager.start()
 
     def call_multi_manipulator(self, action):
@@ -482,12 +483,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """根据登录是否成功更新UI"""
         if success:
             self.show_status(msg, duration)
-            self.tabWidget.insertTab(1, self.disk_tab, "我的蓝奏云")
-            self.tabWidget.insertTab(2, self.rec_tab, "回收站")
             if self._user:
-                self.tabWidget.setToolTip(f"当前登录用户：{self._user}")
+                if len(self._user) <= 6:
+                    disk_tab = f"我的蓝奏<{self._user}>"
+                else:
+                    disk_tab = f"我的蓝奏<{self._user[:4]}..>"
             else:
-                self.tabWidget.setToolTip("")
+                disk_tab = "我的蓝奏云"
+            self.tabWidget.insertTab(1, self.disk_tab, disk_tab)
+            self.tabWidget.insertTab(2, self.rec_tab, "回收站")
             self.disk_tab.setEnabled(True)
             self.rec_tab.setEnabled(True)
             # 更新快捷键与工具栏
@@ -521,12 +525,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.logout_worker.set_values(self._disk, update_ui=False)
         self.toolbar.removeAction(self.logout)
         try:
-            username = self.configs["user"]
-            password = self.configs["pwd"]
-            cookie = self.configs["cookie"]
+            username = self._configs.name
+            password = self._configs.pwd
+            cookie = self._configs.cookie
+            if not username:
+                return
             self.login_luncher.set_values(username, password, cookie)
-        except Exception:
-            pass
+        except: pass
 
     def call_update_cookie(self, cookie, user):
         """更新cookie至config文件"""
@@ -961,16 +966,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """设置下载路径"""
         dl_path = QFileDialog.getExistingDirectory()
         dl_path = os.path.normpath(dl_path)  # windows backslash
-        if dl_path == self.configs["settings"]["dl_path"] or dl_path == ".":
+        if dl_path == self._configs.settings["dl_path"] or dl_path == ".":
             return
         if dl_path == "":
             dl_path = os.path.dirname(os.path.abspath(__file__)) + os.sep + "downloads"
             up_info = {"dl_path": dl_path}
         else:
             up_info = {"dl_path": dl_path}
-        update_settings(self._config_file, up_info, is_settings=True)
+        update_settings(self._config_file, up_info, user=self._user, is_settings=True)
         self.load_settings()
-        self.line_dl_path.setText(self.configs["settings"]["dl_path"])
+        self.line_dl_path.setText(self._configs.settings["dl_path"])
 
     def init_extract_share_ui(self):
         self.btn_share_select_all.setDisabled(True)
@@ -999,7 +1004,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.line_dl_path = MyLineEdit(self.share_tab)
         self.line_dl_path.setObjectName("line_dl_path")
         self.horizontalLayout_share_2.insertWidget(2, self.line_dl_path)
-        self.line_dl_path.setText(self.configs["settings"]["dl_path"])
+        self.line_dl_path.setText(self._configs.settings["dl_path"])
         self.line_dl_path.clicked.connect(self.set_download_path)
 
         # QSS

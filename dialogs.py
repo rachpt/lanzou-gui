@@ -6,6 +6,9 @@ from PyQt5.QtWidgets import (QAbstractItemView, QPushButton, QFileDialog, QLineE
                              QTableView, QTextEdit, QGridLayout, QListView, QDialogButtonBox, QVBoxLayout, QHBoxLayout,
                              QComboBox, QCheckBox,  QSizePolicy, QMainWindow)
 
+from tools import UserInfo, encrypt, decrypt
+KEY = 89
+
 
 def update_settings(config_file: str, up_info: dict, user: str=None, is_settings=False, action="noml"):
     """更新配置文件"""
@@ -14,34 +17,32 @@ def update_settings(config_file: str, up_info: dict, user: str=None, is_settings
             _infos = load(_file)
     except Exception:
         _infos = {}
-    if is_settings:
-        if user:
-            try: _info = _infos[user]
-            except Exception:
-                _info = {}
-            try: _settings = _info["settings"]
-            except Exception:
-                _settings = {}
-            _settings.update(up_info)
-            _info.update({"settings": _settings})
-            _infos.update({user: _info, "choose": str(user)})
-        else:
-            try: _settings = _infos["settings"]
-            except Exception:
-                _settings = {}
-            _settings.update(up_info)
-            _infos.update({"settings": _settings})
-    elif action == "del":
-        try: del _infos[user]
+    try: users = _infos['users']
+    except: users = {}
+    if is_settings:  # 更新配置
+        if user:  # 用户设置
+            try: user_info = users[user]
+            except: user_info = UserInfo()
+            try: settings = user_info.settings
+            except: settings = {}
+            settings.update(up_info)
+            user_info.set_settings(settings)
+            users.update({user: user_info})
+            _infos.update({"users": users, "choose": encrypt(KEY, user)})
+        else:  # 未登录设置
+            try: none_user = _infos["none_user"]
+            except: none_user = UserInfo()
+            none_user.set_settings(up_info)
+            _infos.update({"none_user": none_user})
+    elif action == "del":  # 删除用户
+        try: del _infos["users"][user]
         except: pass
-    elif user:
-        if user in _infos:
-            _user_infos = _infos[user]
-            _user_infos.update(up_info)
-        else:
-            _user_infos = up_info
-        _infos.update({user: _user_infos, "choose": str(user)})
-    else:
+    elif user:  # 添加/更新用户
+        user_info = users[user] if user in users else UserInfo()
+        user_info.set_infos(up_info)
+        users.update({user: user_info})
+        _infos.update({"users": users, "choose": encrypt(KEY, user)})
+    else:  # 其他
         _infos.update(up_info)
     with open(config_file, "wb") as _file:
         dump(_infos, _file)
@@ -288,6 +289,7 @@ class LoginDialog(QDialog):
         super().__init__()
         self._config = config
         self._infos = {}
+        self._users = {}
         self._user = ""
         self._del_user = ""
         self._pwd = ""
@@ -305,16 +307,16 @@ class LoginDialog(QDialog):
         try:
             with open(self._config, "rb") as _file:
                 self._infos = load(_file)
-            self._choose = self._infos["choose"]
-        except Exception:
-            pass
+            self._users = self._infos["users"]
+            self._choose = decrypt(KEY, self._infos["choose"])
+        except: pass
 
     def update_selection(self):
         if self._infos and "choose" in self._infos:
-            _info = self._infos[self._choose]
-            self._user = _info["user"]
-            self._pwd = _info["pwd"]
-            self._cookie = _info["cookie"]
+            user_info = self._infos["users"][self._choose]
+            self._user = user_info.name
+            self._pwd = user_info.pwd
+            self._cookie = user_info.cookie
         self.name_ed.setText(self._user)
         self.pwd_ed.setText(self._pwd)
         if self._cookie:
@@ -376,18 +378,17 @@ class LoginDialog(QDialog):
         user_box = QHBoxLayout()
         self.user_num = 0
         self.user_btns = {}
-        for user in self._infos.keys():
+        for user in self._users.keys():
             user = str(user)
-            if user not in ["settings", "choose"]:
-                self.user_btns[user] = QDoublePushButton(user)
-                self.user_btns[user].setStyleSheet("QPushButton {border:none;}")
-                if user == self._choose:
-                    self.user_btns[user].setStyleSheet("QPushButton {background-color:rgb(0,153,2);}")
-                self.user_btns[user].setToolTip(f"点击选中，双击切换至用户：{user}")
-                self.user_btns[user].doubleClicked.connect(self.choose_user)
-                self.user_btns[user].clicked.connect(self.delete_chose_user)
-                user_box.addWidget(self.user_btns[user])
-                self.user_num += 1
+            self.user_btns[user] = QDoublePushButton(user)
+            self.user_btns[user].setStyleSheet("QPushButton {border:none;}")
+            if user == self._choose:
+                self.user_btns[user].setStyleSheet("QPushButton {background-color:rgb(0,153,2);}")
+            self.user_btns[user].setToolTip(f"点击选中，双击切换至用户：{user}")
+            self.user_btns[user].doubleClicked.connect(self.choose_user)
+            self.user_btns[user].clicked.connect(self.delete_chose_user)
+            user_box.addWidget(self.user_btns[user])
+            self.user_num += 1
             user_box.addStretch(1)
 
         vbox = QVBoxLayout()
@@ -413,8 +414,8 @@ class LoginDialog(QDialog):
     def call_del_chose_user(self):
         if self._del_user:
             self.user_num -= 1
-            update_settings(self._config, {}, str(self._del_user), action="del")
-            self.user_btns[str(self._del_user)].close()
+            update_settings(self._config, None, self._del_user, action="del")
+            self.user_btns[self._del_user].close()
             self._del_user = ""
             if self.user_num <= 1:
                 self.del_user_btn.close()
@@ -448,12 +449,12 @@ class LoginDialog(QDialog):
                 self.show_input_cookie_btn.setText("隐藏Cookie输入框")
 
     def set_user(self, user):
-        self._user = user
+        self._user = str(user)
         if self._user not in self._infos:
             self.ok_btn.setText("添加用户")
             self.cookie_ed.setPlainText("")
         else:
-            self._choose = user
+            self._choose = str(user)
             self.update_selection()
             self.ok_btn.setText("切换用户")
 
@@ -468,8 +469,7 @@ class LoginDialog(QDialog):
         cookies = self.cookie_ed.toPlainText()
         try:
             self._cookie = {kv.split("=")[0].strip(" "): kv.split("=")[1].strip(" ") for kv in cookies.split(";")}
-        except Exception:
-            self._cookie = None
+        except: self._cookie = None
 
     def change_cancel_btn(self):
         self.default_var()
@@ -479,8 +479,8 @@ class LoginDialog(QDialog):
     def change_ok_btn(self):
         if self._user and self._pwd and self._user not in self._infos:
             self._cookie = None
-        up_info = {"user": self._user, "pwd": self._pwd, "cookie": self._cookie}
-        update_settings(self._config, up_info, str(self._user))
+        up_info = {"name": self._user, "pwd": self._pwd, "cookie": self._cookie}
+        update_settings(self._config, up_info, self._user)
         self.clicked_ok.emit()
         self.close()
 
@@ -1264,7 +1264,8 @@ class SettingDialog(QDialog):
             with open(self._config_file, "rb") as _file:
                 configs = load(_file)
             if self._user:
-                settings = configs[self._user]["settings"]
+                users = configs["users"]
+                settings = users[self._user].settings
             else:
                 settings = configs["settings"]
         except Exception:
