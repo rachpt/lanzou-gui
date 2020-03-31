@@ -451,7 +451,10 @@ class LoginDialog(QDialog):
         self._user = user
         if self._user not in self._infos:
             self.ok_btn.setText("添加用户")
+            self.cookie_ed.setPlainText("")
         else:
+            self._choose = user
+            self.update_selection()
             self.ok_btn.setText("切换用户")
 
     def set_pwd(self, pwd):
