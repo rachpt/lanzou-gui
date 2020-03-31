@@ -458,6 +458,8 @@ class LoginDialog(QDialog):
         if self._user in self._infos and pwd and pwd != self._infos[self._user]["pwd"]:
             self._cookie = None
         self._pwd = pwd
+        if not pwd:
+            self.set_cookie()
 
     def set_cookie(self):
         cookies = self.cookie_ed.toPlainText()
