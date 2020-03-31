@@ -343,8 +343,8 @@ class LoginDialog(QDialog):
 
         self.cookie_lb = QLabel("&Cookie")
         self.cookie_ed = QTextEdit()
-        notice = "如果由于滑动验证，无法使用用户名与密码登录，则需要输入cookie，自行使用浏览器获取，\n" + \
-            "cookie会保存在本地，下次使用。其格式如下：\n key1=value1; key2=value2"
+        notice = "如果由于滑动验证，无法使用用户名与密码登录，则需要输入用户名和cookie，自行使用浏览器获取，\n" + \
+            "cookie会保存在本地，下次使用。其格式如下：\n ylogin=value1; PHPSESSID=value2; phpdisk_info=value3"
         self.cookie_ed.setPlaceholderText(notice)
         self.cookie_lb.setBuddy(self.cookie_ed)
 
@@ -455,7 +455,7 @@ class LoginDialog(QDialog):
             self.ok_btn.setText("切换用户")
 
     def set_pwd(self, pwd):
-        if self._user in self._infos and pwd != self._infos[self._user]["pwd"]:
+        if self._user in self._infos and pwd and pwd != self._infos[self._user]["pwd"]:
             self._cookie = None
         self._pwd = pwd
 
