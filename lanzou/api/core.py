@@ -410,13 +410,12 @@ class LanZouCloud(object):
         else:  # 文件没有设置提取码时,文件信息都暴露在分享页面上
             para = re.findall(r'<iframe.*?src="(.+?)"', first_page)[0]  # 提取下载页面 URL 的参数
             # 文件名可能在 <div> 中，可能在变量 filename 后面
-            f_name = re.findall(r"<div style.+>([^<]+)</div>\n<div class=\"d2\">|filename = '(.*?)';", first_page)
-            if f_name:
-                f_name = f_name[0]
-                f_name = f_name[0] or f_name[1]  # 确保正确获取文件名
-            else:
-                f_name = re.findall(r'<div class="filethetext" id="[^"]*">(.*?)</div>', first_page)
-                f_name = f_name[0] if f_name else ""
+            f_name = re.findall(r'<div style="[^"]+">([^><]*?)</div>', first_page)
+            if not f_name:
+                f_name = re.findall(r"var filename = '(.*)';", first_page)
+            if not f_name:
+                f_name = re.findall(r'<div class="filethetext" id="[^"]*">(.*?)?</div>', first_page)
+            f_name = f_name[0] if f_name else ""
 
             f_size = re.findall(r'文件大小：</span>(.+?)<br>', first_page)
             f_size = f_size[0] if f_size else ''
@@ -1053,10 +1052,12 @@ class LanZouCloud(object):
                 return {"code": LanZouCloud.PASSWORD_ERROR, "info": ""}
         else:
             f_name = re.findall(r'<div style="[^"]+">([^><]*?)</div>', first_page)
-            if f_name:
-                f_name = f_name[0]
-            else:
-                f_name = re.findall(r"var filename = '(.*)';", first_page)[0]
+            if not f_name:
+                f_name = re.findall(r"var filename = '(.*)';", first_page)
+            if not f_name:
+                f_name = re.findall(r'<div class="filethetext" id="[^"]*">(.*?)?</div>', first_page)
+            f_name = f_name[0] if f_name else ""
+
             f_size = re.findall(r'文件大小：</span>([\.0-9 MKBmkbGg]+)<br', first_page)
             f_size = f_size[0] if f_size else ""
             f_date = re.findall(r'上传时间：</span>([-0-9 :月天小时分钟秒前]+)<br', first_page)
