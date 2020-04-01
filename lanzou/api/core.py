@@ -349,10 +349,11 @@ class LanZouCloud(object):
         path_list.append(FolderId('LanZouCloud', -1, '根目录', -1))
         post_data = {'task': 47, 'folder_id': folder_id}
         resp = self._post(self._doupload_url, post_data)
-        if resp:  # 网络异常，重试
+        if resp:
             resp = resp.json()
-            # if resp["zt"] == 1:  # 成功
             for folder in resp["text"]:
+                if "fol_id" not in folder:  # 切换用户时，有可能得到的是一个字符串 (╥╯^╰╥)
+                    continue
                 folder_list.append(Folder(
                     id=folder['fol_id'],
                     name=folder['name'],
@@ -360,6 +361,8 @@ class LanZouCloud(object):
                     desc=folder['folder_des'][1:-1]
                 ))
             for folder in resp["info"]:
+                if "folderid" not in folder:
+                    continue
                 path_list.append(FolderId(
                     name=folder['name'],
                     id=folder['folderid'],
