@@ -390,7 +390,8 @@ class LanZouCloud(object):
             if len(pwd) == 0:
                 return FileDetail(LanZouCloud.LACK_PASSWORD)  # 没给提取码直接退出
             # data : 'action=downprocess&sign=AGZRbwEwU2IEDQU6BDRUaFc8DzxfMlRjCjTPlVkWzFSYFY7ATpWYw_c_c&p='+pwd,
-            sign = re.findall(r"sign=(\w+?)&", first_page)[0]
+            sign = re.findall(r"sign=(\w+?)&", first_page)
+            sign = sign[0] if sign else ""
             post_data = {'action': 'downprocess', 'sign': sign, 'p': pwd}
             link_info = self._post(self._host_url + '/ajaxm.php', post_data)  # 保存了重定向前的链接信息和文件名
             second_page = self._get(share_url)  # 再次请求文件分享页面，可以看见文件名，时间，大小等信息(第二页)
@@ -400,17 +401,23 @@ class LanZouCloud(object):
             second_page = remove_notes(second_page.text)
             # 提取文件信息
             f_name = link_info['inf']
-            f_size = re.findall(r'大小：(.+?)</div>', second_page)[0]
-            f_time = re.findall(r'class="n_file_infos">(.+?)</span>', second_page)[0]
-            f_desc = re.findall(r'class="n_box_des">(.*?)</div>', second_page)[0]
+            f_size = re.findall(r'大小：(.+?)</div>', second_page)
+            f_size = f_size[0] if f_size else ''
+            f_time = re.findall(r'class="n_file_infos">(.+?)</span>', second_page)
+            f_time = f_time[0] if f_time else ''
+            f_desc = re.findall(r'class="n_box_des">(.*?)</div>', second_page)
+            f_desc = f_desc[0] if f_desc else ''
         else:  # 文件没有设置提取码时,文件信息都暴露在分享页面上
             para = re.findall(r'<iframe.*?src="(.+?)"', first_page)[0]  # 提取下载页面 URL 的参数
             # 文件名可能在 <div> 中，可能在变量 filename 后面
-            f_name = re.findall(r"<div style.+>([^<]+)</div>\n<div class=\"d2\">|filename = '(.*?)';", first_page)[0]
-            f_name = f_name[0] or f_name[1]  # 确保正确获取文件名
-            # f_size = re.findall(r'文件大小：</span>(.+?)<br>', first_page)[0]
-            # f_time = re.findall(r'上传时间：</span>(.+?)<br>', first_page)[0]
-            # f_desc = re.findall(r'文件描述：</span><br>\n?\s*(.+?)\s*</td>', first_page)[0]
+            f_name = re.findall(r"<div style.+>([^<]+)</div>\n<div class=\"d2\">|filename = '(.*?)';", first_page)
+            if f_name:
+                f_name = f_name[0]
+                f_name = f_name[0] or f_name[1]  # 确保正确获取文件名
+            else:
+                f_name = re.findall(r'<div class="filethetext" id="[^"]*">(.*?)</div>', first_page)
+                f_name = f_name[0] if f_name else ""
+
             f_size = re.findall(r'文件大小：</span>(.+?)<br>', first_page)
             f_size = f_size[0] if f_size else ''
             f_time = re.findall(r'上传时间：</span>(.+?)<br>', first_page)
