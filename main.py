@@ -430,11 +430,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if info and info not in infos:
                 infos.append(info)
 
-        if tab_page == 0 or tab_page == 1:
+        if tab_page == 0:  # 提取界面下载
+            if not infos:
+                return
+            tasks = []
+            for info in infos:
+                task = (info[1], info[7], info[5])
+                if task not in tasks:
+                    tasks.append(task)
+            self.call_download_manager_thread(tasks)
+        elif tab_page == 1:  # 登录文件界面下载
             if not infos:
                 return
             self.desc_pwd_fetcher.set_values(self._disk, infos, download=True)
-        elif tab_page == 2:
+        elif tab_page == 2:  # 回收站
             if action == "recovery":
                 title = "确定恢复选定文件(夹)？"
             elif action == "delete":
