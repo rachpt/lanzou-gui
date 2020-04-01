@@ -90,6 +90,7 @@ class LanZouCloud(object):
             return LanZouCloud.NETWORK_ERROR
         if '登录成功' in html.text:
             self._cookies = html.cookies.get_dict()
+            self._session.cookies.update(self._cookies)
             return LanZouCloud.SUCCESS
         else:
             return LanZouCloud.FAILED
