@@ -400,6 +400,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 dump({"none_user": self._configs}, _file)
         if not self._configs.settings:
             self._configs.set_settings(self._default_settings)
+            update_settings(self._config_file, self._default_settings, user=self._user, is_settings=True)
         self.update_lanzoucloud_settings()
         if ref_ui and self.tabWidget.currentIndex() == 1:  # 更新文件界面的时间
             self.show_file_and_folder_lists()
