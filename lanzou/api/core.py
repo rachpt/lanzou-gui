@@ -493,7 +493,10 @@ class LanZouCloud(object):
             else:
                 link_info = link_info.json()
         # 这里开始获取文件直链
-        if link_info['zt'] == 1:
+        if link_info['zt'] == 0:  # sign 错误，提示：已超时，请刷新
+            logger.debug(f"Sign Error: {sign}")
+            return FileDetail(LanZouCloud.FAILED)
+        elif link_info['zt'] == 1:
             fake_url = link_info['dom'] + '/file/' + link_info['url']  # 假直连，存在流量异常检测
             download_page = self._get(fake_url, allow_redirects=False)
             download_page.encoding = 'utf-8'

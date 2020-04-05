@@ -27,7 +27,7 @@ def remove_notes(html: str) -> str:
     """删除网页的注释"""
     # 去掉 html 里面的 // 和 <!-- --> 注释，防止干扰正则匹配提取数据
     # 蓝奏云的前端程序员喜欢改完代码就把原来的代码注释掉,就直接推到生产环境了 =_=
-    return re.sub(r'<!--.+?-->|\s+//\s*.+', '', html)
+    return re.sub(r'<!--.+?-->|\s*//\s*.+', '', html)
 
 
 def name_format(name: str) -> str:
