@@ -10,7 +10,7 @@ from PyQt5.QtGui import (QIcon, QStandardItem, QStandardItemModel, QDesktopServi
                          QAbstractTextDocumentLayout, QPalette)
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QHeaderView, QMenu, QAction, QLabel,
                              QPushButton, QFileDialog, QDesktopWidget, QMessageBox, QSystemTrayIcon, QStyle,
-                             QStyledItemDelegate, QStyleOptionViewItem)
+                             QStyledItemDelegate, QStyleOptionViewItem, QWidget, QVBoxLayout, QHBoxLayout)
 
 from Ui_lanzou import Ui_MainWindow
 from lanzou.api import LanZouCloud
@@ -23,7 +23,7 @@ from workers import (DownloadManager, GetSharedInfo, UploadWorker, LoginLuncher,
                      SetPwdWorker, LogoutWorker, RecManipulator, CheckUpdateWorker)
 from dialogs import (update_settings, set_file_icon, btn_style, LoginDialog, UploadDialog, InfoDialog, RenameDialog, 
                      SettingDialog, RecFolderDialog, SetPwdDialog, MoveFileDialog, DeleteDialog, MyLineEdit, KEY,
-                     AboutDialog)
+                     AboutDialog, MyTableView)
 from tools import UserInfo, decrypt
 
 
@@ -151,6 +151,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.init_extract_share_ui()
         self.init_disk_ui()
         self.init_rec_ui()
+        self.init_jobs_ui()  # jobs
         self.call_login_luncher()
         self.create_left_menus()
 
@@ -254,6 +255,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._old_work_id = self._work_id  # 用于上传完成后判断是否需要更新disk界面
         self._show_to_tray_msg = True
         self._created_tray = False
+        self._dl_jobs_lists = {}
+        self._up_jobs_lists = []
+        self._current_up = 0  # 当前上传
+        self._current_dl = 0  # 当前下载
         self.load_settings()
 
     def update_lanzoucloud_settings(self):
@@ -283,6 +288,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 下载器
         self.download_manager = DownloadManager()
         self.download_manager.downloaders_msg.connect(self.show_status)
+        self.download_manager.downloaders_ing.connect(self.update_dl_jobs_precent)
         self.download_manager.download_mgr_msg.connect(self.show_status)
         self.download_manager.finished.connect(lambda: self.show_status("所有下载任务已完成！", 2999))
         # 获取更多信息，直链、下载次数等
@@ -407,6 +413,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def call_download_manager_thread(self, tasks):
         self.download_manager.set_values(tasks, self._configs.settings["dl_path"], self.download_threads)
+        for _task in tasks:
+            if _task[1] not in self._dl_jobs_lists.keys():
+                task = list(_task)
+                task.append(0.0)
+                self._dl_jobs_lists[task[1]] = task
+        self.show_jobs_lists()
         self.download_manager.start()
 
     def call_multi_manipulator(self, action):
@@ -637,6 +649,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         elif tab == "rec":
             model = self.model_rec
             table = self.table_rec
+        elif tab == "jobs":
+            model = self.model_jobs
+            table = self.table_jobs
 
         model.setHorizontalHeaderLabels(["文件名", "大小", "时间"])
         table.setItemDelegateForColumn(0, TableDelegate())  # table 支持富文本
@@ -1020,6 +1035,61 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # QSS
         self.label_share_url.setStyleSheet("#label_share_url {color: rgb(255,255,60);}")
         self.label_dl_path.setStyleSheet("#label_dl_path {color: rgb(255,255,60);}")
+
+    # jobs tab
+
+    def update_dl_jobs_precent(self, infos):
+        for url, prec in infos.items():
+            _other = self._dl_jobs_lists[url]
+            _other[-1] = prec
+            self._dl_jobs_lists[url] = _other
+        self.show_jobs_lists()
+
+    def show_jobs_lists(self):
+        """任务列表"""
+        self.model_jobs.removeRows(0, self.model_jobs.rowCount())  # 清理旧的内容
+
+        self.model_jobs.setHorizontalHeaderLabels(["任务名", "完成", "操作"])
+        upload_ico = QIcon("./src/folder.gif")
+        # download_ico = QIcon("./src/folder.gif")
+        # desc_style = ' <span style="font-size:14px;color:blue;text-align:right">'
+
+        print(self._dl_jobs_lists)
+        for infos in self._dl_jobs_lists.values():  # 下载
+            name = QStandardItem()
+            name.setIcon(upload_ico)
+            txt = infos[0]
+            name.setText(txt)
+            name.setData(infos)
+            prec = "{:5.1f}".format(infos[-1] * 100)
+            _prec = QStandardItem(prec)  # size
+            self.model_jobs.appendRow([name, _prec, QStandardItem("")])
+
+        for row in range(self.model_jobs.rowCount()):  # 右对齐
+            self.model_jobs.item(row, 1).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self.model_jobs.item(row, 2).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
+    def init_jobs_ui(self):
+        """初始化上传下载任务管理界面"""
+        self.jobs_tab = QWidget()
+        self.jobs_tab.setObjectName("jobs_tab")
+        self.jobs_verticalLayout = QVBoxLayout(self.jobs_tab)
+        self.jobs_verticalLayout.setObjectName("jobs_verticalLayout")
+        self.jobs_hLayout = QHBoxLayout(self.jobs_tab)
+        self.jobs_hLayout.setObjectName("jobs_hLayout")
+        self.jobs_start_all = QPushButton("开始所有任务")
+        self.jobs_clean_all = QPushButton("删除已完成任务")
+        self.jobs_hLayout.addWidget(self.jobs_start_all)
+        self.jobs_hLayout.addStretch(1)
+        self.jobs_hLayout.addWidget(self.jobs_clean_all)
+        self.table_jobs = MyTableView(self.jobs_tab)
+        self.table_jobs.setObjectName("table_jobs")
+        self.jobs_verticalLayout.addLayout(self.jobs_hLayout)
+        self.jobs_verticalLayout.addWidget(self.table_jobs)
+        self.model_jobs = QStandardItemModel(1, 3)
+        self.config_tableview("jobs")
+        self.tabWidget.insertTab(3, self.jobs_tab, "任务管理")
+        self.jobs_tab.setEnabled(True)
 
     # others
     def clean_status(self):

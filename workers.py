@@ -69,6 +69,7 @@ class Downloader(QThread):
     '''单个文件下载线程'''
     download_proc = pyqtSignal(str)
     download_failed = pyqtSignal(str)
+    download_precent = pyqtSignal(str, float)
 
     def __init__(self, parent=None):
         super(Downloader, self).__init__(parent)
@@ -88,6 +89,7 @@ class Downloader(QThread):
     def _show_progress(self, file_name, total_size, now_size):
         """显示进度条的回调函数"""
         msg = show_progress(file_name, total_size, now_size)
+        self.download_precent.emit(self.url, now_size/total_size)
         self.download_proc.emit(msg)
 
     def _show_down_failed(self, code, file):
@@ -108,7 +110,8 @@ class Downloader(QThread):
         try:
             if is_file_url(self.url):
                 # 下载文件
-                self._disk.down_file_by_url(self.url, self.pwd, self.save_path, self._show_progress)
+                res = self._disk.down_file_by_url(self.url, self.pwd, self.save_path, self._show_progress)
+                print(res)
             elif is_folder_url(self.url):
                 # 下载文件夹
                 folder_path = self.save_path + os.sep + self.name
@@ -116,7 +119,7 @@ class Downloader(QThread):
                 self.save_path = folder_path
                 self._disk.down_dir_by_url(self.url, self.pwd, self.save_path, self._show_progress,
                                            mkdir=True, failed_callback=self._show_down_failed)
-        except:
+        except TimeoutError:
             self.download_failed.emit("网络连接错误！")
 
 
@@ -124,6 +127,7 @@ class DownloadManager(QThread):
     '''下载控制器线程，追加下载任务，控制后台下载线程数量'''
     download_mgr_msg = pyqtSignal(str, int)
     downloaders_msg = pyqtSignal(str, int)
+    downloaders_ing = pyqtSignal(dict)
 
     def __init__(self, threads=3, parent=None):
         super(DownloadManager, self).__init__(parent)
@@ -134,6 +138,7 @@ class DownloadManager(QThread):
         self._mutex = QMutex()
         self._is_work = False
         self._old_msg = ""
+        self._downloading_tasks = {}
 
     def set_values(self, tasks, save_path, threads):
         self.tasks.extend(tasks)
@@ -147,6 +152,10 @@ class DownloadManager(QThread):
         if self._old_msg != msg:
             self.downloaders_msg.emit(msg, 0)
             self._old_msg = msg
+
+    def ahead_precent(self, url, precent):
+        self._downloading_tasks[url] = precent
+        self.downloaders_ing.emit(self._downloading_tasks)
 
     def add_task(self):
         self._count -= 1
@@ -174,7 +183,9 @@ class DownloadManager(QThread):
                 try:
                     downloader[dl_id].finished.connect(self.add_task)
                     downloader[dl_id].download_proc.connect(self.ahead_msg)
+                    downloader[dl_id].download_precent.connect(self.ahead_precent)
                     downloader[dl_id].download_failed.connect(self.ahead_msg)
+                    self._downloading_tasks[task[1]] = 0.0
                     downloader[dl_id].set_values(task[0], task[1], task[2], self.save_path)
                     downloader[dl_id].start()
                 except Exception as exp:
