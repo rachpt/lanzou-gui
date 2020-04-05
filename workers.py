@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+from platform import system as platform
 import re
 from random import random
 from time import sleep
@@ -73,13 +74,16 @@ class Downloader(QThread):
 
     def __init__(self, parent=None):
         super(Downloader, self).__init__(parent)
+        self._disk = None
         self._stopped = True
         self._mutex = QMutex()
-        self._disk = LanZouCloud()
         self.name = ""
         self.url = ""
         self.pwd = ""
         self.save_path = ""
+
+    def set_disk(self, disk):
+        self._disk = disk
 
     def stop(self):
         self._mutex.lock()
@@ -131,6 +135,7 @@ class DownloadManager(QThread):
 
     def __init__(self, threads=3, parent=None):
         super(DownloadManager, self).__init__(parent)
+        self._disk = None
         self.tasks = []
         self.save_path = ""
         self._thread = threads
@@ -139,6 +144,9 @@ class DownloadManager(QThread):
         self._is_work = False
         self._old_msg = ""
         self._downloading_tasks = {}
+
+    def set_disk(self, disk):
+        self._disk = disk
 
     def set_values(self, tasks, save_path, threads):
         self.tasks.extend(tasks)
@@ -179,6 +187,7 @@ class DownloadManager(QThread):
                 task = self.tasks.pop()
                 dl_id = int(random() * 100000)
                 downloader[dl_id] = Downloader()
+                downloader[dl_id].set_disk(self._disk)
                 self.download_mgr_msg.emit("准备下载：<font color='#FFA500'>{}</font>".format(task[0]), 8000)
                 try:
                     downloader[dl_id].finished.connect(self.add_task)
@@ -202,7 +211,7 @@ class GetSharedInfo(QThread):
 
     def __init__(self, parent=None):
         super(GetSharedInfo, self).__init__(parent)
-        self._disk = LanZouCloud()
+        self._disk = None
         self.share_url = ""
         self.pwd = ""
         self.is_file = ""
@@ -210,6 +219,9 @@ class GetSharedInfo(QThread):
         self._mutex = QMutex()
         self._is_work = False
         self._pat = r"(https?://(www\.)?lanzous.com/[bi][a-z0-9]+)[^0-9a-z]*([a-z0-9]+)?"
+
+    def set_disk(self, disk):
+        self._disk = disk
 
     def set_values(self, text):
         '''获取分享链接信息'''
@@ -287,7 +299,7 @@ class UploadWorker(QThread):
 
     def __init__(self, parent=None):
         super(UploadWorker, self).__init__(parent)
-        self._disk = object
+        self._disk = None
         self.infos = []
         self._work_id = ""
 
@@ -296,8 +308,10 @@ class UploadWorker(QThread):
         msg = show_progress(file_name, total_size, now_size, symbol="█")
         self.code.emit(msg, 0)
 
-    def set_values(self, disk, infos, work_id):
+    def set_disk(self, disk):
         self._disk = disk
+
+    def set_values(self, infos, work_id):
         self.infos = infos
         self._work_id = work_id
 
@@ -330,12 +344,15 @@ class LoginLuncher(QThread):
     code = pyqtSignal(bool, str, int)
     update_cookie = pyqtSignal(object, str)
 
-    def __init__(self, disk, parent=None):
+    def __init__(self, parent=None):
         super(LoginLuncher, self).__init__(parent)
-        self._disk = disk
+        self._disk = None
         self.username = ""
         self.password = ""
         self.cookie = None
+
+    def set_disk(self, disk):
+        self._disk = disk
 
     def set_values(self, username, password, cookie=None):
         self.username = username
@@ -376,14 +393,16 @@ class DescPwdFetcher(QThread):
 
     def __init__(self, parent=None):
         super(DescPwdFetcher, self).__init__(parent)
-        self._disk = object
+        self._disk = None
         self.infos = None
         self.download = False
         self._mutex = QMutex()
         self._is_work = False
 
-    def set_values(self, disk, infos, download=False):
+    def set_disk(self, disk):
         self._disk = disk
+
+    def set_values(self, infos, download=False):
         self.infos = infos  # 列表的列表
         self.download = download  # 标识激发下载器
         self.start()
@@ -438,15 +457,18 @@ class ListRefresher(QThread):
     infos = pyqtSignal(object)
     err_msg = pyqtSignal(str, int)
 
-    def __init__(self, disk, parent=None):
+    def __init__(self, parent=None):
         super(ListRefresher, self).__init__(parent)
-        self._disk = disk
+        self._disk = None
         self._fid = -1
         self.r_files = True
         self.r_folders = True
         self.r_path = True
         self._mutex = QMutex()
         self._is_work = False
+
+    def set_disk(self, disk):
+        self._disk = disk
 
     def set_values(self, fid, r_files=True, r_folders=True, r_path=True):
         if not self._is_work:
@@ -495,12 +517,15 @@ class RemoveFilesWorker(QThread):
     msg = pyqtSignal(object, object)
     finished = pyqtSignal()
 
-    def __init__(self, disk, parent=None):
+    def __init__(self, parent=None):
         super(RemoveFilesWorker, self).__init__(parent)
-        self._disk = disk
+        self._disk = None
         self.infos = None
         self._mutex = QMutex()
         self._is_work = False
+
+    def set_disk(self, disk):
+        self._disk = disk
 
     def set_values(self, infos):
         self.infos = infos
@@ -542,16 +567,17 @@ class GetMoreInfoWorker(QThread):
 
     def __init__(self, parent=None):
         super(GetMoreInfoWorker, self).__init__(parent)
-        self._disk = LanZouCloud()
+        self._disk = None
         self.emit_infos = None
         self._url = ''
         self._pwd = ''
         self._mutex = QMutex()
         self._is_work = False
 
-    def set_values(self, infos, disk=None):
-        if disk:  # 登录情况
-            self._disk = disk
+    def set_disk(self, disk):
+        self._disk = disk
+
+    def set_values(self, infos):
         self.emit_infos = infos
         self.start()
     
@@ -613,15 +639,16 @@ class GetAllFoldersWorker(QThread):
 
     def __init__(self, parent=None):
         super(GetAllFoldersWorker, self).__init__(parent)
-        self._disk = object
+        self._disk = None
         self.org_infos = None
         self._mutex = QMutex()
         self._is_work = False
         self.move_infos = None
 
-    def set_values(self, disk, org_infos):
-        # 登录信息可能会有变化，重新给 disk
+    def set_disk(self, disk):
         self._disk = disk
+
+    def set_values(self, org_infos):
         self.org_infos = org_infos  # 对话框标识文件与文件夹
         self.move_infos = None # 清除上次影响
         self.start()
@@ -702,16 +729,17 @@ class RenameMkdirWorker(QThread):
 
     def __init__(self, parent=None):
         super(RenameMkdirWorker, self).__init__(parent)
-        self._disk = object
+        self._disk = None
         self._work_id = -1
         self._folder_list = None
         self.infos = None
         self._mutex = QMutex()
         self._is_work = False
 
-    def set_values(self, disk, infos, work_id, folder_list):
-        # 登录信息可能会有变化，重新给 disk
+    def set_disk(self, disk):
         self._disk = disk
+
+    def set_values(self, infos, work_id, folder_list):
         self.infos = infos  # 对话框标识文件与文件夹
         self._work_id = work_id
         self._folder_list = folder_list
@@ -779,15 +807,16 @@ class SetPwdWorker(QThread):
 
     def __init__(self, parent=None):
         super(SetPwdWorker, self).__init__(parent)
-        self._disk = object
+        self._disk = None
         self.infos = None
         self._work_id = -1
         self._mutex = QMutex()
         self._is_work = False
 
-    def set_values(self, disk, infos, work_id):
-        # 登录信息可能会有变化，重新给 disk
+    def set_disk(self, disk):
         self._disk = disk
+
+    def set_values(self, infos, work_id):
         self.infos = infos
         self._work_id = work_id
         self.start()
@@ -842,14 +871,15 @@ class LogoutWorker(QThread):
 
     def __init__(self, parent=None):
         super(LogoutWorker, self).__init__(parent)
-        self._disk = object
+        self._disk = None
         self.update_ui = True
         self._mutex = QMutex()
         self._is_work = False
 
-    def set_values(self, disk, update_ui=True):
-        # 登录信息可能会有变化，重新给 disk
+    def set_disk(self, disk):
         self._disk = disk
+
+    def set_values(self, update_ui=True):
         self.update_ui = update_ui
         self.start()
 
@@ -887,12 +917,15 @@ class GetRecListsWorker(QThread):
     infos = pyqtSignal(object, object)
     msg = pyqtSignal(str, int)
 
-    def __init__(self, disk, parent=None):
+    def __init__(self, parent=None):
         super(GetRecListsWorker, self).__init__(parent)
-        self._disk = disk
+        self._disk = None
         self._mutex = QMutex()
         self._is_work = False
         self._folder_id = None
+
+    def set_disk(self, disk):
+        self._disk = disk
 
     def set_values(self, fid):
         # 用于获取回收站指定文件夹内文件信息
@@ -936,14 +969,17 @@ class RecManipulator(QThread):
     msg = pyqtSignal(str, int)
     successed = pyqtSignal()
 
-    def __init__(self, disk, parent=None):
+    def __init__(self, parent=None):
         super(RecManipulator, self).__init__(parent)
-        self._disk = disk
+        self._disk = None
         self._mutex = QMutex()
         self._is_work = False
         self._action = None
         self._folders = []
         self._files= []
+
+    def set_disk(self, disk):
+        self._disk = disk
 
     def set_values(self, infos, action):
         # 操作回收站选定行

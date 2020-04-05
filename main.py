@@ -23,7 +23,7 @@ from workers import (DownloadManager, GetSharedInfo, UploadWorker, LoginLuncher,
                      SetPwdWorker, LogoutWorker, RecManipulator, CheckUpdateWorker)
 from dialogs import (update_settings, set_file_icon, btn_style, LoginDialog, UploadDialog, InfoDialog, RenameDialog, 
                      SettingDialog, RecFolderDialog, SetPwdDialog, MoveFileDialog, DeleteDialog, MyLineEdit, KEY,
-                     AboutDialog, MyTableView)
+                     AboutDialog, MyTableView, CaptchaDialog)
 from tools import UserInfo, decrypt
 
 
@@ -199,7 +199,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.login.setIcon(QIcon("./src/login.ico"))
         self.login.setShortcut("Ctrl+L")
         self.toolbar.addAction(self.login)
-        self.logout.triggered.connect(lambda: self.logout_worker.set_values(self._disk))  # 登出
+        self.logout.triggered.connect(lambda: self.logout_worker.set_values(True))  # 登出
         self.logout.setIcon(QIcon("./src/logout.ico"))
         self.logout.setShortcut("Ctrl+Q")    # 登出快捷键
         self.download.setShortcut("Ctrl+J")
@@ -259,11 +259,29 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._up_jobs_lists = []
         self._current_up = 0  # 当前上传
         self._current_dl = 0  # 当前下载
+        self._captcha_code = None
         self.load_settings()
+
+    def set_disk(self):
+        self.download_manager.set_disk(self._disk)
+        self.get_shared_info_thread.set_disk(self._disk)
+        self.login_luncher.set_disk(self._disk)
+        self.list_refresher.set_disk(self._disk)
+        self.remove_files_worker.set_disk(self._disk)
+        self.get_rec_lists_worker.set_disk(self._disk)
+        self.rec_manipulator.set_disk(self._disk)
+        self.desc_pwd_fetcher.set_disk(self._disk)
+        self.logout_worker.set_disk(self._disk)
+        self.rename_mkdir_worker.set_disk(self._disk)
+        self.set_pwd_worker.set_disk(self._disk)
+        self.more_info_worker.set_disk(self._disk)
+        self.all_folders_worker.set_disk(self._disk)
+        self.upload_worker.set_disk(self._disk)
 
     def update_lanzoucloud_settings(self):
         """更新LanzouCloud实例设置"""
         settings = self._configs.settings
+        self._disk.set_captcha_handler(self.captcha_handler)
         self._disk.set_timeout(settings["timeout"])
         self._disk.set_max_size(settings["max_size"])
         self.download_threads = settings["download_threads"]
@@ -279,7 +297,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def init_workers(self):
         # 登录器
-        self.login_luncher = LoginLuncher(self._disk)
+        self.login_luncher = LoginLuncher()
         self.login_luncher.code.connect(self.login_update_ui)
         self.login_luncher.update_cookie.connect(self.call_update_cookie)
         # 登出器
@@ -302,7 +320,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.info_dialog.get_dl_link.connect(self.more_info_worker.get_dl_link)
         self.info_dialog.closed.connect(lambda: self.pause_extract_clipboard(False))  # 恢复剪切板监听
         # 登录文件列表更新器
-        self.list_refresher = ListRefresher(self._disk)
+        self.list_refresher = ListRefresher()
         self.list_refresher.err_msg.connect(self.show_status)
         self.list_refresher.infos.connect(self.update_disk_lists)
         self.list_refresher.infos.connect(lambda: self.show_status(""))
@@ -320,7 +338,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.set_pwd_worker.msg.connect(self.show_status)
         self.set_pwd_worker.update.connect(self.list_refresher.set_values)  # 更新界面
         # 删除文件(夹)
-        self.remove_files_worker = RemoveFilesWorker(self._disk)
+        self.remove_files_worker = RemoveFilesWorker()
         self.remove_files_worker.msg.connect(self.show_status)  # 显示错误提示
         self.remove_files_worker.finished.connect(lambda: self.list_refresher.set_values(self._work_id))  # 更新界面
         # 上传器，信号在登录更新界面设置
@@ -360,13 +378,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.setting_dialog = SettingDialog(self._config_file, self._default_settings)
         self.setting_dialog.saved.connect(lambda: self.load_settings(ref_ui=True))
         # 登录回收站信息更新器
-        self.get_rec_lists_worker = GetRecListsWorker(self._disk)
+        self.get_rec_lists_worker = GetRecListsWorker()
         self.get_rec_lists_worker.msg.connect(self.show_status)
         self.get_rec_lists_worker.infos.connect(self.update_rec_lists)
         self.get_rec_lists_worker.folders.connect(lambda: self.show_status('', 0))
         self.get_rec_lists_worker.folders.connect(self.pop_up_rec_folder_dialog)
         # 回收站操作器
-        self.rec_manipulator = RecManipulator(self._disk)
+        self.rec_manipulator = RecManipulator()
         self.rec_manipulator.msg.connect(self.show_status)
         self.rec_manipulator.successed.connect(self.get_rec_lists_worker.start)
         # 检查软件版本
@@ -374,6 +392,33 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.about_dialog.check_update.connect(self.check_update_worker.set_values)
         self.check_update_worker.infos.connect(self.about_dialog.show_update)
         self.check_update_worker.bg_update_infos.connect(self.show_new_version_msg)
+        # 获取分享链接信息线程
+        self.get_shared_info_thread = GetSharedInfo()
+        # 上传器
+        self.upload_worker = UploadWorker()
+        self.upload_worker.finished.connect(self.finished_upload)
+        self.upload_worker.code.connect(self.show_status)
+        # 验证码对话框
+        self.captcha_dialog = CaptchaDialog()
+        self.captcha_dialog.captcha.connect(self._captcha_handler)
+        self.captcha_dialog.setWindowModality(Qt.ApplicationModal)
+
+        self.set_disk()
+
+    def _captcha_handler(self, code):
+        self._captcha_code = code
+
+    def captcha_handler(self, img_data):
+        """处理下载时出现的验证码"""
+        self.captcha_dialog.handle(img_data)
+        self._captcha_code = None
+        self.captcha_dialog.exec()
+        from time import sleep
+        while True:
+            sleep(1)
+            if self._captcha_code:
+                break
+        return self._captcha_code
 
     def show_login_dialog(self):
         """显示登录对话框"""
@@ -454,7 +499,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         elif tab_page == 1:  # 登录文件界面下载
             if not infos:
                 return
-            self.desc_pwd_fetcher.set_values(self._disk, infos, download=True)
+            self.desc_pwd_fetcher.set_values(infos, download=True)
         elif tab_page == 2:  # 回收站
             if action == "recovery":
                 title = "确定恢复选定文件(夹)？"
@@ -544,7 +589,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def call_login_luncher(self):
         """登录网盘"""
         self.load_settings()
-        self.logout_worker.set_values(self._disk, update_ui=False)
+        self.logout_worker.set_values(update_ui=False)
         self.toolbar.removeAction(self.logout)
         try:
             username = self._configs.name
@@ -674,7 +719,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         table.horizontalHeader().resizeSection(2, 84)
         # 设置第一列宽度自动调整，充满屏幕
         table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-        if tab != "rec":
+        if tab != "rec" and tab != "jobs":
             table.setContextMenuPolicy(Qt.CustomContextMenu)  # 允许右键产生子菜单
             table.customContextMenuRequested.connect(self.generateMenu)  # 右键菜单
 
@@ -691,11 +736,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def call_rename_mkdir_worker(self, infos):
         """重命名、修改简介与新建文件夹"""
-        self.rename_mkdir_worker.set_values(self._disk, infos, self._work_id, self._folder_list)
+        self.rename_mkdir_worker.set_values(infos, self._work_id, self._folder_list)
 
     def set_passwd(self, infos):
         """设置文件(夹)提取码"""
-        self.set_pwd_worker.set_values(self._disk, infos, self._work_id)
+        self.set_pwd_worker.set_values(infos, self._work_id)
     
     def on_moved(self, r_files=True, r_folders=True, r_path=True):
         """移动文件(夹)后更新界面槽函数"""
@@ -757,15 +802,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         action = self.left_menus.exec_(self.sender().mapToGlobal(pos))
         if action == self.left_menu_share_url:  # 显示详细信息
             # 后台跟新信息，并显示信息对话框
-            self.more_info_worker.set_values(info, self._disk)
+            self.more_info_worker.set_values(info)
         elif action == self.left_menu_move:  # 移动文件
-            self.all_folders_worker.set_values(self._disk, infos)
+            self.all_folders_worker.set_values(infos)
         elif action == self.left_menu_set_pwd:  # 修改提取码
-            self.desc_pwd_fetcher.set_values(self._disk, [info,])  # 兼容下载器，使用列表的列表
+            self.desc_pwd_fetcher.set_values([info,])  # 兼容下载器，使用列表的列表
             self.set_pwd_dialog.set_values(info)
             self.set_pwd_dialog.exec()
         elif action == self.left_menu_rename_set_desc:  # 重命名与修改描述
-            self.desc_pwd_fetcher.set_values(self._disk, [info,])  # 兼容下载器，使用列表的列表
+            self.desc_pwd_fetcher.set_values([info,])  # 兼容下载器，使用列表的列表
             self.rename_dialog.set_values(info)
             self.rename_dialog.exec()
 
@@ -801,7 +846,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def call_upload(self, infos):
         """上传文件(夹)"""
         self._old_work_id = self._work_id  # 记录上传文件夹id
-        self.upload_worker.set_values(self._disk, infos, self._old_work_id)
+        self.upload_worker.set_values(infos, self._old_work_id)
         self.upload_worker.start()
 
     def show_full_path(self):
@@ -884,10 +929,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.table_disk.drop_files.connect(self.show_upload_dialog)
 
         self.table_disk.doubleClicked.connect(self.change_dir)
-        # 上传器
-        self.upload_worker = UploadWorker()
-        self.upload_worker.finished.connect(self.finished_upload)
-        self.upload_worker.code.connect(self.show_status)
 
     # rec tab
     def pop_up_rec_folder_dialog(self, files):
@@ -1008,8 +1049,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.table_share.setDisabled(True)
         self.model_share = QStandardItemModel(1, 3)
         self.config_tableview("share")
-        # 获取分享链接信息线程
-        self.get_shared_info_thread = GetSharedInfo()
+
         self.get_shared_info_thread.update.connect(lambda: self.model_share.removeRows(0, self.model_share.rowCount()))  # 清理旧的信息
         self.get_shared_info_thread.msg.connect(self.show_status)  # 提示信息
         self.get_shared_info_thread.infos.connect(self.show_share_url_file_lists)  # 内容信息
