@@ -3,18 +3,22 @@
 """
 
 import os
+import pickle
 import re
+import shutil
 from time import sleep
 from datetime import datetime
 from urllib3 import disable_warnings
+from random import shuffle, random
+from typing import List
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
 import requests
 from requests_toolbelt import MultipartEncoder, MultipartEncoderMonitor
 from urllib3.exceptions import InsecureRequestWarning
-from lanzou.api.utils import *
-from lanzou.api.types import *
-from typing import List
 from lanzou.api.models import FileList, FolderList
+from lanzou.api.types import *
+from lanzou.api.utils import *
 
 __all__ = ['LanZouCloud']
 
@@ -31,9 +35,11 @@ class LanZouCloud(object):
     FILE_CANCELLED = 7
     PATH_ERROR = 8
     NETWORK_ERROR = 9
+    CAPTCHA_ERROR = 10
 
     def __init__(self):
         self._session = requests.Session()
+        self._captcha_handler = None
         self._timeout = 5  # 每个请求的超时(不包含下载响应体的用时)
         self._max_size = 100  # 单个文件大小上限 MB
         self._host_url = 'https://www.lanzous.com'
@@ -71,9 +77,15 @@ class LanZouCloud(object):
         self._max_size = max_size
         return LanZouCloud.SUCCESS
 
+    def set_captcha_handler(self, captcha_handler):
+        """设置下载验证码处理函数
+        :param captcha_handler (img_data) -> str 参数为图片二进制数据,需返回验证码字符
+        """
+        self._captcha_handler = captcha_handler
+
     def login(self, username, passwd) -> int:
-        self._session.cookies.clear()
         """登录蓝奏云控制台"""
+        self._session.cookies.clear()
         login_data = {"action": "login", "task": "login", "setSessionId": "", "setToken": "", "setSig": "",
                       "setScene": "", "username": username, "password": passwd}
         phone_header = {
@@ -246,7 +258,7 @@ class LanZouCloud(object):
         """彻底删除回收站多个文件(夹)"""
         # 与 recovery_all 几乎一样，task 表单值不一样
         if not files and not folders:
-            return
+            return LanZouCloud.FAILED
         para = {'item': 'recycle', 'action': 'files'}
         post_data = {'action': 'files', 'task': 'delete_complete_recycle'}
         if folders:
@@ -280,9 +292,9 @@ class LanZouCloud(object):
         return LanZouCloud.SUCCESS if '恢复成功' in html.text else LanZouCloud.FAILED
 
     def recovery_multi(self, files, folders) -> int:
-        """从回收站恢复多个文件"""
+        """从回收站恢复多个文件(夹)"""
         if not files and not folders:
-            return
+            return LanZouCloud.FAILED
         para = {'item': 'recycle', 'action': 'files'}
         post_data = {'action': 'files', 'task': 'restore_recycle'}
         if folders:
@@ -299,17 +311,17 @@ class LanZouCloud(object):
         return LanZouCloud.SUCCESS if '恢复成功' in html.text else LanZouCloud.FAILED
 
     def recovery_all(self) -> int:
-        """从回收站恢复所有文件"""
+        """从回收站恢复所有文件(夹)"""
         para = {'item': 'recycle', 'action': 'restore_all'}
         post_data = {'action': 'restore_all', 'task': 'restore_all'}
-        html1 = self._get(self._mydisk_url, params=para)
-        if not html1:
+        first_page = self._get(self._mydisk_url, params=para)
+        if not first_page:
             return LanZouCloud.NETWORK_ERROR
-        post_data['formhash'] = re.findall(r'name="formhash" value="(.+?)"', html1.text)[0]  # 设置表单 hash
-        html = self._post(self._mydisk_url + '?item=recycle', post_data)
-        if not html:
+        post_data['formhash'] = re.findall(r'name="formhash" value="(.+?)"', first_page.text)[0]  # 设置表单 hash
+        second_page = self._post(self._mydisk_url + '?item=recycle', post_data)
+        if not second_page:
             return LanZouCloud.NETWORK_ERROR
-        return LanZouCloud.SUCCESS if '还原成功' in html.text else LanZouCloud.FAILED
+        return LanZouCloud.SUCCESS if '还原成功' in second_page.text else LanZouCloud.FAILED
 
     def get_file_list(self, folder_id=-1) -> FileList:
         """获取文件列表"""
@@ -356,9 +368,9 @@ class LanZouCloud(object):
                 if "fol_id" not in folder:  # 切换用户时，有可能得到的是一个字符串 (╥╯^╰╥)
                     continue
                 folder_list.append(Folder(
-                    id=folder['fol_id'],
+                    id=int(folder['fol_id']),
                     name=folder['name'],
-                    has_pwd=True if int(folder['onof']) == 1 else False,  # 是否存在提取码
+                    has_pwd=True if folder['onof'] == 1 else False,
                     desc=folder['folder_des'][1:-1]
                 ))
             for folder in resp["info"]:
@@ -366,14 +378,57 @@ class LanZouCloud(object):
                     continue
                 path_list.append(FolderId(
                     name=folder['name'],
-                    id=folder['folderid'],
+                    id=int(folder['folderid']),
                     desc=folder['folder_des'][1:-1],
                     now=int(folder['now'])
                 ))
         return folder_list, path_list
 
+    def clean_ghost_folders(self):
+        """清除网盘中的幽灵文件夹"""
+
+        # 可能有一些文件夹，网盘和回收站都看不见它，但是它确实存在，移动文件夹时才会显示
+        # 如果不清理掉，不小心将文件移动进去就完蛋了
+        def _clean(fid):
+            for folder in self.get_dir_list(fid):
+                real_folders.append(folder)
+                _clean(folder.id)
+
+        folder_with_ghost = self.get_move_folders()
+        folder_with_ghost.pop_by_id(-1)  # 忽视根目录
+        real_folders = FolderList()
+        _clean(-1)
+        for folder in folder_with_ghost:
+            if not real_folders.find_by_id(folder.id):
+                logger.debug(f"Delete ghost folder: {folder.name} #{folder.id}")
+                if self.delete(folder.id, False) != LanZouCloud.SUCCESS:
+                    return LanZouCloud.FAILED
+                if self.delete_rec(folder.id, False) != LanZouCloud.SUCCESS:
+                    return LanZouCloud.FAILED
+        return LanZouCloud.SUCCESS
+
+    def _captcha_recognize(self, file_token):
+        """识别下载时弹出的验证码,返回下载直链
+        :param file_token 文件的标识码,每次刷新会变化
+        """
+        if not self._captcha_handler:  # 必需提前设置验证码处理函数
+            logger.debug(f"Not set captcha handler function!")
+            return None
+
+        get_img_api = 'https://vip.d0.baidupan.com/file/imagecode.php?r=' + str(random())
+        img_data = self._get(get_img_api).content
+        captcha = self._captcha_handler(img_data)  # 用户手动识别验证码
+        post_code_api = 'https://vip.d0.baidupan.com/file/ajax.php'
+        post_data = {'file': file_token, 'bm': captcha}
+        resp = self._post(post_code_api, post_data)
+        if not resp or resp.json()['zt'] != 1:
+            logger.debug(f"Captcha ERROR: {captcha}")
+            return None
+        logger.debug(f"Captcha PASS: {captcha}")
+        return resp.json()['url']
+
     def get_file_info_by_url(self, share_url, pwd='') -> FileDetail:
-        """获取直链"""
+        """获取文件各种信息(包括下载直链)"""
         if not is_file_url(share_url):  # 非文件链接返回错误
             return FileDetail(LanZouCloud.URL_INVALID)
 
@@ -390,8 +445,8 @@ class LanZouCloud(object):
             if len(pwd) == 0:
                 return FileDetail(LanZouCloud.LACK_PASSWORD)  # 没给提取码直接退出
             # data : 'action=downprocess&sign=AGZRbwEwU2IEDQU6BDRUaFc8DzxfMlRjCjTPlVkWzFSYFY7ATpWYw_c_c&p='+pwd,
-            sign = re.findall(r"sign=(\w+?)&", first_page)
-            sign = sign[0] if sign else ""
+            sign = re.search(r"sign=(\w+?)&", first_page)
+            sign = sign.group(1) if sign else ""
             post_data = {'action': 'downprocess', 'sign': sign, 'p': pwd}
             link_info = self._post(self._host_url + '/ajaxm.php', post_data)  # 保存了重定向前的链接信息和文件名
             second_page = self._get(share_url)  # 再次请求文件分享页面，可以看见文件名，时间，大小等信息(第二页)
@@ -401,40 +456,37 @@ class LanZouCloud(object):
             second_page = remove_notes(second_page.text)
             # 提取文件信息
             f_name = link_info['inf']
-            f_size = re.findall(r'大小：(.+?)</div>', second_page)
-            f_size = f_size[0] if f_size else ''
-            f_time = re.findall(r'class="n_file_infos">(.+?)</span>', second_page)
-            f_time = f_time[0] if f_time else ''
-            f_desc = re.findall(r'class="n_box_des">(.*?)</div>', second_page)
-            f_desc = f_desc[0] if f_desc else ''
+            f_size = re.search(r'大小：(.+?)</div>', second_page)
+            f_size = f_size.group(1) if f_size else ''
+            f_time = re.search(r'class="n_file_infos">(.+?)</span>', second_page)
+            f_time = f_time.group(1) if f_time else ''
+            f_desc = re.search(r'class="n_box_des">(.*?)</div>', second_page)
+            f_desc = f_desc.group(1) if f_desc else ''
         else:  # 文件没有设置提取码时,文件信息都暴露在分享页面上
-            para = re.findall(r'<iframe.*?src="(.+?)"', first_page)[0]  # 提取下载页面 URL 的参数
-            # 文件名可能在 <div> 中，可能在变量 filename 后面
-            f_name = re.findall(r'<div style="[^"]+">([^><]*?)</div>', first_page)
-            if not f_name:
-                f_name = re.findall(r"var filename = '(.*)';", first_page)
-            if not f_name:
-                f_name = re.findall(r'<div class="filethetext" id="[^"]*">(.*?)?</div>', first_page)
-            f_name = f_name[0] if f_name else ""
+            para = re.search(r'<iframe.*?src="(.+?)"', first_page).group(1)  # 提取下载页面 URL 的参数
+            # 文件名位置变化很多
+            f_name = re.search(r'<div class="filethetext".+?>([^<>]+?)</div>', first_page) or \
+                     re.search(r'<div style="font-size.+?>([^<>].+?)</div>', first_page) or \
+                     re.search(r"var filename = '(.+?)';", first_page) or \
+                     re.search(r'id="filenajax">(.+?)</div>', first_page)  # VIP 分享页面
+            f_name = f_name.group(1) if f_name else "未匹配到文件名"
 
-            f_size = re.findall(r'文件大小：</span>(.+?)<br>', first_page)
-            f_size = f_size[0] if f_size else ''
-            f_time = re.findall(r'上传时间：</span>(.+?)<br>', first_page)
-            f_time = f_time[0] if f_time else ''
-            f_desc = re.findall(r'文件描述：</span><br>\n?\s*(.+?)\s*</td>', first_page)
-            f_desc = f_desc[0] if f_desc else ''
+            f_time = re.search(r'上传时间：</span>(.+?)<br>', first_page)
+            f_time = f_time.group(1) if f_time else ''
+            f_size = re.search(r'文件大小：</span>(.+?)<br>', first_page) or \
+                     re.search(r'大小：(.+?)</div>', first_page)  # VIP 分享页面
+            f_size = f_size.group(1) if f_size else ''
+            f_desc = re.search(r'文件描述：</span><br>\n?\s*(.+?)\s*</td>', first_page)
+            f_desc = f_desc.group(1) if f_desc else ''
             first_page = self._get(self._host_url + para)
             if not first_page:
                 return FileDetail(LanZouCloud.NETWORK_ERROR)
-            first_page = remove_notes(first_page.text)  # 去除网页注释
-            # data: {'action': 'downprocess', 'sign': 'xxx', 'ver': 1}
-            # 一般情况 sign 的值就在 data 里，有时放在变量 sg 后面
-            post_data = re.findall(r'data : (.*),', first_page)[0]
-            try:
-                post_data = eval(post_data)  # 尝试转化为 dict,失败说明 sign 的值放在变量 sg 里
-            except NameError:
-                var_sg = re.search(r"var sg\s*=\s*'(.+?)'", first_page).group(1)  # 提取 sign 的值 'AmRVaw4_a.....'
-                post_data = eval(post_data.replace('sg', f"'{var_sg}'"))  # 替换 sg 为 'AmRVaw4_a.....', 并转换为 dict
+            first_page = remove_notes(first_page.text)
+            # 一般情况 sign 的值就在 data 里，有时放在变量后面
+            sign = re.search(r"'sign':(.+?),", first_page).group(1)
+            if len(sign) < 20:  # 此时 sign 保存在变量里面, 变量名是 sign 匹配的字符
+                sign = re.search(rf"var {sign}\s*=\s*'(.+?)';", first_page).group(1)
+            post_data = {'action': 'downprocess', 'sign': sign, 'ves': 1}
             link_info = self._post(self._host_url + '/ajaxm.php', post_data)
             if not link_info:
                 return FileDetail(LanZouCloud.NETWORK_ERROR)
@@ -443,7 +495,16 @@ class LanZouCloud(object):
         # 这里开始获取文件直链
         if link_info['zt'] == 1:
             fake_url = link_info['dom'] + '/file/' + link_info['url']  # 假直连，存在流量异常检测
-            direct_url = self._get(fake_url, allow_redirects=False).headers['Location']  # 重定向后的真直链
+            download_page = self._get(fake_url, allow_redirects=False)
+            download_page.encoding = 'utf-8'
+            if '网络不正常' in download_page.text:  # 流量异常，要求输入验证码
+                file_token = re.findall(r"'file':'(.+?)'", download_page.text)[0]
+                direct_url = self._captcha_recognize(file_token)
+                if not direct_url:
+                    return FileDetail(LanZouCloud.CAPTCHA_ERROR)
+            else:
+                direct_url = download_page.headers['Location']  # 重定向后的真直链
+
             f_type = f_name.split('.')[-1]
             return FileDetail(LanZouCloud.SUCCESS,
                               name=f_name, size=f_size, type=f_type, time=f_time,
@@ -580,7 +641,7 @@ class LanZouCloud(object):
         """获取全部文件夹 id-name 列表，用于移动文件至新的文件夹"""
         # 这里 file_id 可以为任意值,不会对结果产生影响
         result = FolderList()
-        result.append(FolderId(name='LanZouCloud', id=-1, desc="", now=""))
+        result.append(FolderId(name='LanZouCloud', id=-1, desc="", now=0))
         resp = self._post(self._doupload_url, data={"task": 19, "file_id": -1})
         if not resp or resp.json()['zt'] != 1:  # 获取失败或者网络异常
             return result
@@ -712,9 +773,23 @@ class LanZouCloud(object):
         """上传大文件, 且使得回调函数只显示一个文件"""
         file_size = os.path.getsize(file_path)  # 原始文件的字节大小
         file_name = os.path.basename(file_path)
-        uploaded_size = 0
+        tmp_dir = os.path.dirname(file_path) + os.sep + '__' + '.'.join(file_name.split('.')[:-1])  # 临时文件保存路径
+        record_file = tmp_dir + os.sep + file_name + '.record'  # 记录文件，大文件没有完全上传前保留，用于支持续传
+        uploaded_size = 0  # 记录已上传字节数，用于回调函数
 
-        def _callback(name, t_size, now_size):
+        if not os.path.exists(tmp_dir):
+            os.makedirs(tmp_dir)
+        if not os.path.exists(record_file):  # 初始化记录文件
+            info = {'name': file_name, 'size': file_size, 'uploaded': 0, 'parts': []}
+            with open(record_file, 'wb') as f:
+                pickle.dump(info, f)
+        else:
+            with open(record_file, 'rb') as f:
+                info = pickle.load(f)
+                uploaded_size = info['uploaded']  # 读取已经上传的大小
+                logger.debug(f"Find upload record: {uploaded_size}/{file_size}")
+
+        def _callback(name, t_size, now_size):  # 重新封装回调函数，隐藏数据块上传细节
             nonlocal uploaded_size
             if callback is not None:
                 # MultipartEncoder 以后,文件数据流比原文件略大几百字节, now_size 略大于 file_size
@@ -722,15 +797,33 @@ class LanZouCloud(object):
                 now_size = now_size if now_size < file_size else file_size  # 99.99% -> 100.00%
                 callback(file_name, file_size, now_size)
 
-        for path in big_file_split(file_path, max_size=self._max_size):
-            if not path.endswith('.txt'):  # 记录文件大小不计入文件总大小
-                code = self._upload_small_file(path, dir_id, _callback)
-                uploaded_size += os.path.getsize(path)  # 记录上传总大小
+        while uploaded_size < file_size:
+            data_size, data_path = big_file_split(file_path, self._max_size, start_byte=uploaded_size)
+            code = self._upload_small_file(data_path, dir_id, _callback)
+            if code == LanZouCloud.SUCCESS:
+                uploaded_size += data_size  # 更新已上传的总字节大小
+                info['uploaded'] = uploaded_size
+                info['parts'].append(os.path.basename(data_path))  # 记录已上传的文件名
+                with open(record_file, 'wb') as f:
+                    logger.debug(f"Update record file: {uploaded_size}/{file_size}")
+                    pickle.dump(info, f)
             else:
-                code = self._upload_small_file(path, dir_id)
-            if code != LanZouCloud.SUCCESS:
-                logger.debug(f"Upload big file failed:{path=}, {code=}")
-                return LanZouCloud.FAILED  # 只要有一个失败就不用再继续了
+                logger.debug(f"Upload data file failed: {data_path=}")
+                return LanZouCloud.FAILED
+
+        # 全部数据块上传完成
+        record_name = list(file_name.replace('.', ''))  # 记录文件名也打乱
+        shuffle(record_name)
+        record_name = name_format(''.join(record_name)) + '.txt'
+        record_file_new = tmp_dir + os.sep + record_name
+        os.rename(record_file, record_file_new)
+        code = self._upload_small_file(record_file_new, dir_id)  # 上传记录文件
+        if code != LanZouCloud.SUCCESS:
+            logger.debug(f"Upload record file failed: {record_file_new}")
+            return LanZouCloud.FAILED
+        # 记录文件上传成功，删除临时文件
+        shutil.rmtree(tmp_dir)
+        logger.debug(f"Upload finished, Delete tmp folder:{tmp_dir}")
         return LanZouCloud.SUCCESS
 
     def upload_file(self, file_path, folder_id=-1, callback=None) -> int:
@@ -743,16 +836,18 @@ class LanZouCloud(object):
             return self._upload_small_file(file_path, folder_id, callback)
 
         # 上传超过 max_size 的文件
-        folder_name = os.path.basename(file_path).replace('.', '')  # 保存分段文件的文件夹名
+        folder_name = os.path.basename(file_path).replace('.', '_mkdir')  # 保存分段文件的文件夹名
         dir_id = self.mkdir(folder_id, folder_name, 'Big File')
         if dir_id == LanZouCloud.MKDIR_ERROR:
             return LanZouCloud.MKDIR_ERROR  # 创建文件夹失败就退出
         return self._upload_big_file(file_path, dir_id, callback)
 
     def upload_dir(self, dir_path, folder_id=-1, callback=None, failed_callback=None):
-        """批量上传文件
-        callback(filename, total_size, now_size) 用于显示进度
-        failed_callback(code, file) 用于处理上传失败的文件
+        """批量上传文件夹中的文件(不会递归上传子文件夹)
+        :param folder_id: 网盘文件夹 id
+        :param dir_path: 文件夹路径
+        :param callback (filename, total_size, now_size) 用于显示进度
+        :param failed_callback (code, file) 用于处理上传失败的文件
         """
         if not os.path.isdir(dir_path):
             return LanZouCloud.PATH_ERROR
@@ -778,6 +873,7 @@ class LanZouCloud(object):
             return LanZouCloud.URL_INVALID
         if not os.path.exists(save_path):
             os.makedirs(save_path)
+
         info = self.get_durl_by_url(share_url, pwd)
         logger.debug(f'File direct url info: {info}')
         if info.code != LanZouCloud.SUCCESS:
@@ -787,6 +883,7 @@ class LanZouCloud(object):
         if not resp:
             return LanZouCloud.FAILED
         total_size = int(resp.headers['Content-Length'])
+
         file_path = save_path + os.sep + info.name
         logger.debug(f'Save file to {file_path=}')
         if os.path.exists(file_path):
@@ -795,13 +892,19 @@ class LanZouCloud(object):
             now_size = 0
         chunk_size = 4096
         last_512_bytes = b''  # 用于识别文件是否携带真实文件名信息
-        headers = {'Range': 'bytes=%d-' % now_size}
+        headers = {**self._headers, 'Range': 'bytes=%d-' % now_size}
         resp = self._get(info.durl, stream=True, headers=headers)
+
+        if resp is None:  # 网络异常
+            return LanZouCloud.FAILED
+        if resp.status_code == 416:  # 已经下载完成
+            return LanZouCloud.SUCCESS
+
         with open(file_path, "ab") as f:
             for chunk in resp.iter_content(chunk_size):
                 if chunk:
                     f.write(chunk)
-                    # f.flush()  # 刷新，保证一点点的写入
+                    f.flush()
                     now_size += len(chunk)
                     if total_size - now_size < 512:
                         last_512_bytes += chunk
@@ -836,7 +939,7 @@ class LanZouCloud(object):
             html = requests.get(share_url, headers=self._headers).text
         except requests.RequestException:
             return FolderDetail(LanZouCloud.NETWORK_ERROR)
-        if "文件不存在" in html or "文件取消分享了" in html:
+        if any(each in html for each in ["文件不存在", "文件取消分享了"]):
             return FolderDetail(LanZouCloud.FILE_CANCELLED)
         if '请输入密码' in html and len(dir_pwd) == 0:
             return FolderDetail(LanZouCloud.LACK_PASSWORD)
@@ -859,7 +962,6 @@ class LanZouCloud(object):
         files = FileList()
         while True:
             try:
-                # 这里不用封装好的 post 函数是为了支持未登录的用户通过 URL 下载, 无密码时设置 pwd 字段也不影响
                 post_data = {'lx': lx, 'pg': page, 'k': k, 't': t, 'fid': folder_id, 'pwd': dir_pwd}
                 resp = self._post(self._host_url + '/filemoreajax.php', data=post_data, headers=self._headers).json()
             except requests.RequestException:
@@ -913,7 +1015,7 @@ class LanZouCloud(object):
             resp = self._get(info.durl)
             info = un_serialize(resp.content) if resp else None
             if info is not None:  # 确认是大文件
-                name, size, parts = info.values()  # 真实文件名, 文件字节大小, 分段数据文件名(有序)
+                name, size, *_, parts = info.values()  # 真实文件名, 文件字节大小, (其它数据),分段数据文件名(有序)
                 file_list = [file_list.find_by_name(p) for p in parts]
                 if all(file_list):  # 分段数据完整
                     logger.debug(f"Big file checking: PASS , {name=}, {size=}")
@@ -923,14 +1025,26 @@ class LanZouCloud(object):
         return None
 
     def _down_big_file(self, name, total_size, file_list, save_path, *, callback=None):
-        """下载分段数据到一个文件，回调函数只显示一个文件"""
-        now_size = 0
-        chunk_size = 4096
+        """下载分段数据到一个文件，回调函数只显示一个文件
+        支持大文件下载续传，下载完成后重复下载不会执行覆盖操作，直接返回状态码 SUCCESS
+        """
+        big_file = save_path + os.sep + name
+        record_file = big_file + '.record'
 
         if not os.path.exists(save_path):
             os.makedirs(save_path)
 
-        with open(save_path + os.sep + name, 'wb') as big_file:
+        if not os.path.exists(record_file):  # 初始化记录文件
+            info = {'last_ending': 0, 'finished': []}  # 记录上一个数据块结尾地址和已经下载的数据块
+            with open(record_file, 'wb') as rf:
+                pickle.dump(info, rf)
+        else:  # 读取记录文件，下载续传
+            with open(record_file, 'rb') as rf:
+                info = pickle.load(rf)
+                file_list = [f for f in file_list if f.name not in info['finished']]  # 排除已下载的数据块
+                logger.debug(f"Find download record file: {info}")
+
+        with open(big_file, 'ab') as bf:
             for file in file_list:
                 try:
                     durl_info = self.get_durl_by_url(file.url)  # 分段文件无密码
@@ -939,18 +1053,37 @@ class LanZouCloud(object):
                 if durl_info.code != LanZouCloud.SUCCESS:
                     logger.debug(f"Can't get direct url: {file}")
                     return durl_info.code
-                resp = self._get(durl_info.durl, stream=True)
-                if not resp:
+                 # 准备向大文件写入数据
+                file_size_now = os.path.getsize(big_file)
+                down_start_byte = file_size_now - info['last_ending']  # 当前数据块上次下载中断的位置
+                headers = {**self._headers, 'Range': 'bytes=%d-' % down_start_byte}
+                logger.debug(f"Download {file.name}, Range: {down_start_byte}-")
+                resp = self._get(durl_info.durl, stream=True, headers=headers)
+
+                if resp is None:  # 网络错误, 没有响应数据
                     return LanZouCloud.FAILED
-                data_iter = resp.iter_content(chunk_size)
+                if resp.status_code == 416:  # 下载完成后重复下载导致 Range 越界, 服务器返回 416
+                    logger.debug(f"File {name} has already downloaded.")
+                    os.remove(record_file)  # 删除记录文件
+                    return LanZouCloud.SUCCESS
 
-                for chunk in data_iter:
+                for chunk in resp.iter_content(4096):
                     if chunk:
-                        now_size += len(chunk)
-                        big_file.write(chunk)
+                        file_size_now += len(chunk)
+                        bf.write(chunk)
+                        bf.flush()  # 确保缓冲区立即写入文件，否则下一次写入时获取的文件大小会有偏差
                         if callback:
-                            callback(name, total_size, now_size)
+                            callback(name, total_size, file_size_now)
 
+                # 一块数据写入完成，更新记录文件
+                info['finished'].append(file.name)
+                info['last_ending'] = file_size_now
+                with open(record_file, 'wb') as rf:
+                    pickle.dump(info, rf)
+                logger.debug(f"Update download record info: {info}")
+            # 全部数据块下载完成, 记录文件可以删除
+            logger.debug(f"Delete download record file: {record_file}")
+            os.remove(record_file)
         return LanZouCloud.SUCCESS
 
     def down_dir_by_url(self, share_url, dir_pwd='', save_path='./Download', callback=None, mkdir=True,

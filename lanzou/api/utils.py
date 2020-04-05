@@ -3,19 +3,18 @@ API 处理网页数据、数据切片时使用的工具
 """
 
 import logging
-import re
 import os
+import pickle
+import re
 from datetime import timedelta, datetime
 from random import uniform, choices, sample, shuffle, choice
-from shutil import rmtree
-import pickle
 
 __all__ = ['logger', 'remove_notes', 'name_format', 'time_format', 'is_name_valid', 'is_file_url',
            'is_folder_url', 'big_file_split', 'un_serialize', 'let_me_upload']
 
 # 调试日志设置
 logger = logging.getLogger('lanzou')
-logger.setLevel(logging.ERROR)
+logger.setLevel(logging.DEBUG)
 formatter = logging.Formatter(
     fmt="%(asctime)s [line:%(lineno)d] %(funcName)s %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S")
@@ -33,7 +32,7 @@ def remove_notes(html: str) -> str:
 
 def name_format(name: str) -> str:
     """去除非法字符"""
-    name = name.replace(u'\xa0', ' ').replace(u'\u3000', ' ')  # 去除其它字符集的空白符
+    name = name.replace(u'\xa0', ' ').replace(u'\u3000', ' ').replace('  ', ' ')  # 去除其它字符集的空白符,去除重复空白字符
     return re.sub(r'[$%^!*<>)(+=`\'\"/:;,?]', '', name)
 
 
@@ -55,17 +54,18 @@ def time_format(time_str: str) -> str:
 def is_name_valid(filename: str) -> bool:
     """检查文件名是否允许上传"""
 
-    valid_suffix_list = ('doc', 'docx', 'zip', 'rar', 'apk', 'ipa', 'txt', 'exe', '7z', 'e', 'z', 'ct',
-                         'ke', 'cetrainer', 'db', 'tar', 'pdf', 'w3x', 'epub', 'mobi', 'azw', 'azw3',
-                         'osk', 'osz', 'xpa', 'cpk', 'lua', 'jar', 'dmg', 'ppt', 'pptx', 'xls', 'xlsx',
-                         'mp3', 'iso', 'img', 'gho', 'ttf', 'ttc', 'txf', 'dwg', 'bat', 'dll')
+    valid_suffix_list = ('ppt', 'xapk', 'ke', 'azw', 'cpk', 'gho', 'dwg', 'db', 'docx', 'deb', 'e', 'ttf', 'xls', 'bat',
+                         'crx', 'rpm', 'txf', 'pdf', 'apk', 'ipa', 'txt', 'mobi', 'osk', 'dmg', 'rp', 'osz', 'jar',
+                         'ttc', 'z', 'w3x', 'xlsx', 'cetrainer', 'ct', 'rar', 'mp3', 'pptx', 'mobileconfig', 'epub',
+                         'imazingapp', 'doc', 'iso', 'img', 'appimage', '7z', 'rplib', 'lolgezi', 'exe', 'azw3', 'zip',
+                         'conf', 'tar', 'dll', 'flac', 'xpa', 'lua')
 
     return filename.split('.')[-1] in valid_suffix_list
 
 
 def is_file_url(share_url: str) -> bool:
     """判断是否为文件的分享链接"""
-    pat = 'https?://www.lanzous.com/i[a-z0-9]{6,}/?'
+    pat = 'https?://www.lanzous.com/[ti][a-z0-9]{5,}/?'
     return True if re.fullmatch(pat, share_url) else False
 
 
@@ -86,64 +86,51 @@ def un_serialize(data: bytes):
         return None
 
 
-def big_file_split(file_path: str, max_size: int = 100):
-    """将大文件拆分为大小、格式随机的文件
-    :return 新文件绝对路径的生成器
+def big_file_split(file_path: str, max_size: int = 100, start_byte: int = 0) -> (int, str):
+    """将大文件拆分为大小、格式随机的数据块, 可指定文件起始字节位置(用于续传)
+    :return 数据块文件的大小和绝对路径
     """
     file_name = os.path.basename(file_path)
     file_size = os.path.getsize(file_path)
-    tmp_dir = os.path.dirname(file_path) + os.sep + 'tmp'
+    tmp_dir = os.path.dirname(file_path) + os.sep + '__' + '.'.join(file_name.split('.')[:-1])
 
     if not os.path.exists(tmp_dir):
         os.makedirs(tmp_dir)
 
     def get_random_size() -> int:
         """按权重生成一个不超过 max_size 的文件大小"""
-        reduce_size = choices([uniform(0, max_size/10), uniform(max_size/10, 2*max_size/10), uniform(4*max_size/10, 6*max_size/10), uniform(6*max_size/10, 8*max_size/10)], weights=[6, 2, 1, 1])
+        reduce_size = choices([uniform(0, max_size/10), uniform(max_size/10, 2*max_size/10), uniform(4*max_size/10, 6*max_size/10), uniform(6*max_size/10, 8*max_size/10)], weights=[2, 5, 2, 1])
         return round((max_size - reduce_size[0]) * 1048576)
 
     def get_random_name() -> str:
         """生成一个随机文件名"""
-        # 这些格式的文件一般都比较大
-        suffix_list = ('zip', 'rar', 'apk', 'exe', 'pdf', '7z', 'tar', 'iso', 'img', 'gho', 'dmg', 'dwg')
-        name = list(file_name.replace('.', '')) + sample('abcdefghijklmnopqrstuvwxyz', 3) + sample('1234567890', 2)
+        # 这些格式的文件一般都比较大且不容易触发下载检测
+        suffix_list = ('zip', 'rar', 'apk', 'ipa', 'exe', 'pdf', '7z', 'tar', 'deb', 'dmg', 'rpm', 'flac')
+        name = list(file_name.replace('.', '').replace(' ', ''))
+        name = name + sample('abcdefghijklmnopqrstuvwxyz', 3) + sample('1234567890', 2)
         shuffle(name)  # 打乱顺序
         name = ''.join(name) + '.' + choice(suffix_list)
         return name_format(name)  # 确保随机名合法
 
-    all_file_list = []  # 全部的临时文件
     with open(file_path, 'rb') as big_file:
-        big_file_left_size = file_size
+        big_file.seek(start_byte)
+        left_size = file_size - start_byte  # 大文件剩余大小
+        random_size = get_random_size()
+        tmp_file_size = random_size if left_size > random_size else left_size
+        tmp_file_path = tmp_dir + os.sep + get_random_name()
+
         chunk_size = 524288  # 512KB
-        while big_file_left_size > 0:
-            tmp_file_size = get_random_size() if file_size > (max_size * 1048576 / 2) else file_size  # 文件剩下1/2最大值时不再分割
-            tmp_file_name = get_random_name()
-            tmp_file_path = tmp_dir + os.sep + tmp_file_name
+        left_read_size = tmp_file_size
+        with open(tmp_file_path, 'wb') as small_file:
+            while left_read_size > 0:
+                if left_read_size < chunk_size:  # 不足读取一次
+                    small_file.write(big_file.read(left_read_size))
+                    break
+                # 一次读取一块,防止一次性读取占用内存
+                small_file.write(big_file.read(chunk_size))
+                left_read_size -= chunk_size
 
-            left_size = tmp_file_size
-            with open(tmp_file_path, 'wb') as f:
-                while left_size > 0:
-                    if left_size < chunk_size:  # 不足读取一次
-                        f.write(big_file.read(left_size))
-                        break
-                    # 一次读取一块,防止一次性读取占用内存
-                    f.write(big_file.read(chunk_size))
-                    left_size -= chunk_size
-
-            big_file_left_size -= tmp_file_size
-            all_file_list.append(tmp_file_name)  # 按顺序保存文件名
-            yield tmp_file_path
-
-    # 序列化文件信息到 txt 文件,下载时尝试反序列化,成功则说明这是大文件的数据
-    info = {'name': file_name, 'size': file_size, 'parts': all_file_list}
-    info_file = tmp_dir + os.sep + '.'.join(get_random_name().split('.')[:-1]) + '.txt'
-    with open(info_file, 'wb') as f:
-        pickle.dump(info, f)
-    yield info_file
-
-    # 正常遍历结束时删除临时目录,失败时保留,方便复现 Bug
-    rmtree(tmp_dir)
-    logger.debug(f"Delete tmp dir: {tmp_dir}")
+    return tmp_file_size, tmp_file_path
 
 
 def let_me_upload(file_path):
@@ -151,8 +138,10 @@ def let_me_upload(file_path):
     file_size = os.path.getsize(file_path) / 1024 / 1024  # MB
     file_name = os.path.basename(file_path)
 
-    big_file_suffix = choice(['zip', 'rar', 'apk', 'exe', 'pdf', '7z', 'tar', 'iso', 'img', 'gho', 'dmg', 'dwg'])
-    small_file_suffix = choice(['doc', 'ipa', 'epub', 'mobi', 'azw', 'ppt', 'pptx'])
+    big_file_suffix = ['zip', 'rar', 'apk', 'ipa', 'exe', 'pdf', '7z', 'tar', 'deb', 'dmg', 'rpm', 'flac']
+    small_file_suffix = big_file_suffix + ['doc', 'epub', 'mobi', 'mp3', 'ppt', 'pptx']
+    big_file_suffix = choice(big_file_suffix)
+    small_file_suffix = choice(small_file_suffix)
     suffix = small_file_suffix if file_size < 30 else big_file_suffix
     new_file_path = '.'.join(file_path.split('.')[:-1]) + '.' + suffix
 

@@ -8,6 +8,7 @@ __all__ = ['FileList', 'FolderList']
 
 class ItemList:
     """具有 name, id 属性对象的列表"""
+
     def __init__(self):
         self._items = []
 
