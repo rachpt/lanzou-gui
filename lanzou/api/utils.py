@@ -8,13 +8,14 @@ import pickle
 import re
 from datetime import timedelta, datetime
 from random import uniform, choices, sample, shuffle, choice
+import requests
 
 __all__ = ['logger', 'remove_notes', 'name_format', 'time_format', 'is_name_valid', 'is_file_url',
            'is_folder_url', 'big_file_split', 'un_serialize', 'let_me_upload']
 
 # 调试日志设置
 logger = logging.getLogger('lanzou')
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 formatter = logging.Formatter(
     fmt="%(asctime)s [line:%(lineno)d] %(funcName)s %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S")
@@ -23,11 +24,20 @@ console.setFormatter(formatter)
 logger.addHandler(console)
 
 
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36',
+    'Referer': 'https://www.lanzous.com',
+    'Accept-Language': 'zh-CN,zh;q=0.9',
+}
+
+
 def remove_notes(html: str) -> str:
     """删除网页的注释"""
     # 去掉 html 里面的 // 和 <!-- --> 注释，防止干扰正则匹配提取数据
     # 蓝奏云的前端程序员喜欢改完代码就把原来的代码注释掉,就直接推到生产环境了 =_=
-    return re.sub(r'<!--.+?-->|\s*//\s*.+', '', html)
+    html = re.sub(r'<!--.+?-->|\s+//\s*.+', '', html)  # html 注释
+    html = re.sub(r'(.+?[,;])\s*//.+', r'\1', html)  # js 注释
+    return html
 
 
 def name_format(name: str) -> str:
@@ -65,14 +75,36 @@ def is_name_valid(filename: str) -> bool:
 
 def is_file_url(share_url: str) -> bool:
     """判断是否为文件的分享链接"""
-    pat = 'https?://www.lanzous.com/[ti][a-z0-9]{5,}/?'
-    return True if re.fullmatch(pat, share_url) else False
+    base_pat = 'https?://www.lanzous.com/.+'
+    user_pat = 'https?://www.lanzous.com/i[a-z0-9]{5,}/?'  # 普通用户 URL 规则
+    if not re.fullmatch(base_pat, share_url):
+        return False
+    elif re.fullmatch(user_pat, share_url):
+        return True
+    else:  # VIP 用户的 URL 很随意
+        try:
+            html = requests.get(share_url, headers=headers).text
+            html = remove_notes(html)
+            return True if re.search(r'class="fileinfo"|id="file"|文件描述', html) else False
+        except (requests.RequestException, Exception):
+            return False
 
 
 def is_folder_url(share_url: str) -> bool:
     """判断是否为文件夹的分享链接"""
-    pat = 'https?://www.lanzous.com/b[a-z0-9]{7,}/?'
-    return True if re.fullmatch(pat, share_url) else False
+    base_pat = 'https?://www.lanzous.com/.+'
+    user_pat = 'https?://www.lanzous.com/b[a-z0-9]{7,}/?'
+    if not re.fullmatch(base_pat, share_url):
+        return False
+    elif re.fullmatch(user_pat, share_url):
+        return True
+    else:  # VIP 用户的 URL 很随意
+        try:
+            html = requests.get(share_url, headers=headers).text
+            html = remove_notes(html)
+            return True if re.search(r'id="infos"', html) else False
+        except (requests.RequestException, Exception):
+            return False
 
 
 def un_serialize(data: bytes):
@@ -82,7 +114,7 @@ def un_serialize(data: bytes):
         if not isinstance(ret, dict):
             return None
         return ret
-    except (TypeError, pickle.UnpicklingError):
+    except (TypeError, pickle.UnpicklingError, ValueError):
         return None
 
 
