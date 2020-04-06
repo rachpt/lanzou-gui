@@ -26,21 +26,30 @@ from dialogs import (update_settings, set_file_icon, btn_style, LoginDialog, Upl
                      AboutDialog, MyTableView, CaptchaDialog)
 from tools import UserInfo, decrypt
 
+action_btn_style = '''
+    QPushButton {
+        color: white;
+        background-color: QLinearGradient(x1: 0, y1: 0, x2: 0, y2: 1,stop: 0 #88d,
+            stop: 0.1 #99e, stop: 0.49 #77c, stop: 0.5 #66b, stop: 1 #77c);
+        border-width: 1px;
+        border-color: #339;
+        border-style: solid;
+        border-radius: 7;
+        padding: 3px;
+        font-size: 13px;
+        padding-left: 5px;
+        padding-right: 5px;
+        min-width: 20px;
+        min-height: 14px;
+        max-height: 14px;
+    }
+'''
 
 qssStyle = '''
     QPushButton {
         background-color: rgba(255, 130, 71, 100);
     }
-    #table_share {
-        background-color: rgba(255, 255, 255, 150);
-    }
-    #disk_tab {
-        background-color: rgba(255, 255, 255, 150);
-    }
-    #table_disk {
-        background-color: rgba(255, 255, 255, 150);
-    }
-    #table_rec {
+    #table_share, #table_jobs, #table_disk, #table_rec {
         background-color: rgba(255, 255, 255, 150);
     }
     QTabWidget::pane {
@@ -72,6 +81,9 @@ qssStyle = '''
     }
     #MainWindow {
         border-image:url(./src/default_background_img.jpg);
+    }
+    #tabWidget QTabBar{
+        background-color: #AEEEEE;
     }
     #statusbar {
         font: 14px;
@@ -131,7 +143,7 @@ class TableDelegate(QStyledItemDelegate):
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
-    __version__ = 'v0.2.3-beta.2'
+    __version__ = 'v0.2.3-beta.3'
     if not os.path.isdir("./src") or not os.path.isfile("./src/file.ico"):
         from src import release_src
 
@@ -144,6 +156,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.init_default_settings()
         self.init_variables()
         self.init_workers()
+        self.load_settings()
         self.init_menu()
         self.setWindowTitle("蓝奏云客户端 - {}".format(self.__version__))
 
@@ -156,7 +169,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.create_left_menus()
 
         self.setStyleSheet(qssStyle)
-        self.tabWidget.setStyleSheet("QTabBar{ background-color: #AEEEEE; }")
         self.check_update_worker.set_values(self.__version__, False)  # 检测新版
         self.clipboard_listener()  # 系统粘贴板
 
@@ -255,12 +267,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._old_work_id = self._work_id  # 用于上传完成后判断是否需要更新disk界面
         self._show_to_tray_msg = True
         self._created_tray = False
+        self._dl_path = "./downloads"
         self._dl_jobs_lists = {}
-        self._up_jobs_lists = []
+        self._up_jobs_lists = {}
         self._current_up = 0  # 当前上传
         self._current_dl = 0  # 当前下载
         self._captcha_code = None
-        self.load_settings()
 
     def set_disk(self):
         self.download_manager.set_disk(self._disk)
@@ -284,7 +296,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._disk.set_captcha_handler(self.captcha_handler)
         self._disk.set_timeout(settings["timeout"])
         self._disk.set_max_size(settings["max_size"])
-        self.download_threads = settings["download_threads"]
+        self.download_manager.set_thread(settings["download_threads"])  # 同时下载任务数量
+        self._dl_path = settings["dl_path"]  # 下载路径
         self.time_fmt = settings["time_fmt"]  # 时间显示格式
         self.to_tray = settings["to_tray"] if "to_tray" in settings else False
         self.watch_clipboard = settings["watch_clipboard"] if "watch_clipboard" in settings else False
@@ -397,6 +410,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 上传器
         self.upload_worker = UploadWorker()
         self.upload_worker.finished.connect(self.finished_upload)
+        self.upload_worker.upload_precent.connect(self.update_up_jobs_precent)
         self.upload_worker.code.connect(self.show_status)
         # 验证码对话框
         self.captcha_dialog = CaptchaDialog()
@@ -430,7 +444,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def show_upload_dialog(self, files):
         """显示上传文件对话框"""
         if len(self._path_list) > 0:
-            self.upload_dialog.set_values(self._path_list[-1].name, files)
+            self.upload_dialog.set_values(self._path_list[-1].name, self._path_list[-1].id, files)
         else:
             self.show_status("等待文件列表更新...", 2000)
 
@@ -457,7 +471,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.show_file_and_folder_lists()
 
     def call_download_manager_thread(self, tasks):
-        self.download_manager.set_values(tasks, self._configs.settings["dl_path"], self.download_threads)
+        self.download_manager.add_tasks(tasks)
         for _task in tasks:
             if _task[1] not in self._dl_jobs_lists.keys():
                 task = list(_task)
@@ -484,7 +498,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         _indexes = listview.selectionModel().selection().indexes()
         for i in _indexes:  # 获取所选行号
             info = model.item(i.row(), 0).data()
-            if info and info not in infos:
+            if info and info[1] != ".." and info not in infos:
                 infos.append(info)
 
         if tab_page == 0:  # 提取界面下载
@@ -492,14 +506,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 return
             tasks = []
             for info in infos:
-                task = (info[1], info[7], info[5])
+                task = (info[1], info[7], info[5], self._dl_path)
                 if task not in tasks:
                     tasks.append(task)
             self.call_download_manager_thread(tasks)
         elif tab_page == 1:  # 登录文件界面下载
             if not infos:
                 return
-            self.desc_pwd_fetcher.set_values(infos, download=True)
+            self.desc_pwd_fetcher.set_values(infos, download=True, dl_path=self._dl_path)
         elif tab_page == 2:  # 回收站
             if action == "recovery":
                 title = "确定恢复选定文件(夹)？"
@@ -698,7 +712,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             model = self.model_jobs
             table = self.table_jobs
 
-        model.setHorizontalHeaderLabels(["文件名", "大小", "时间"])
+        if tab == "jobs":
+            model.setHorizontalHeaderLabels(["任务名", "完成度", "操作"])
+        else:
+            model.setHorizontalHeaderLabels(["文件名", "大小", "时间"])
         table.setItemDelegateForColumn(0, TableDelegate())  # table 支持富文本
         table.setModel(model)
         # 是否显示网格线
@@ -762,7 +779,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         indexs = set(indexs)
         for index in indexs:
             info = self.model_disk.item(index, 0).data()  # 用于提示删除的文件名
-            if info:
+            if info and info[1] != "..":
                 infos.append(info[:3])
         delete_dialog = DeleteDialog(infos)
         delete_dialog.new_infos.connect(self.remove_files_worker.set_values)
@@ -777,7 +794,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         infos = []  # 多个选中的行，用于移动文件与...
         for one_row in row_nums:
             one_row_data = _model.item(one_row.row(), 0).data()
-            if one_row_data and one_row_data not in infos:  # 删掉 .. 行
+            if one_row_data[1] != ".." and one_row_data not in infos:  # 删掉 .. 行
                 infos.append(one_row_data)
         if not infos:
             return
@@ -846,7 +863,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def call_upload(self, infos):
         """上传文件(夹)"""
         self._old_work_id = self._work_id  # 记录上传文件夹id
-        self.upload_worker.set_values(infos, self._old_work_id)
+        self.upload_worker.add_tasks(infos)
+        for item in infos:
+            self._up_jobs_lists[item[0]] = item
         self.upload_worker.start()
 
     def show_full_path(self):
@@ -1077,36 +1096,90 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.label_dl_path.setStyleSheet("#label_dl_path {color: rgb(255,255,60);}")
 
     # jobs tab
+    def call_jobs_clean_all(self):
+        try:
+            for k, v in self._dl_jobs_lists.items():
+                if v[-1] >= 1:
+                    self.download_manager.del_task(k)
+                    del self._dl_jobs_lists[k]
+            for k, v in self._up_jobs_lists.items():
+                if v[-1] >= 1:
+                    del self._up_jobs_lists[k]
+        except: pass
+        self.show_jobs_lists()
 
     def update_dl_jobs_precent(self, infos):
-        for url, prec in infos.items():
-            _other = self._dl_jobs_lists[url]
-            _other[-1] = prec
-            self._dl_jobs_lists[url] = _other
+        try:
+            for url, prec in infos.items():
+                _other = self._dl_jobs_lists[url]
+                _other[-1] = prec
+                self._dl_jobs_lists[url] = _other
+        except: pass
         self.show_jobs_lists()
+
+    def update_up_jobs_precent(self, furl, precent):
+        try:
+            _other = self._up_jobs_lists[furl]
+            _other[-1] = precent
+            self._up_jobs_lists[furl] = _other
+        except: pass
+        self.show_jobs_lists()
+
+    def redo_upload(self, task):
+        self.upload_worker.add_task(task)
+
+    def redo_download(self, task):
+        self.download_manager.add_task(task)
+        print(task)
 
     def show_jobs_lists(self):
         """任务列表"""
         self.model_jobs.removeRows(0, self.model_jobs.rowCount())  # 清理旧的内容
-
-        self.model_jobs.setHorizontalHeaderLabels(["任务名", "完成", "操作"])
-        upload_ico = QIcon("./src/folder.gif")
-        # download_ico = QIcon("./src/folder.gif")
-        # desc_style = ' <span style="font-size:14px;color:blue;text-align:right">'
-
-        print(self._dl_jobs_lists)
+        self.model_jobs.setHorizontalHeaderLabels(["任务名", "完成度", "操作"])
+        download_ico = QIcon("./src/download.ico")
+        upload_ico = QIcon("./src/upload.ico")
+        desc_style = ' <span style="font-size:14px;color:blue;text-align:right">'
+        _index = 0
         for infos in self._dl_jobs_lists.values():  # 下载
             name = QStandardItem()
-            name.setIcon(upload_ico)
-            txt = infos[0]
+            name.setIcon(download_ico)
+            txt = infos[0] + desc_style + '➩ ' + infos[3] + "</span>"
             name.setText(txt)
             name.setData(infos)
             prec = "{:5.1f}".format(infos[-1] * 100)
-            _prec = QStandardItem(prec)  # size
+            _prec = QStandardItem(prec)  # precent
             self.model_jobs.appendRow([name, _prec, QStandardItem("")])
+            _action = QPushButton("重试")
+            _action.resize(_action.sizeHint())
+            _action.setStyleSheet(action_btn_style)
+            _action.clicked.connect(lambda: self.redo_download(infos))
+            if infos[-1] >= 1:
+                _action.setDisabled(True)
+                _action.setText("已完成")
+            self.table_jobs.setIndexWidget(self.model_jobs.index(_index, 2), _action)
+            _index += 1
+
+        for infos in self._up_jobs_lists.values():  # 上传
+            name = QStandardItem()
+            name.setIcon(upload_ico)
+            txt = str(infos[0][-100:]) + desc_style + '➩ ' + str(infos[1]) + "</span>"
+            name.setText(txt)
+            name.setData(infos)
+            prec = "{:5.1f}".format(infos[-1] * 100)
+            _prec = QStandardItem(prec)  # precent
+            self.model_jobs.appendRow([name, _prec, QStandardItem("")])
+            _action = QPushButton("重试")
+            _action.resize(_action.sizeHint())
+            _action.setStyleSheet(action_btn_style)
+            _action.clicked.connect(lambda: self.redo_upload(infos))
+            if infos[-1] >= 1:
+                _action.setDisabled(True)
+                _action.setText("已完成")
+            self.table_jobs.setIndexWidget(self.model_jobs.index(_index, 2), _action)
+            _index += 1
 
         for row in range(self.model_jobs.rowCount()):  # 右对齐
-            self.model_jobs.item(row, 1).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self.model_jobs.item(row, 1).setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
             self.model_jobs.item(row, 2).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
     def init_jobs_ui(self):
@@ -1130,6 +1203,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.config_tableview("jobs")
         self.tabWidget.insertTab(3, self.jobs_tab, "任务管理")
         self.jobs_tab.setEnabled(True)
+
+        # 信号
+        self.jobs_clean_all.clicked.connect(self.call_jobs_clean_all)
 
     # others
     def clean_status(self):
@@ -1159,6 +1235,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             elif self.tabWidget.currentIndex() == 2:  # rec 界面
                 self.show_status("正在更新回收站...", 10000)
                 self.get_rec_lists_worker.start()
+            elif self.tabWidget.currentIndex() == 3:  # jobs 界面
+                self.show_jobs_lists()
 
     def call_change_tab(self):
         """切换标签页 动作"""
@@ -1224,7 +1302,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if not self.watch_clipboard:
             return
         text = self.clipboard.text()
-        pat = r"(https?://(www\.)?lanzous.com/[bi][a-z0-9]+)[^0-9a-z]*([a-z0-9]+)?"
+        pat = r"(https?://(www\.)?lanzous.com/[bi]?[a-z0-9]+)[^0-9a-z]*([a-z0-9]+)?"
         for share_url, _, pwd in re.findall(pat, text):
             if share_url and not self.get_shared_info_thread.isRunning():
                 self.line_share_url.setEnabled(False)

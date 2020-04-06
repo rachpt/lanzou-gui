@@ -492,13 +492,15 @@ class UploadDialog(QDialog):
     def __init__(self):
         super().__init__()
         self.cwd = os.getcwd()
+        self._folder_id = -1
         self.selected = []
         self.initUI()
         self.set_size()
         self.setStyleSheet(dialog_qss_style)
 
-    def set_values(self, folder_name, files):
+    def set_values(self, folder_name, folder_id, files):
         self.setWindowTitle("上传文件至 ➩ " + str(folder_name))
+        self._folder_id = folder_id
         if files:
             self.selected = files
             self.show_selected()
@@ -603,9 +605,17 @@ class UploadDialog(QDialog):
                 self.model.appendRow(QStandardItem(QIcon("./src/folder.gif"), item))
             self.set_size()
 
+    def backslash(self):
+        """Windows backslash"""
+        tasks = []
+        for item in self.selected:
+            tasks.append([os.path.normpath(item), self._folder_id, 0.0])
+        return tasks
+
     def slot_btn_ok(self):
+        tasks = self.backslash()
         if self.selected:
-            self.new_infos.emit(self.selected)
+            self.new_infos.emit(tasks)
             self.clear_old()
 
     def slot_btn_deleteSelect(self):
