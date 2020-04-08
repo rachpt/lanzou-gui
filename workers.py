@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import os
-from platform import system as platform
 import re
 from random import random
 from time import sleep
