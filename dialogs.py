@@ -1,16 +1,16 @@
 import os
 from pickle import dump, load
 from PyQt5.QtCore import Qt, pyqtSignal, QSize, QLine, QPoint, QTimer
-from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel, QPixmap, QLinearGradient, QFontMetrics, QPainter, QPen
+from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel, QPixmap, QFontMetrics, QPainter, QPen
 from PyQt5.QtWidgets import (QAbstractItemView, QPushButton, QFileDialog, QLineEdit, QDialog, QLabel, QFormLayout,
-                             QTableView, QTextEdit, QGridLayout, QListView, QDialogButtonBox, QVBoxLayout, QHBoxLayout,
-                             QComboBox, QCheckBox,  QSizePolicy, QMainWindow)
+                             QTextEdit, QGridLayout, QListView, QDialogButtonBox, QVBoxLayout, QHBoxLayout,
+                             QComboBox, QCheckBox, QSizePolicy)
 
 from tools import UserInfo, encrypt, decrypt
 KEY = 89
 
 
-def update_settings(config_file: str, up_info: dict, user: str=None, is_settings=False, action="noml"):
+def update_settings(config_file: str, up_info: dict, user=None, is_settings=False, action="normal"):
     """更新配置文件"""
     try:
         with open(config_file, "rb") as _file:
@@ -26,13 +26,13 @@ def update_settings(config_file: str, up_info: dict, user: str=None, is_settings
             try: settings = user_info.settings
             except: settings = {}
             settings.update(up_info)
-            user_info.set_settings(settings)
+            user_info.settings = settings
             users.update({user: user_info})
             _infos.update({"users": users, "choose": encrypt(KEY, user)})
         else:  # 未登录设置
             try: none_user = _infos["none_user"]
             except: none_user = UserInfo()
-            none_user.set_settings(up_info)
+            none_user.settings.update(up_info)
             _infos.update({"none_user": none_user})
     elif action == "del":  # 删除用户
         try: del _infos["users"][user]
@@ -56,44 +56,44 @@ def set_file_icon(name):
         return QIcon("./src/file.ico")
 
 btn_style = """
-QPushButton {
-    color: white;
-    background-color: QLinearGradient(x1: 0, y1: 0, x2: 0, y2: 1,stop: 0 #88d,
-        stop: 0.1 #99e, stop: 0.49 #77c, stop: 0.5 #66b, stop: 1 #77c);
-    border-width: 1px;
-    border-color: #339;
-    border-style: solid;
-    border-radius: 7;
-    padding: 3px;
-    font-size: 13px;
-    padding-left: 5px;
-    padding-right: 5px;
-    min-width: 70px;
-    min-height: 14px;
-    max-height: 14px;
-}
+    QPushButton {
+        color: white;
+        background-color: QLinearGradient(x1: 0, y1: 0, x2: 0, y2: 1,stop: 0 #88d,
+            stop: 0.1 #99e, stop: 0.49 #77c, stop: 0.5 #66b, stop: 1 #77c);
+        border-width: 1px;
+        border-color: #339;
+        border-style: solid;
+        border-radius: 7;
+        padding: 3px;
+        font-size: 13px;
+        padding-left: 5px;
+        padding-right: 5px;
+        min-width: 70px;
+        min-height: 14px;
+        max-height: 14px;
+    }
 """
 others_style = """
-QLabel {
-    font-weight: 400;
-    font-size: 14px;
-}
-QLineEdit {
-    padding: 1px;
-    border-style: solid;
-    border: 2px solid gray;
-    border-radius: 8px;
-}
-QTextEdit {
-    padding: 1px;
-    border-style: solid;
-    border: 2px solid gray;
-    border-radius: 8px;
-}
-#btn_chooseMutiFile, #btn_chooseDir {
-    min-width: 90px;
-    max-width: 90px;
-}
+    QLabel {
+        font-weight: 400;
+        font-size: 14px;
+    }
+    QLineEdit {
+        padding: 1px;
+        border-style: solid;
+        border: 2px solid gray;
+        border-radius: 8px;
+    }
+    QTextEdit {
+        padding: 1px;
+        border-style: solid;
+        border: 2px solid gray;
+        border-radius: 8px;
+    }
+    #btn_chooseMutiFile, #btn_chooseDir {
+        min-width: 90px;
+        max-width: 90px;
+    }
 """
 dialog_qss_style = others_style + btn_style
 # https://thesmithfam.org/blog/2009/09/10/qt-stylesheets-tutorial/
@@ -118,6 +118,7 @@ class QDoublePushButton(QPushButton):
         else:
             self.timer.start(250)
 
+
 class MyLineEdit(QLineEdit):
     """添加单击事件的输入框，用于设置下载路径"""
 
@@ -129,39 +130,6 @@ class MyLineEdit(QLineEdit):
     def mouseReleaseEvent(self, QMouseEvent):
         if QMouseEvent.button() == Qt.LeftButton:
             self.clicked.emit()
-
-
-class MyTableView(QTableView):
-    """加入拖拽功能的表格显示器"""
-    drop_files = pyqtSignal(object)
-
-    def __init__(self, parent):
-        super(MyTableView, self).__init__(parent)
-
-        self.setDragDropMode(QAbstractItemView.InternalMove)
-        self.setDragEnabled(True)
-        self.setAcceptDrops(True)
-        self.setDropIndicatorShown(True)
-
-    def dragEnterEvent(self, event):
-        m = event.mimeData()
-        if m.hasUrls():
-            for url in m.urls():
-                if url.isLocalFile():
-                    event.accept()
-                    return
-        event.ignore()
-
-    def dropEvent(self, event):
-        if event.source():
-            QListView.dropEvent(self, event)
-        else:
-            m = event.mimeData()
-            if m.hasUrls():
-                urls = [url.toLocalFile() for url in m.urls() if url.isLocalFile()]
-                if urls:
-                    self.drop_files.emit(urls)
-                    event.acceptProposedAction()
 
 
 class MyListView(QListView):
@@ -198,7 +166,9 @@ class MyListView(QListView):
 
 
 class AutoResizingTextEdit(QTextEdit):
-    """添加单击事件的自动改变大小的文本输入框，用于显示描述与下载直链"""
+    """添加单击事件的自动改变大小的文本输入框，用于显示描述与下载直链
+    https://github.com/cameel/auto-resizing-text-edit
+    """
     clicked = pyqtSignal()
 
     def __init__(self, parent = None):
@@ -212,16 +182,13 @@ class AutoResizingTextEdit(QTextEdit):
         size_policy.setVerticalPolicy(QSizePolicy.Preferred)
         self.setSizePolicy(size_policy)
 
-        self.textChanged.connect(lambda: self.updateGeometry())
+        self.textChanged.connect(self.updateGeometry)
 
     def setMinimumLines(self, num_lines):
         """ Sets minimum widget height to a value corresponding to specified number of lines
             in the default font. """
 
         self.setMinimumSize(self.minimumSize().width(), self.lineCountToWidgetHeight(num_lines))
-
-    def hasHeightForWidth(self):
-        return True
 
     def heightForWidth(self, width):
         margins = self.contentsMargins()
@@ -250,7 +217,6 @@ class AutoResizingTextEdit(QTextEdit):
         original_hint = super(AutoResizingTextEdit, self).sizeHint()
         return QSize(original_hint.width(), self.heightForWidth(original_hint.width()))
 
-    
     def mouseReleaseEvent(self, QMouseEvent):
         if QMouseEvent.button() == Qt.LeftButton:
             if not self.toPlainText():
@@ -276,8 +242,6 @@ class AutoResizingTextEdit(QTextEdit):
             self.document().documentMargin()          +
             widget_margins.bottom()
         )
-
-        return QSize(original_hint.width(), minimum_height_hint)
 
 
 class LoginDialog(QDialog):
@@ -1254,6 +1218,7 @@ class SettingDialog(QDialog):
         self.time_fmt = False
         self.to_tary = False
         self.watch_clipboard = False
+        self.debug = False
         self.initUI()
         self.set_values()
         self.setStyleSheet(dialog_qss_style)
@@ -1291,6 +1256,7 @@ class SettingDialog(QDialog):
         self.time_fmt_box.setChecked(self.time_fmt)
         self.to_tray_box.setChecked(self.to_tray)
         self.watch_clipboard_box.setChecked(self.watch_clipboard)
+        self.debug_box.setChecked(self.debug)
 
     def set_values(self, reset=False):
         """设置控件对应变量初始值"""
@@ -1300,19 +1266,25 @@ class SettingDialog(QDialog):
         self.timeout = settings["timeout"]
         self.dl_path = settings["dl_path"]
         self.time_fmt = settings["time_fmt"]
-        self.to_tray = settings["to_tray"] if "to_tray" in settings else False
-        self.watch_clipboard = settings["watch_clipboard"] if "watch_clipboard" in settings else False
+        self.to_tray = settings["to_tray"] if "to_tray" in settings else False  # 兼容
+        self.watch_clipboard = settings["watch_clipboard"] if "watch_clipboard" in settings else False  # 兼容
+        self.debug = settings["debug"] if "debug" in settings else False  # 兼容
         self.show_values()
 
     def get_values(self) -> dict:
-        """读取控件值"""
+        """读取输入控件的值"""
         self.download_threads = int(self.download_threads_var.text())
         self.max_size = int(self.max_size_var.text())
         self.timeout = int(self.timeout_var.text())
         self.dl_path = str(self.dl_path_var.text())
-        return {"download_threads": self.download_threads, "to_tray": self.to_tray,
-                "max_size": self.max_size, "dl_path": self.dl_path, "watch_clipboard": self.watch_clipboard,
-                "timeout": self.timeout, "time_fmt": self.time_fmt}
+        return {"download_threads": self.download_threads,
+                "max_size": self.max_size,
+                "timeout": self.timeout,
+                "dl_path": self.dl_path,
+                "time_fmt": self.time_fmt,
+                "to_tray": self.to_tray,
+                "watch_clipboard": self.watch_clipboard,
+                "debug": self.debug}
 
     def initUI(self):
         self.setWindowTitle("设置")
@@ -1341,10 +1313,12 @@ class SettingDialog(QDialog):
         self.time_fmt_box = QCheckBox("使用[年-月-日]时间格式")
         self.to_tray_box = QCheckBox("关闭到系统托盘")
         self.watch_clipboard_box = QCheckBox("监听系统剪切板")
+        self.debug_box = QCheckBox("开启调试日志")
         self.time_fmt_box.toggle()
         self.time_fmt_box.stateChanged.connect(self.change_time_fmt)
         self.to_tray_box.stateChanged.connect(self.change_to_tray)
         self.watch_clipboard_box.stateChanged.connect(self.change_watch_clipboard)
+        self.debug_box.stateChanged.connect(self.change_debug)
 
         buttonBox = QDialogButtonBox()
         buttonBox.setOrientation(Qt.Horizontal)
@@ -1373,6 +1347,7 @@ class SettingDialog(QDialog):
         hbox.addWidget(self.time_fmt_box)
         hbox.addWidget(self.to_tray_box)
         hbox.addWidget(self.watch_clipboard_box)
+        hbox.addWidget(self.debug_box)
         vbox.addLayout(hbox)
         vbox.addStretch(1)
         vbox.addWidget(buttonBox)
@@ -1396,6 +1371,12 @@ class SettingDialog(QDialog):
             self.watch_clipboard = True
         else:
             self.watch_clipboard = False
+
+    def change_debug(self, state):
+        if state == Qt.Checked:
+            self.debug = True
+        else:
+            self.debug = False
 
     def set_download_path(self):
         """设置下载路径"""
