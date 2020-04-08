@@ -121,7 +121,7 @@ class Downloader(QThread):
                 return
             if res == 0:
                 self.download_precent.emit(self.url, 1.0)
-            logger.debug(f"Download res: {res}")
+            logger.debug(f"Download res: {res=}")
         except TimeoutError:
             self.download_failed.emit("网络连接错误！")
 
@@ -151,15 +151,18 @@ class DownloadManager(QThread):
 
     def add_task(self, task):
         if task not in self._tasks:
+            logger.debug(f"DownloadMgr add one: {task=}")
             self._tasks.append(task[:-1])
 
     def add_tasks(self, tasks):
+        logger.debug(f"DownloadMgr add: {tasks=}")
         self._tasks.extend(tasks)
 
     def __del__(self):
         self.wait()
 
     def del_task(self, url):
+        logger.debug(f"DownloadMgr del: {url=}")
         if url in self._downloading_tasks:
             del self._downloading_tasks[url]
 
@@ -176,6 +179,7 @@ class DownloadManager(QThread):
         self.downloaders_ing.emit(self._downloading_tasks)
 
     def _add_thread(self):
+        logger.debug(f"DownloadMgr count: {self._count}")
         self._count -= 1
 
     def stop(self):
@@ -195,6 +199,7 @@ class DownloadManager(QThread):
                     self.sleep(1)
                 self._count += 1
                 task = self._tasks.pop()
+                logger.debug(f"DownloadMgr run task: {task=}")
                 dl_id = int(random() * 100000)
                 downloader[dl_id] = Downloader()
                 downloader[dl_id].set_disk(self._disk)
@@ -209,7 +214,7 @@ class DownloadManager(QThread):
                     downloader[dl_id].set_values(task[0], task[1], task[2], task[3])
                     downloader[dl_id].start()
                 except Exception as exp:
-                    print(exp)
+                    logger.debug(f"DownloadMgr Error: {exp=}")
             self._is_work = False
             self._mutex.unlock()
 
@@ -328,9 +333,11 @@ class UploadWorker(QThread):
 
     def add_task(self, task):
         if task not in self._tasks:
+            logger.debug(f"upload add one task: {task}")
             self._tasks.append(task)
 
     def add_tasks(self, tasks):
+        logger.debug(f"upload add tasks: {tasks=}")
         self._tasks.extend(tasks)
 
     def __del__(self):
@@ -347,18 +354,23 @@ class UploadWorker(QThread):
             self._is_work = True
             while True:
                 if not self._tasks:
+                    logger.debug(f"upload finished!")
                     break
                 task = self._tasks.pop()
+                logger.debug(f"run task: {task=}")
                 self._furl = task[0]
                 if not os.path.exists(self._furl):
+                    logger.debug(f"upload file not exist : {self._furl}")
                     msg = f"<b>ERROR :</b> <font color='red'>文件不存在:{self._furl}</font>"
                     self.code.emit(msg, 3100)
                     continue
                 if os.path.isdir(self._furl):
+                    logger.debug(f"upload dir : {self._furl}")
                     msg = f"<b>INFO :</b> <font color='#00CC00'>批量上传文件夹:{self._furl}</font>"
                     self.code.emit(msg, 30000)
                     self._disk.upload_dir(self._furl, task[1], self._show_progress, None)
                 else:
+                    logger.debug(f"upload file : {self._furl}")
                     msg = f"<b>INFO :</b> <font color='#00CC00'>上传文件:{self._furl}</font>"
                     self.code.emit(msg, 20000)
                     try:
@@ -401,7 +413,9 @@ class LoginLuncher(QThread):
                 if res == LanZouCloud.SUCCESS:
                     self.code.emit(True, "<font color='#00CC00'>通过<b>Cookie</b>登录<b>成功</b>！ ≧◉◡◉≦</font>", 5000)
                     return
+                logger.debug(f"login by Cookie err: {res=}")
             if (not self.username or not self.password) and not self.cookie:
+                logger.debug("login err: No UserName、No cookie")
                 self.code.emit(False, "<font color='red'>登录失败: 没有用户或密码</font>", 3000)
             else:
                 res = self._disk.login(self.username, self.password)
@@ -410,6 +424,7 @@ class LoginLuncher(QThread):
                     _cookie = self._disk.get_cookie()
                     self.update_cookie.emit(_cookie, str(self.username))
                 else:
+                    logger.debug(f"login err: {res=}")
                     self.code.emit(False, "<font color='red'>登录失败，可能是用户名或密码错误！</font>", 8000)
                     self.update_cookie.emit(None, str(self.username))
         except TimeoutError:
@@ -1114,8 +1129,10 @@ class CheckUpdateWorker(QThread):
             try:
                 resp = requests.get(self._api).json()
             except (requests.RequestException, TimeoutError, requests.exceptions.ConnectionError):
+                logger.debug("chcek update from github error")
                 try: resp = requests.get(self._api_mirror).json()
-                except: pass
+                except:
+                    logger.debug("chcek update from gitee error")
             if resp:
                 try:
                     tag_name, msg = resp['tag_name'], resp['body']
@@ -1137,7 +1154,8 @@ class CheckUpdateWorker(QThread):
                 except AttributeError:
                     if self._manual:
                         self.infos.emit("v0.0.0", "检查更新时发生异常，请重试！")
-                except: pass
+                except:
+                    logger.debug("chcek update version unexpect error")
             else:
                 if self._manual:
                     self.infos.emit("v0.0.0", f"检查更新时 <a href='{self._api}'>api.github.com</a>、<a href='{self._api_mirror}'>gitee.com</a> 拒绝连接，请稍后重试！")

@@ -4,17 +4,18 @@ import sys
 import os
 import re
 from pickle import dump, load
+from logging import getLevelName, DEBUG, INFO
 
 from PyQt5.QtCore import Qt, QCoreApplication, QTimer, QUrl, QSize, QRectF
 from PyQt5.QtGui import (QIcon, QStandardItem, QStandardItemModel, QDesktopServices, QMovie, QTextDocument,
                          QAbstractTextDocumentLayout, QPalette)
-from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QHeaderView, QMenu, QAction, QLabel,
+from PyQt5.QtWidgets import (QApplication, QAbstractItemView, QHeaderView, QMenu, QAction, QLabel,
                              QPushButton, QFileDialog, QDesktopWidget, QMessageBox, QSystemTrayIcon, QStyle,
                              QStyledItemDelegate, QStyleOptionViewItem, QWidget, QVBoxLayout, QHBoxLayout)
 
-from Ui_lanzou import Ui_MainWindow
+from ui_lanzou import Ui_MainWindow
 from lanzou.api import LanZouCloud
-from lanzou.api.utils import time_format
+from lanzou.api.utils import time_format, logger
 from lanzou.api.models import FolderList
 from lanzou.api.types import RecFolder
 
@@ -22,8 +23,8 @@ from workers import (DownloadManager, GetSharedInfo, UploadWorker, LoginLuncher,
                      GetRecListsWorker, RemoveFilesWorker, GetMoreInfoWorker, GetAllFoldersWorker, RenameMkdirWorker,
                      SetPwdWorker, LogoutWorker, RecManipulator, CheckUpdateWorker)
 from dialogs import (update_settings, set_file_icon, btn_style, LoginDialog, UploadDialog, InfoDialog, RenameDialog, 
-                     SettingDialog, RecFolderDialog, SetPwdDialog, MoveFileDialog, DeleteDialog, MyLineEdit, KEY,
-                     AboutDialog, MyTableView, CaptchaDialog)
+                     SettingDialog, RecFolderDialog, SetPwdDialog, MoveFileDialog, DeleteDialog, KEY,
+                     AboutDialog, CaptchaDialog)
 from tools import UserInfo, decrypt
 
 action_btn_style = '''
@@ -142,7 +143,7 @@ class TableDelegate(QStyledItemDelegate):
         return QSize(self.doc.idealWidth(), self.doc.size().height())
 
 
-class MainWindow(QMainWindow, Ui_MainWindow):
+class MainWindow(Ui_MainWindow):
     __version__ = 'v0.2.3-beta.3'
     if not os.path.isdir("./src") or not os.path.isfile("./src/file.ico"):
         from src import release_src
@@ -150,27 +151,35 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         os.makedirs("./src", exist_ok=True)
         release_src()
 
-    def __init__(self, parent=None):
-        super(MainWindow, self).__init__(parent)
+    def __init__(self):
+        super(MainWindow, self).__init__()
         self.setupUi(self)
-        self.init_default_settings()
         self.init_variables()
+        # 设置 tab
+        self.tabWidget.setCurrentIndex(0)
+        self.tabWidget.removeTab(3)
+        self.tabWidget.removeTab(2)
+        self.tabWidget.removeTab(1)
+        self.disk_tab.setEnabled(False)
+        self.rec_tab.setEnabled(False)
+        self.jobs_tab.setEnabled(False)
+
         self.init_workers()
         self.load_settings()
-        self.init_menu()
-        self.setWindowTitle("蓝奏云客户端 - {}".format(self.__version__))
 
         self.set_window_at_center()
+        self.init_menu()
         self.init_extract_share_ui()
         self.init_disk_ui()
         self.init_rec_ui()
-        self.init_jobs_ui()  # jobs
+        self.init_jobs_ui()
         self.call_login_luncher()
         self.create_left_menus()
 
+        self.setWindowTitle("蓝奏云客户端 - {}".format(self.__version__))
         self.setStyleSheet(qssStyle)
         self.check_update_worker.set_values(self.__version__, False)  # 检测新版
-        self.clipboard_listener()  # 系统粘贴板
+        self.clipboard_monitor()  # 系统粘贴板
 
     def create_tray(self):
         """创建 系统托盘"""
@@ -247,9 +256,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         time_fmt = False               # 是否使用年月日时间格式
         to_tray = False                # 关闭到系统托盘
         watch_clipboard = False        # 监听系统剪切板
+        debug = False                  # 调试
         dl_path = os.path.dirname(os.path.abspath(__file__)) + os.sep + "downloads"
-        self._default_settings = {"download_threads": download_threads, "max_size": max_size, "to_tray": to_tray,
-                                  "dl_path": dl_path, "timeout": timeout, "time_fmt": time_fmt, "watch_clipboard": watch_clipboard}
+        self._default_settings = {"download_threads": download_threads,
+                                  "timeout": timeout,
+                                  "max_size": max_size,
+                                  "dl_path": dl_path,
+                                  "time_fmt": time_fmt,
+                                  "to_tray": to_tray,
+                                  "watch_clipboard": watch_clipboard,
+                                  "debug": debug}
 
     def init_variables(self):
         self._disk = LanZouCloud()
@@ -273,6 +289,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._current_up = 0  # 当前上传
         self._current_dl = 0  # 当前下载
         self._captcha_code = None
+        self.init_default_settings()
 
     def set_disk(self):
         self.download_manager.set_disk(self._disk)
@@ -301,6 +318,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.time_fmt = settings["time_fmt"]  # 时间显示格式
         self.to_tray = settings["to_tray"] if "to_tray" in settings else False
         self.watch_clipboard = settings["watch_clipboard"] if "watch_clipboard" in settings else False
+        # debug
+        debug = settings["debug"] if "debug" in settings else False  # 兼容旧版
+        if debug:
+            if getLevelName(logger.level) != "DEBUG":
+                logger.setLevel(DEBUG)
+                logger.debug("\n" + "-" * 60)
+                logger.debug("Start New Debug")
+        else:
+            logger.setLevel(INFO)
+        # 托盘图标
         if self.to_tray:
             self.create_tray()
         elif self._created_tray:
@@ -361,22 +388,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.desc_pwd_fetcher = DescPwdFetcher()
         self.desc_pwd_fetcher.desc.connect(self.call_update_desc_pwd)
         self.desc_pwd_fetcher.tasks.connect(self.call_download_manager_thread)  # 连接下载管理器线程
-        # 设置 tab
-        self.tabWidget.setCurrentIndex(0)
-        self.tabWidget.removeTab(2)
-        self.tabWidget.removeTab(1)
-        self.disk_tab.setEnabled(False)
-        self.rec_tab.setEnabled(False)
-        # 状态栏
-        self._msg_label = QLabel()
-        self._msg_movie_lb = QLabel()
-        self._msg_movie = QMovie("src/loading_more.gif")
-        self._msg_movie.setScaledSize(QSize(24,24))
-        self._msg_movie_lb.setMovie(self._msg_movie)
-        self._msg_label.setObjectName("msg_label")
-        self._msg_movie_lb.setObjectName("msg_movie_lb")
-        self.statusbar.addWidget(self._msg_movie_lb)
-        self.statusbar.addWidget(self._msg_label)
+
         # 重命名、修改简介与新建文件夹对话框
         self.rename_dialog = RenameDialog()
         self.rename_dialog.out.connect(self.call_rename_mkdir_worker)
@@ -460,18 +472,22 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self._user = decrypt(KEY, all_configs["choose"])
             self._configs = all_configs["users"][self._user]
         except:
-            self._configs.set_settings(self._default_settings)
-            with open(self._config_file, "wb") as _file:
-                dump({"none_user": self._configs}, _file)
+            try: self._configs = all_configs["none_user"]
+            except:
+                self._configs.settings = self._default_settings
+                with open(self._config_file, "wb") as _file:
+                    dump({"none_user": self._configs}, _file)
         if not self._configs.settings:
-            self._configs.set_settings(self._default_settings)
+            self._configs.settings = self._default_settings
             update_settings(self._config_file, self._default_settings, user=self._user, is_settings=True)
         self.update_lanzoucloud_settings()
-        if ref_ui and self.tabWidget.currentIndex() == 1:  # 更新文件界面的时间
+        if ref_ui and self.tabWidget.currentIndex() == self.tabWidget.indexOf(self.disk_tab):  # 更新文件界面的时间
             self.show_file_and_folder_lists()
 
     def call_download_manager_thread(self, tasks):
         self.download_manager.add_tasks(tasks)
+        self.tabWidget.insertTab(3, self.jobs_tab, "任务管理")
+        self.jobs_tab.setEnabled(True)
         for _task in tasks:
             if _task[1] not in self._dl_jobs_lists.keys():
                 task = list(_task)
@@ -583,7 +599,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.upload.setEnabled(True)
             self.upload.triggered.connect(self.show_upload_dialog_menus)
             # 设置当前显示 tab
-            self.tabWidget.setCurrentIndex(1)
+            self.tabWidget.setCurrentIndex(self.tabWidget.indexOf(self.disk_tab))
             QCoreApplication.processEvents()  # 重绘界面
             # 刷新文件列表
             # self.list_refresher.set_values(self._work_id)
@@ -864,6 +880,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """上传文件(夹)"""
         self._old_work_id = self._work_id  # 记录上传文件夹id
         self.upload_worker.add_tasks(infos)
+        self.tabWidget.insertTab(3, self.jobs_tab, "任务管理")
+        self.jobs_tab.setEnabled(True)
         for item in infos:
             self._up_jobs_lists[item[0]] = item
         self.upload_worker.start()
@@ -873,7 +891,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         index = 1
         for _ in iter(self._path_list_old):
             self._locs[index].clicked.disconnect()
-            self.disk_loc.removeWidget(self._locs[index])
+            self.disk_loc_hbox.removeWidget(self._locs[index])
             self._locs[index].deleteLater()
             self._locs[index] = None
             del self._locs[index]
@@ -885,7 +903,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self._locs[index].setToolTip(tip)
             self._locs[index].setIcon(QIcon("./src/folder.gif"))
             self._locs[index].setStyleSheet("QPushButton {border:none; background:transparent;}")
-            self.disk_loc.insertWidget(index, self._locs[index])
+            self.disk_loc_hbox.insertWidget(index, self._locs[index])
             self._locs[index].clicked.connect(self.call_change_dir(item.id))
             index += 1
         self._path_list_old = self._path_list
@@ -1015,7 +1033,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btn_rec_clean.clicked.connect(lambda: self.call_multi_manipulator("clean"))
         self.btn_rec_clean.setIcon(QIcon("./src/rec_bin.ico"))
         self.btn_rec_clean.setToolTip("清理回收站全部")
-        self.expire_files_btn.setToolTip("暂时无效！")
+        self.btn_rec_expire_files.setToolTip("暂时无效！")
 
     # shared url
     def call_get_shared_info(self):
@@ -1060,7 +1078,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             up_info = {"dl_path": dl_path}
         update_settings(self._config_file, up_info, user=self._user, is_settings=True)
         self.load_settings()
-        self.line_dl_path.setText(self._configs.settings["dl_path"])
+        self.share_set_dl_path.setText(self._configs.settings["dl_path"])
 
     def init_extract_share_ui(self):
         self.btn_share_select_all.setDisabled(True)
@@ -1085,11 +1103,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.table_share.clicked.connect(lambda: self.select_all_btn("cancel"))  # 全选按钮
 
         # 添加文件下载路径选择器
-        self.line_dl_path = MyLineEdit(self.share_tab)
-        self.line_dl_path.setObjectName("line_dl_path")
-        self.horizontalLayout_share_2.insertWidget(2, self.line_dl_path)
-        self.line_dl_path.setText(self._configs.settings["dl_path"])
-        self.line_dl_path.clicked.connect(self.set_download_path)
+        self.share_set_dl_path.setText(self._configs.settings["dl_path"])
+        self.share_set_dl_path.clicked.connect(self.set_download_path)
 
         # QSS
         self.label_share_url.setStyleSheet("#label_share_url {color: rgb(255,255,60);}")
@@ -1126,11 +1141,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.show_jobs_lists()
 
     def redo_upload(self, task):
+        logger.debug(f"{task=}")
         self.upload_worker.add_task(task)
 
     def redo_download(self, task):
+        logger.debug(f"{task=}")
         self.download_manager.add_task(task)
-        print(task)
 
     def show_jobs_lists(self):
         """任务列表"""
@@ -1184,69 +1200,48 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def init_jobs_ui(self):
         """初始化上传下载任务管理界面"""
-        self.jobs_tab = QWidget()
-        self.jobs_tab.setObjectName("jobs_tab")
-        self.jobs_verticalLayout = QVBoxLayout(self.jobs_tab)
-        self.jobs_verticalLayout.setObjectName("jobs_verticalLayout")
-        self.jobs_hLayout = QHBoxLayout(self.jobs_tab)
-        self.jobs_hLayout.setObjectName("jobs_hLayout")
-        self.jobs_start_all = QPushButton("开始所有任务")
-        self.jobs_clean_all = QPushButton("删除已完成任务")
-        self.jobs_hLayout.addWidget(self.jobs_start_all)
-        self.jobs_hLayout.addStretch(1)
-        self.jobs_hLayout.addWidget(self.jobs_clean_all)
-        self.table_jobs = MyTableView(self.jobs_tab)
-        self.table_jobs.setObjectName("table_jobs")
-        self.jobs_verticalLayout.addLayout(self.jobs_hLayout)
-        self.jobs_verticalLayout.addWidget(self.table_jobs)
         self.model_jobs = QStandardItemModel(1, 3)
         self.config_tableview("jobs")
-        self.tabWidget.insertTab(3, self.jobs_tab, "任务管理")
         self.jobs_tab.setEnabled(True)
 
         # 信号
-        self.jobs_clean_all.clicked.connect(self.call_jobs_clean_all)
+        self.btn_jobs_clean_all.clicked.connect(self.call_jobs_clean_all)
 
     # others
     def clean_status(self):
-        self._msg_label.setText("")
-        self._msg_movie_lb.clear()
-        self._msg_movie.stop()
+        self.statusbar_msg_label.setText("")
+        self.statusbar_load_lb.clear()
+        self.statusbar_load_movie.stop()
 
     def show_status(self, msg, duration=0):
-        self._msg_label.setText(msg)
+        self.statusbar_msg_label.setText(msg)
         if msg and duration >= 3000:
-            self._msg_movie_lb.setMovie(self._msg_movie)
-            self._msg_movie.start()
+            self.statusbar_load_lb.setMovie(self.statusbar_load_movie)
+            self.statusbar_load_movie.start()
         else:
-            self._msg_movie_lb.clear()
-            self._msg_movie.stop()
+            self.statusbar_load_lb.clear()
+            self.statusbar_load_movie.stop()
         if duration != 0:
             QTimer.singleShot(duration, self.clean_status)
+
+    def call_change_tab(self):
+        """切换标签页 动作"""
+        tab_index = self.tabWidget.currentIndex()
+        if tab_index == self.tabWidget.indexOf(self.rec_tab):  # rec 界面
+            self.show_status("正在更新回收站...", 10000)
+            self.get_rec_lists_worker.start()
+        elif tab_index == self.tabWidget.indexOf(self.disk_tab):  # disk 界面
+            self.show_status("正在更新当前目录...", 10000)
+            self.list_refresher.set_values(self._work_id)
+        elif tab_index == self.tabWidget.indexOf(self.jobs_tab):  # jobs 界面
+                self.show_jobs_lists()
 
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_A:  # Ctrl/Alt + A 全选
             if e.modifiers() and Qt.ControlModifier:
                 self.select_all_btn()
         elif e.key() == Qt.Key_F5:  # 刷新
-            if self.tabWidget.currentIndex() == 1:  # disk 界面
-                self.show_status("正在更新当前目录...", 10000)
-                self.list_refresher.set_values(self._work_id)
-            elif self.tabWidget.currentIndex() == 2:  # rec 界面
-                self.show_status("正在更新回收站...", 10000)
-                self.get_rec_lists_worker.start()
-            elif self.tabWidget.currentIndex() == 3:  # jobs 界面
-                self.show_jobs_lists()
-
-    def call_change_tab(self):
-        """切换标签页 动作"""
-        tab_index = self.tabWidget.currentIndex()
-        if tab_index == 2:
-            self.show_status("正在更新回收站...", 10000)
-            self.get_rec_lists_worker.start()
-        elif tab_index == 1:
-            self.show_status("正在更新当前目录...", 10000)
-            self.list_refresher.set_values(self._work_id)
+            self.call_change_tab()
 
     def set_window_at_center(self):
         screen = QDesktopWidget().screenGeometry()
@@ -1317,7 +1312,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.show()
                 break
 
-    def clipboard_listener(self):
+    def clipboard_monitor(self):
         """监听系统剪切板"""
         self.clipboard = QApplication.clipboard()
         self.clipboard.dataChanged.connect(self.auto_extract_clipboard)
