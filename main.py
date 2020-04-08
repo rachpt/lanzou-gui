@@ -17,7 +17,7 @@ from ui_lanzou import Ui_MainWindow
 from lanzou.api import LanZouCloud
 from lanzou.api.utils import time_format, logger
 from lanzou.api.models import FolderList
-from lanzou.api.types import RecFolder
+from lanzou.api.types import RecFolder, FolderDetail
 
 from workers import (DownloadManager, GetSharedInfo, UploadWorker, LoginLuncher, DescPwdFetcher, ListRefresher,
                      GetRecListsWorker, RemoveFilesWorker, GetMoreInfoWorker, GetAllFoldersWorker, RenameMkdirWorker,
@@ -499,13 +499,13 @@ class MainWindow(Ui_MainWindow):
     def call_multi_manipulator(self, action):
         """批量操作器"""
         tab_page = self.tabWidget.currentIndex()
-        if tab_page == 0:
+        if tab_page == self.tabWidget.indexOf(self.share_tab):
             listview = self.table_share
             model = self.model_share
-        elif tab_page == 1:
+        elif tab_page == self.tabWidget.indexOf(self.disk_tab):
             listview = self.table_disk
             model = self.model_disk
-        elif tab_page == 2:
+        elif tab_page == self.tabWidget.indexOf(self.rec_tab):
             listview = self.table_rec
             model = self.model_rec
         else:
@@ -514,23 +514,30 @@ class MainWindow(Ui_MainWindow):
         _indexes = listview.selectionModel().selection().indexes()
         for i in _indexes:  # 获取所选行号
             info = model.item(i.row(), 0).data()
-            if info and info[1] != ".." and info not in infos:
+            if info and info not in infos:
                 infos.append(info)
 
-        if tab_page == 0:  # 提取界面下载
+        if tab_page == self.tabWidget.indexOf(self.share_tab):  # 提取界面下载
             if not infos:
                 return
             tasks = []
             for info in infos:
-                task = (info[1], info[7], info[5], self._dl_path)
+                info = info[0]  # 单文件信息
+                task = (info.name, info.url, "", self._dl_path)
                 if task not in tasks:
                     tasks.append(task)
+            if len(tasks) != 1 and len(tasks) == infos[0][2]:
+                info = infos[0][1]  # 文件夹信息
+                tasks = [(info.name, info.url, info.pwd, self._dl_path), ]
+            logger.debug(f"manipulator, share tab {tasks=}")
             self.call_download_manager_thread(tasks)
-        elif tab_page == 1:  # 登录文件界面下载
+        elif tab_page == self.tabWidget.indexOf(self.disk_tab):  # 登录文件界面下载
             if not infos:
                 return
+            logger.debug(f"manipulator, disk tab {infos=}")
             self.desc_pwd_fetcher.set_values(infos, download=True, dl_path=self._dl_path)
-        elif tab_page == 2:  # 回收站
+        elif tab_page == self.tabWidget.indexOf(self.rec_tab):  # 回收站
+            logger.debug(f"manipulator, rec tab {action=}")
             if action == "recovery":
                 title = "确定恢复选定文件(夹)？"
             elif action == "delete":
@@ -651,7 +658,6 @@ class MainWindow(Ui_MainWindow):
         # infos: ID/None，文件名，大小，日期，下载次数(dl_count)，提取码(pwd)，描述(desc)，|链接(share-url)
         if self._work_id != -1:
             _back = QStandardItem(folder_ico, "..")
-            _back.setData(["..", ".."])
             _back.setToolTip("双击返回上层文件夹，选中无效")
             self.model_disk.appendRow([_back, QStandardItem(""), QStandardItem("")])
         for infos in self._folder_list.values():  # 文件夹
@@ -795,7 +801,7 @@ class MainWindow(Ui_MainWindow):
         indexs = set(indexs)
         for index in indexs:
             info = self.model_disk.item(index, 0).data()  # 用于提示删除的文件名
-            if info and info[1] != "..":
+            if info:
                 infos.append(info[:3])
         delete_dialog = DeleteDialog(infos)
         delete_dialog.new_infos.connect(self.remove_files_worker.set_values)
@@ -810,7 +816,7 @@ class MainWindow(Ui_MainWindow):
         infos = []  # 多个选中的行，用于移动文件与...
         for one_row in row_nums:
             one_row_data = _model.item(one_row.row(), 0).data()
-            if one_row_data[1] != ".." and one_row_data not in infos:  # 删掉 .. 行
+            if one_row_data and one_row_data not in infos:  # 删掉 .. 行
                 infos.append(one_row_data)
         if not infos:
             return
@@ -869,10 +875,11 @@ class MainWindow(Ui_MainWindow):
 
     def change_dir(self, dir_name):
         """双击切换工作目录"""
-        dir_name = self.model_disk.item(dir_name.row(), 0).data()[1]  # 文件夹名
-        if dir_name == "..":  # 返回上级路径
+        if self.model_disk.item(dir_name.row(), 0).text() == "..":  # 返回上级路径
             self.list_refresher.set_values(self._parent_id)
-        elif dir_name in self._folder_list.keys():
+            return
+        dir_name = self.model_disk.item(dir_name.row(), 0).data()[1]  # 文件夹名
+        if dir_name in self._folder_list.keys():
             folder_id = self._folder_list[dir_name][0]
             self.list_refresher.set_values(folder_id)
 
@@ -911,13 +918,13 @@ class MainWindow(Ui_MainWindow):
     def select_all_btn(self, action="reverse"):
         """默认反转按钮状态"""
         page = self.tabWidget.currentIndex()
-        if page == 0:
+        if page == self.tabWidget.indexOf(self.share_tab):
             btn = self.btn_share_select_all
             table = self.table_share
-        elif page == 1:
+        elif page == self.tabWidget.indexOf(self.disk_tab):
             btn = self.btn_disk_select_all
             table = self.table_disk
-        elif page == 2:
+        elif page == self.tabWidget.indexOf(self.rec_tab):
             btn = self.btn_rec_select_all
             table = self.table_rec
         else:
@@ -1044,14 +1051,23 @@ class MainWindow(Ui_MainWindow):
             self.get_shared_info_thread.set_values(text)
 
     def show_share_url_file_lists(self, infos):
-        if infos["code"] == LanZouCloud.SUCCESS:
-            file_count = len(infos["info"].keys())
-            self.model_share.setHorizontalHeaderLabels(["文件{}个".format(file_count), "大小", "时间"])
-            for infos in infos["info"].values():
-                name = QStandardItem(set_file_icon(infos[1]), infos[1])
-                name.setData(infos)
-                time = QStandardItem(time_format(infos[3])) if self.time_fmt else QStandardItem(infos[3])
-                self.model_share.appendRow([name, QStandardItem(infos[2]), time])
+        if infos.code == LanZouCloud.SUCCESS:
+            if isinstance(infos, FolderDetail):  # 文件夹
+                file_count = len(infos.files)
+                desc = " | " + infos.folder.desc[:50] if infos.folder.desc else ""
+                title = f"{infos.folder.name} | 文件{file_count}个{desc}"
+                for one in iter(infos.files):
+                    name = QStandardItem(set_file_icon(one.name), one.name)
+                    name.setData((one, infos.folder, file_count))
+                    time = QStandardItem(time_format(one.time)) if self.time_fmt else QStandardItem(one.time)
+                    self.model_share.appendRow([name, QStandardItem(one.size), time])
+            else:  # 单文件
+                title = "文件名"
+                name = QStandardItem(set_file_icon(infos.name), infos.name)
+                name.setData((infos, None, 1))
+                time = QStandardItem(time_format(infos.time)) if self.time_fmt else QStandardItem(infos.time)
+                self.model_share.appendRow([name, QStandardItem(infos.size), time])
+            self.model_share.setHorizontalHeaderLabels([title, "大小", "时间"])
             for r in range(self.model_share.rowCount()):  # 右对齐
                 self.model_share.item(r, 1).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
                 self.model_share.item(r, 2).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
@@ -1141,11 +1157,11 @@ class MainWindow(Ui_MainWindow):
         self.show_jobs_lists()
 
     def redo_upload(self, task):
-        logger.debug(f"{task=}")
+        logger.debug(f"re upload {task=}")
         self.upload_worker.add_task(task)
 
     def redo_download(self, task):
-        logger.debug(f"{task=}")
+        logger.debug(f"re download {task=}")
         self.download_manager.add_task(task)
 
     def show_jobs_lists(self):
@@ -1234,7 +1250,7 @@ class MainWindow(Ui_MainWindow):
             self.show_status("正在更新当前目录...", 10000)
             self.list_refresher.set_values(self._work_id)
         elif tab_index == self.tabWidget.indexOf(self.jobs_tab):  # jobs 界面
-                self.show_jobs_lists()
+            self.show_jobs_lists()
 
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_A:  # Ctrl/Alt + A 全选

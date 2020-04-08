@@ -234,7 +234,7 @@ class GetSharedInfo(QThread):
         self.is_folder = ""
         self._mutex = QMutex()
         self._is_work = False
-        self._pat = r"(https?://(www\.)?lanzous.com/[bi][a-z0-9]+)[^0-9a-z]*([a-z0-9]+)?"
+        self._pat = r"(https?://(www\.)?lanzous.com/[bi]?[a-z0-9]+)[^0-9a-z]*([a-z0-9]+)?"
 
     def set_disk(self, disk):
         self._disk = disk
@@ -276,17 +276,17 @@ class GetSharedInfo(QThread):
     def emit_msg(self, infos):
         '''根据查询信息发送状态信号'''
         show_time = 2999  # 提示显示时间，单位 ms
-        if infos["code"] == LanZouCloud.FILE_CANCELLED:
+        if infos.code == LanZouCloud.FILE_CANCELLED:
             self.msg.emit("<font color='red'>文件不存在，或已删除！</font>", show_time)
-        elif infos["code"] == LanZouCloud.URL_INVALID:
+        elif infos.code == LanZouCloud.URL_INVALID:
             self.msg.emit("<font color='red'>链接非法！</font>", show_time)
-        elif infos["code"] == LanZouCloud.PASSWORD_ERROR:
+        elif infos.code == LanZouCloud.PASSWORD_ERROR:
             self.msg.emit("<font color='red'>提取码 [<b><font color='magenta'>{}</font></b>] 错误！</font>".format(self.pwd), show_time)
-        elif infos["code"] == LanZouCloud.LACK_PASSWORD:
+        elif infos.code == LanZouCloud.LACK_PASSWORD:
             self.msg.emit("<font color='red'>请在链接后面跟上提取码，空格分割！</font>", show_time)
-        elif infos["code"] == LanZouCloud.NETWORK_ERROR:
+        elif infos.code == LanZouCloud.NETWORK_ERROR:
             self.msg.emit("<font color='red'>网络错误！{}</font>".format(infos["info"]), show_time)
-        elif infos["code"] == LanZouCloud.SUCCESS:
+        elif infos.code == LanZouCloud.SUCCESS:
             self.msg.emit("<font color='#00CC00'>提取成功！</font>", show_time)
 
     def run(self):
@@ -295,10 +295,10 @@ class GetSharedInfo(QThread):
             self._is_work = True
             try:
                 if self.is_file:  # 链接为文件
-                    _infos = self._disk.get_share_file_info(self.share_url, self.pwd)
+                    _infos = self._disk.get_share_info_by_url(self.share_url, self.pwd)
                     self.emit_msg(_infos)
                 elif self.is_folder:  # 链接为文件夹
-                    _infos = self._disk.get_share_folder_info(self.share_url, self.pwd)
+                    _infos = self._disk.get_folder_info_by_url(self.share_url, self.pwd)
                     self.emit_msg(_infos)
                 self.infos.emit(_infos)
             except TimeoutError:

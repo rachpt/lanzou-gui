@@ -11,7 +11,7 @@ RecFile = namedtuple('RecFile', ['name', 'id', 'type', 'size', 'time'])
 RecFolder = namedtuple('RecFolder', ['name', 'id', 'size', 'time', 'files'])
 FileDetail = namedtuple('FileDetail', ['code', 'name', 'size', 'type', 'time', 'desc', 'pwd', 'url', 'durl'],
                         defaults=(0, *[''] * 8))
-ShareInfo = namedtuple('ShareInfo', ['code', 'name', 'url', 'pwd', 'desc'], defaults=(0, *[''] * 4))
+ShareInfo = namedtuple('ShareInfo', ['code', 'name', 'url', 'pwd', 'desc', 'time', 'size'], defaults=(0, *[''] * 6))
 DirectUrlInfo = namedtuple('DirectUrlInfo', ['code', 'name', 'durl'])
 FolderInfo = namedtuple('Folder', ['name', 'id', 'pwd', 'time', 'desc', 'url'], defaults=('',) * 6)
 FileInFolder = namedtuple('FileInFolder', ['name', 'time', 'size', 'type', 'url'], defaults=('',) * 5)
