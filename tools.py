@@ -85,14 +85,16 @@ class UserInfo():
     def cookie(self):
         return self.decode(self._cookie)
 
+    @cookie.setter
+    def cookie(self, cookie):
+        self._cookie = self.encode(cookie)
+
     @property
     def settings(self):
         return self._settings
 
-    def set_cookie(self, cookie):
-        self._cookie = self.encode(cookie)
-
-    def set_settings(self, settings):
+    @settings.setter
+    def settings(self, settings):
         self._settings = settings
 
     def set_infos(self, infos: dict):
