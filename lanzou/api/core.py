@@ -339,8 +339,8 @@ class LanZouCloud(object):
             else:
                 page += 1  # 下一页
             # 文件信息处理
-            if resp["zt"]  == 9:  # login not
-                print(resp)
+            if resp["zt"] == 9:  # login not
+                logger.debug(f"Not login {resp=}")
                 break
             for file in resp["text"]:
                 file_list.append(File(
@@ -597,7 +597,9 @@ class LanZouCloud(object):
         # 允许再不同路径创建同名文件夹, 移动时可通过 get_move_paths() 区分
         for folder in self.get_move_folders():
             if not raw_folders.find_by_id(folder.id):
+                logger.debug(f"Mkdir {folder_name} #{folder.id} in {parent_id=}")
                 return folder.id
+        logger.debug(f"Mkdir {folder_name} error, {parent_id=}")
         return LanZouCloud.MKDIR_ERROR
 
     def _set_dir_info(self, folder_id, folder_name, desc='') -> int:
@@ -762,6 +764,7 @@ class LanZouCloud(object):
         monitor = MultipartEncoderMonitor(post_data, _call_back)
         result = self._post('https://pc.woozooo.com/fileup.php', data=monitor, headers=tmp_header, timeout=None)
         if not result:  # 网络异常
+            logger.debug('Upload file no result')
             return LanZouCloud.NETWORK_ERROR
         else:
             result = result.json()
@@ -843,7 +846,7 @@ class LanZouCloud(object):
             return self._upload_small_file(file_path, folder_id, callback)
 
         # 上传超过 max_size 的文件
-        folder_name = os.path.basename(file_path).replace('.', '_mkdir')  # 保存分段文件的文件夹名
+        folder_name = os.path.basename(file_path)  # 保存分段文件的文件夹名
         dir_id = self.mkdir(folder_id, folder_name, 'Big File')
         if dir_id == LanZouCloud.MKDIR_ERROR:
             return LanZouCloud.MKDIR_ERROR  # 创建文件夹失败就退出

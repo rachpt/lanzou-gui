@@ -15,13 +15,12 @@ __all__ = ['logger', 'remove_notes', 'name_format', 'time_format', 'is_name_vali
 
 # 调试日志设置
 logger = logging.getLogger('lanzou')
-logger.setLevel(logging.INFO)
-formatter = logging.Formatter(
-    fmt="%(asctime)s [line:%(lineno)d] %(funcName)s %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S")
-console = logging.StreamHandler()
-console.setFormatter(formatter)
-logger.addHandler(console)
+fmt_str = "%(asctime)s [%(filename)s:%(lineno)d] %(funcName)s %(levelname)s - %(message)s"
+logging.basicConfig(level=logging.INFO,
+                   filename="debug-lanzou-gui.log",
+                   filemode="a",
+                   format=fmt_str,
+                   datefmt="%Y-%m-%d %H:%M:%S")
 
 
 headers = {
