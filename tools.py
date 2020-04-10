@@ -1,6 +1,8 @@
 import re
 import requests
 from random import choice
+from collections import namedtuple
+
 
 headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:74.0) Gecko/20100101 Firefox/74.0'}
 KEY = 152
@@ -142,3 +144,8 @@ def decrypt(ksa, s):
         b1 = b2 ^ ksa
         b[i] = b1
     return b.decode("utf-8")
+
+
+# PyQt5 信号传递数据
+DlJob = namedtuple('UpJob', ['name', 'url', 'pwd', 'path', 'info', 'run', 'rate'], defaults=('', '', '', '', None, False, 0))
+UpJob = namedtuple('DlJob', ['furl', 'id', 'folder', 'info', 'run', 'rate'], defaults=('', -1, '', None, False, 0))

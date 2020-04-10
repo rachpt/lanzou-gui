@@ -11,6 +11,8 @@ from lanzou.api import LanZouCloud
 from lanzou.api.utils import is_folder_url, is_file_url, logger
 from lanzou.api.types import RecFolder, RecFile
 
+from tools import DlJob
+
 
 def show_progress(file_name, total_size, now_size, symbol="█"):
     """显示进度条的回调函数"""
@@ -68,8 +70,9 @@ def show_down_failed(code, file):
 class Downloader(QThread):
     '''单个文件下载线程'''
     download_proc = pyqtSignal(str)
-    download_failed = pyqtSignal(str)
-    download_precent = pyqtSignal(str, float)
+    download_failed = pyqtSignal(object, object)
+    folder_file_failed = pyqtSignal(object, object)
+    download_rate = pyqtSignal(object, object)
 
     def __init__(self, parent=None):
         super(Downloader, self).__init__(parent)
@@ -88,26 +91,27 @@ class Downloader(QThread):
         self._mutex.lock()
         self._stopped = True
         self._mutex.unlock()
+        self.terminate()
 
     def _show_progress(self, file_name, total_size, now_size):
         """显示进度条的回调函数"""
         msg = show_progress(file_name, total_size, now_size)
-        self.download_precent.emit(self.url, now_size/total_size)
+        self.download_rate.emit(self.url, int(1000 * now_size/total_size))
         self.download_proc.emit(msg)
 
-    def _show_down_failed(self, code, file):
+    def _down_failed(self, code, file):
         """显示下载失败的回调函数"""
-        msg = show_down_failed(code, file)
-        self.download_failed.emit(msg)
+        self.folder_file_failed.emit(code, file)
 
-    def __del__(self):
-        self.wait()
+    # def __del__(self):
+    #     self.wait()
 
     def set_values(self, name, url, pwd, save_path):
         self.name = name
         self.url = url
         self.pwd = pwd
         self.save_path = save_path
+        self.start()
 
     def run(self):
         try:
@@ -115,35 +119,38 @@ class Downloader(QThread):
                 res = self._disk.down_file_by_url(self.url, self.pwd, self.save_path, self._show_progress)
             elif is_folder_url(self.url):  # 下载文件夹
                 res = self._disk.down_dir_by_url(self.url, self.pwd, self.save_path, self._show_progress,
-                                                 mkdir=True, failed_callback=self._show_down_failed)
+                                                 mkdir=True, failed_callback=self._down_failed)
             else:
                 return
             if res == 0:
-                self.download_precent.emit(self.url, 1.0)
+                self.download_rate.emit(self.url, 1000)
+            else:
+                self.download_failed.emit(self.url, res)
             logger.debug(f"Download res: {res}")
         except TimeoutError:
-            self.download_failed.emit("网络连接错误！")
+            logger.error("Download TimeOut")
+            self.download_failed.emit(self.url, "网络连接错误！")
         except Exception as e:
             logger.error(f"Download error: {e=}")
-            self.download_failed.emit("下载遇到未知错误！")
+            self.download_failed.emit(self.url, f"未知错误！{e}")
 
 
 class DownloadManager(QThread):
     '''下载控制器线程，追加下载任务，控制后台下载线程数量'''
-    download_mgr_msg = pyqtSignal(str, int)
     downloaders_msg = pyqtSignal(str, int)
-    downloaders_ing = pyqtSignal(dict)
+    update = pyqtSignal(dict)
 
     def __init__(self, threads=3, parent=None):
         super(DownloadManager, self).__init__(parent)
         self._disk = None
-        self._tasks = []
+        self._tasks = {}
         self._thread = threads
         self._count = 0
         self._mutex = QMutex()
         self._is_work = False
         self._old_msg = ""
-        self._downloading_tasks = {}
+        self._dl_ing = {}
+        self.downloaders = {}
 
     def set_disk(self, disk):
         self._disk = disk
@@ -151,22 +158,42 @@ class DownloadManager(QThread):
     def set_thread(self, thread):
         self._thread = thread
 
-    def add_task(self, task):
-        if task not in self._tasks:
-            logger.debug(f"DownloadMgr add one: {task=}")
-            self._tasks.append(task[:-1])
+    def stop_task(self, task):
+        if self.downloaders[task.url].isRunning():
+            self.downloaders[task.url].stop()
+            self._dl_ing[task.url] = self._dl_ing[task.url]._replace(run=False)
+            logger.debug(f"Stop job: {task}")
+            self.update.emit(self._dl_ing)
 
-    def add_tasks(self, tasks):
+    def start_task(self, task):
+        if task.url not in self.downloaders:
+            self.add_task(task)
+        elif not self.downloaders[task.url].isRunning():
+            logger.debug(f"Start job: {task}")
+            self.downloaders[task.url].start()
+            self._dl_ing[task.url] = self._dl_ing[task.url]._replace(run=True)
+            self.update.emit(self._dl_ing)
+
+    def add_task(self, task):
+        if task.url not in self._tasks.keys():
+            logger.debug(f"DownloadMgr add one: {task=}")
+            self._tasks[task.url] = task
+        self.start()
+
+    def add_tasks(self, tasks: dict):
         logger.debug(f"DownloadMgr add: {tasks=}")
-        self._tasks.extend(tasks)
+        self._tasks.update(tasks)
+        self.start()
 
     def __del__(self):
         self.wait()
 
     def del_task(self, url):
         logger.debug(f"DownloadMgr del: {url=}")
-        if url in self._downloading_tasks:
-            del self._downloading_tasks[url]
+        if url in self._dl_ing:
+            del self._dl_ing[url]
+        if url in self.downloaders:
+            del self.downloaders[url]
 
     def _ahead_msg(self, msg):
         if self._old_msg != msg:
@@ -176,13 +203,24 @@ class DownloadManager(QThread):
                 self.downloaders_msg.emit(f"有{self._count}个下载任务正在运行", 0)
             self._old_msg = msg
 
-    def _ahead_precent(self, url, precent):
-        self._downloading_tasks[url] = precent
-        self.downloaders_ing.emit(self._downloading_tasks)
+    def _ahead_error(self, url, error):
+        self._dl_ing[url] = self._dl_ing[url]._replace(info=error)
+        self.update.emit(self._dl_ing)
 
-    def _add_thread(self):
+    def _ahead_folder_error(self, code, file):
+        # 需要单独考虑，不在 task中
+        pass
+        # self._dl_ing[file.url] = code
+        # self._dl_ing.emit(self._dl_ing)
+
+    def _ahead_rate(self, url, rate):
+        self._dl_ing[url] = self._dl_ing[url]._replace(rate=rate)
+        self.update.emit(self._dl_ing)
+
+    def _add_thread(self, url):
         logger.debug(f"DownloadMgr count: {self._count}")
         self._count -= 1
+        del self.downloaders[url]
 
     def stop(self):
         self._mutex.lock()
@@ -193,30 +231,29 @@ class DownloadManager(QThread):
         if not self._is_work:
             self._mutex.lock()
             self._is_work = True
-            downloader = {}
             while True:
                 if not self._tasks:
                     break
                 while self._count >= self._thread:
                     self.sleep(1)
                 self._count += 1
-                task = self._tasks.pop()
+                url = list(self._tasks.keys())[0]
+                task = self._tasks[url]
                 logger.debug(f"DownloadMgr run: {task=}")
-                dl_id = int(random() * 100000)
-                downloader[dl_id] = Downloader()
-                downloader[dl_id].set_disk(self._disk)
-                self.download_mgr_msg.emit("准备下载：<font color='#FFA500'>{}</font>".format(task[0]), 8000)
+                self.downloaders[url] = Downloader()
+                self.downloaders[url].set_disk(self._disk)
+                self.downloaders_msg.emit("准备下载：<font color='#FFA500'>{}</font>".format(task.name), 8000)
                 try:
-                    url = task[1]
-                    downloader[dl_id].finished.connect(self._add_thread)
-                    downloader[dl_id].download_proc.connect(self._ahead_msg)
-                    downloader[dl_id].download_precent.connect(self._ahead_precent)
-                    downloader[dl_id].download_failed.connect(self._ahead_msg)
-                    self._downloading_tasks[url] = 0.0
-                    downloader[dl_id].set_values(task[0], task[1], task[2], task[3])
-                    downloader[dl_id].start()
+                    self.downloaders[url].finished.connect(lambda: self._add_thread(url))
+                    self.downloaders[url].download_proc.connect(self._ahead_msg)
+                    self.downloaders[url].download_rate.connect(self._ahead_rate)
+                    self.downloaders[url].folder_file_failed.connect(self._ahead_folder_error)
+                    self.downloaders[url].download_failed.connect(self._ahead_error)
+                    self._dl_ing[url] = task._replace(run=True)
+                    self.downloaders[url].set_values(task.name, task.url, task.pwd, task.path)
                 except Exception as exp:
                     logger.error(f"DownloadMgr Error: {exp=}")
+                del self._tasks[url]
             self._is_work = False
             self._mutex.unlock()
 
@@ -316,33 +353,38 @@ class GetSharedInfo(QThread):
 class UploadWorker(QThread):
     '''文件上传线程'''
     code = pyqtSignal(str, int)
-    upload_precent = pyqtSignal(str, float)
+    update = pyqtSignal(dict)
 
     def __init__(self, parent=None):
         super(UploadWorker, self).__init__(parent)
         self._disk = None
-        self._tasks = []
+        self._tasks = {}
         self._mutex = QMutex()
         self._is_work = False
         self._furl = ""
+        self._task = None
 
     def _show_progress(self, file_name, total_size, now_size):
         """显示进度条的回调函数"""
         msg = show_progress(file_name, total_size, now_size, symbol="█")
-        self.upload_precent.emit(self._furl, now_size/total_size)
+        rate = int(1000 * now_size/total_size)
+        self._task = self._task._replace(rate=rate)
+        self.update.emit({self._furl: self._task})
         self.code.emit(msg, 0)
 
     def set_disk(self, disk):
         self._disk = disk
 
     def add_task(self, task):
-        if task not in self._tasks:
+        if task.furl not in self._tasks.keys():
             logger.debug(f"upload add one task: {task}")
-            self._tasks.append(task)
+            self._tasks[task.furl] = task
+        self.start()
 
-    def add_tasks(self, tasks):
-        logger.debug(f"upload add tasks: {tasks=}")
-        self._tasks.extend(tasks)
+    def add_tasks(self, tasks: dict):
+        logger.debug(f"upload add tasks: {tasks.values()}")
+        self._tasks.update(tasks)
+        self.start()
 
     def __del__(self):
         self.wait()
@@ -360,30 +402,34 @@ class UploadWorker(QThread):
                 if not self._tasks:
                     logger.debug(f"upload finished!")
                     break
-                task = self._tasks.pop()
-                logger.debug(f"run task: {task=}")
-                self._furl = task[0]
+                self._furl = list(self._tasks.keys())[0]
+                self._task = self._tasks[self._furl]
+                logger.debug(f"run task: {self._task=}")
                 if not os.path.exists(self._furl):
-                    logger.debug(f"upload file not exist : {self._furl}")
+                    logger.error(f"upload file not exist : {self._furl}")
                     msg = f"<b>ERROR :</b> <font color='red'>文件不存在:{self._furl}</font>"
                     self.code.emit(msg, 3100)
                     continue
                 if os.path.isdir(self._furl):
-                    logger.debug(f"upload dir : {self._furl}")
+                    logger.error(f"upload dir : {self._furl}")
                     msg = f"<b>INFO :</b> <font color='#00CC00'>批量上传文件夹:{self._furl}</font>"
                     self.code.emit(msg, 30000)
-                    self._disk.upload_dir(self._furl, task[1], self._show_progress, None)
+                    self._disk.upload_dir(self._furl, self._task.id, self._show_progress, None)
                 else:
-                    logger.debug(f"upload file : {self._furl}")
                     msg = f"<b>INFO :</b> <font color='#00CC00'>上传文件:{self._furl}</font>"
                     self.code.emit(msg, 20000)
                     try:
-                        self._disk.upload_file(self._furl, task[1], self._show_progress)
+                        self._disk.upload_file(self._task.furl, self._task.id, self._show_progress)
                     except TimeoutError:
                         msg = "<b>ERROR :</b> <font color='red'>网络连接超时，请重试！</font>"
                         self.code.emit(msg, 3100)
+                        self._task = self._task._replace(info="网络连接超时")
+                        self.update.emit({self._furl: self._task})
                     except Exception as e:
                         logger.error(f"UploadWorker error: {e=}")
+                        self._task = self._task._replace(info="未知错误")
+                        self.update.emit({self._furl: self._task})
+                del self._tasks[self._furl]
             self._is_work = False
             self._mutex.unlock()
 
@@ -478,7 +524,7 @@ class DescPwdFetcher(QThread):
             try:
                 if not self.infos:
                     raise UserWarning
-                _tasks = []
+                _tasks = {}
                 for info in self.infos:
                     if info[0]:  # disk 运行
                         if info[2]:  # 文件
@@ -493,11 +539,10 @@ class DescPwdFetcher(QThread):
                         elif res.code == LanZouCloud.NETWORK_ERROR:
                             self.msg.emit("网络错误，请稍后重试！", 6000)
                             continue
-                    _task = (info[1], info[7], info[5], self.dl_path)
-                    if _task not in _tasks:
-                        _tasks.append(_task)
+                    name, url, pwd, path = info[1], info[7], info[5], self.dl_path
+                    _tasks[url] = DlJob(name=name, url=url, pwd=pwd, path=path)
                 if self.download:
-                    self.tasks.emit(_tasks) #)
+                    self.tasks.emit(_tasks)
             except TimeoutError:
                 self.msg.emit("网络超时，请稍后重试！", 6000)
             except UserWarning:
@@ -1156,6 +1201,7 @@ class CheckUpdateWorker(QThread):
         if not self._is_work:
             self._mutex.lock()
             self._is_work = True
+            resp = None
             try:
                 resp = requests.get(self._api).json()
             except (requests.RequestException, TimeoutError, requests.exceptions.ConnectionError):

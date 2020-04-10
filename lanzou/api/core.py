@@ -769,7 +769,7 @@ class LanZouCloud(object):
                     self._upload_finished_flag = True
 
         monitor = MultipartEncoderMonitor(post_data, _call_back)
-        result = self._post('https://pc.woozooo.com/fileup.php', data=monitor, headers=tmp_header, timeout=None)
+        result = self._post('https://pc.woozooo.com/fileup.php', monitor, headers=tmp_header, timeout=None)
         if not result:  # 网络异常
             logger.debug('Upload file no result')
             return LanZouCloud.NETWORK_ERROR

@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (QAbstractItemView, QPushButton, QFileDialog, QLineE
                              QTextEdit, QGridLayout, QListView, QDialogButtonBox, QVBoxLayout, QHBoxLayout,
                              QComboBox, QCheckBox, QSizePolicy)
 
-from tools import UserInfo, encrypt, decrypt
+from tools import UserInfo, encrypt, decrypt, UpJob
 KEY = 89
 
 
@@ -457,6 +457,7 @@ class UploadDialog(QDialog):
         super().__init__()
         self.cwd = os.getcwd()
         self._folder_id = -1
+        self._folder_name = "LanZouCloud"
         self.selected = []
         self.initUI()
         self.set_size()
@@ -465,6 +466,7 @@ class UploadDialog(QDialog):
     def set_values(self, folder_name, folder_id, files):
         self.setWindowTitle("上传文件至 ➩ " + str(folder_name))
         self._folder_id = folder_id
+        self._folder_name = folder_name
         if files:
             self.selected = files
             self.show_selected()
@@ -571,9 +573,10 @@ class UploadDialog(QDialog):
 
     def backslash(self):
         """Windows backslash"""
-        tasks = []
+        tasks = {}
         for item in self.selected:
-            tasks.append([os.path.normpath(item), self._folder_id, 0.0])
+            furl = os.path.normpath(item)
+            tasks[furl] = UpJob(furl=furl, id=self._folder_id, folder=self._folder_name)
         return tasks
 
     def slot_btn_ok(self):
