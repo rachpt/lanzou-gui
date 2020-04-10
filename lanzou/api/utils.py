@@ -16,7 +16,7 @@ __all__ = ['logger', 'remove_notes', 'name_format', 'time_format', 'is_name_vali
 # 调试日志设置
 logger = logging.getLogger('lanzou')
 fmt_str = "%(asctime)s [%(filename)s:%(lineno)d] %(funcName)s %(levelname)s - %(message)s"
-logging.basicConfig(level=logging.INFO,
+logging.basicConfig(level=logging.ERROR,
                    filename="debug-lanzou-gui.log",
                    filemode="a",
                    format=fmt_str,
@@ -85,7 +85,8 @@ def is_file_url(share_url: str) -> bool:
             html = requests.get(share_url, headers=headers).text
             html = remove_notes(html)
             return True if re.search(r'class="fileinfo"|id="file"|文件描述', html) else False
-        except (requests.RequestException, Exception):
+        except (requests.RequestException, Exception) as e:
+            logging.error(f"Unexpected error: {e=}")
             return False
 
 
@@ -102,7 +103,8 @@ def is_folder_url(share_url: str) -> bool:
             html = requests.get(share_url, headers=headers).text
             html = remove_notes(html)
             return True if re.search(r'id="infos"', html) else False
-        except (requests.RequestException, Exception):
+        except (requests.RequestException, Exception) as e:
+            logging.error(f"Unexpected error: {e=}")
             return False
 
 

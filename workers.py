@@ -120,9 +120,12 @@ class Downloader(QThread):
                 return
             if res == 0:
                 self.download_precent.emit(self.url, 1.0)
-            logger.debug(f"Download res: {res=}")
+            logger.debug(f"Download res: {res}")
         except TimeoutError:
             self.download_failed.emit("网络连接错误！")
+        except Exception as e:
+            logger.error(f"Download error: {e=}")
+            self.download_failed.emit("下载遇到未知错误！")
 
 
 class DownloadManager(QThread):
@@ -198,7 +201,7 @@ class DownloadManager(QThread):
                     self.sleep(1)
                 self._count += 1
                 task = self._tasks.pop()
-                logger.debug(f"DownloadMgr run task: {task=}")
+                logger.debug(f"DownloadMgr run: {task=}")
                 dl_id = int(random() * 100000)
                 downloader[dl_id] = Downloader()
                 downloader[dl_id].set_disk(self._disk)
@@ -213,7 +216,7 @@ class DownloadManager(QThread):
                     downloader[dl_id].set_values(task[0], task[1], task[2], task[3])
                     downloader[dl_id].start()
                 except Exception as exp:
-                    logger.debug(f"DownloadMgr Error: {exp=}")
+                    logger.error(f"DownloadMgr Error: {exp=}")
             self._is_work = False
             self._mutex.unlock()
 
@@ -302,6 +305,8 @@ class GetSharedInfo(QThread):
                 self.infos.emit(_infos)
             except TimeoutError:
                 self.msg.emit("font color='red'>网络超时！请稍后重试</font>", 5000)
+            except Exception as e:
+                logger.error(f"GetShareInfo error: {e=}")
             self._is_work = False
             self._mutex.unlock()
         else:
@@ -377,6 +382,8 @@ class UploadWorker(QThread):
                     except TimeoutError:
                         msg = "<b>ERROR :</b> <font color='red'>网络连接超时，请重试！</font>"
                         self.code.emit(msg, 3100)
+                    except Exception as e:
+                        logger.error(f"UploadWorker error: {e=}")
             self._is_work = False
             self._mutex.unlock()
 
@@ -428,6 +435,8 @@ class LoginLuncher(QThread):
                     self.update_cookie.emit(None, str(self.username))
         except TimeoutError:
             self.code.emit(False, "<font color='red'>网络超时！</font>", 3000)
+        except Exception as e:
+                logger.error(f"LoginLuncher error: {e=}")
 
 
 class DescPwdFetcher(QThread):
@@ -493,6 +502,8 @@ class DescPwdFetcher(QThread):
                 self.msg.emit("网络超时，请稍后重试！", 6000)
             except UserWarning:
                 pass
+            except Exception as e:
+                logger.error(f"GetPwdFetcher error: {e=}")
             self._is_work = False
             self._mutex.unlock()
         else:
@@ -553,6 +564,9 @@ class ListRefresher(QThread):
                     emit_infos['path_list'] = full_path
             except TimeoutError:
                 self.err_msg.emit("网络超时，无法更新目录，稍后再试！", 7000)
+            except Exception as e:
+                self.err_msg.emit("未知错误，无法更新目录，稍后再试！", 7000)
+                logger.error(f"ListRefresher error: {e=}")
             else:
                 self.infos.emit(emit_infos)
             self._is_work = False
@@ -599,6 +613,8 @@ class RemoveFilesWorker(QThread):
                     self._disk.delete(i['fid'], i['is_file'])
                 except TimeoutError:
                     self.msg.emit(f"删除 {i['name']} 因网络超时失败！", 3000)
+                except Exception as e:
+                    logger.error(f"RemoveFileWorker error: {e=}")
             self.finished.emit()
             self._is_work = False
             self._mutex.unlock()
@@ -670,6 +686,8 @@ class GetMoreInfoWorker(QThread):
                         self.dl_link.emit("其它错误！")  # 下载直链
             except TimeoutError:
                 self.msg.emit("网络超时！稍后重试", 6000)
+            except Exception as e:
+                logger.error(f"GetMoreInfoWorker error: {e=}")
             self._is_work = False
             self._url = ''
             self._pwd = ''
@@ -749,7 +767,8 @@ class GetAllFoldersWorker(QThread):
                         no_err, r_files, r_folders = self.move_file_folder(info, no_err, r_files, r_folders)
                     except TimeoutError:
                         self.msg.emit(f"移动文件(夹) {info[2]} 失败，网络超时！请稍后重试", 5000)
-                    except:
+                    except Exception as e:
+                        logger.error(f"GetAllFoldersWorker error: {e=}")
                         self.msg.emit(f"移动文件(夹) {info[2]} 失败，未知错误！", 5000)
                 if no_err:  # 没有错误就更新ui
                     sleep(2.1)  # 等一段时间后才更新文件列表
@@ -762,6 +781,8 @@ class GetAllFoldersWorker(QThread):
                     self.msg.emit("", 0)  # 删除提示信息
                 except TimeoutError:
                     self.msg.emit("网络超时！稍后重试", 6000)
+                except Exception as e:
+                    logger.error(f"GetAllFoldersWorker error: {e=}")
             self._is_work = False
             self._mutex.unlock()
         else:
@@ -840,6 +861,8 @@ class RenameMkdirWorker(QThread):
                         self.msg.emit("失败：发生错误！", 6000)
             except TimeoutError:
                 self.msg.emit("网络超时，请稍后重试！", 6000)
+            except Exception as e:
+                logger.error(f"RenameMikdirWorker error: {e=}")
 
             self._is_work = False
             self._mutex.unlock()
@@ -905,6 +928,8 @@ class SetPwdWorker(QThread):
                 self.msg.emit("网络超时，请稍后重试！", 6000)
             except UserWarning:
                 pass
+            except Exception as e:
+                logger.error(f"SetPwdWorker error: {e=}")
             self._is_work = False
             self._mutex.unlock()
         else:
@@ -952,6 +977,8 @@ class LogoutWorker(QThread):
                     self.msg.emit("失败，请重试！", 5000)
             except TimeoutError:
                 self.msg.emit("网络超时，请稍后重试！", 6000)
+            except Exception as e:
+                logger.error(f"LogoutWorker error: {e=}")
             self._is_work = False
             self._mutex.unlock()
         else:
@@ -1005,6 +1032,8 @@ class GetRecListsWorker(QThread):
                 self.msg.emit("网络超时，请稍后重试！", 6000)
             except UserWarning:
                 pass
+            except Exception as e:
+                logger.error(f"GetRecListsWorker error: {e=}")
             self._is_work = False
             self._mutex.unlock()
         else:
@@ -1083,6 +1112,8 @@ class RecManipulator(QThread):
                         self.successed.emit()
             except TimeoutError:
                 self.msg.emit("网络超时，请稍后重试！", 6000)
+            except Exception as e:
+                logger.error(f"RecManipulator error: {e=}")
             self._is_work = False
             self._action = None
             self._folders = []
@@ -1132,6 +1163,8 @@ class CheckUpdateWorker(QThread):
                 try: resp = requests.get(self._api_mirror).json()
                 except:
                     logger.debug("chcek update from gitee error")
+            except Exception as e:
+                logger.error(f"CheckUpdateWorker error: {e=}")
             if resp:
                 try:
                     tag_name, msg = resp['tag_name'], resp['body']
@@ -1153,8 +1186,8 @@ class CheckUpdateWorker(QThread):
                 except AttributeError:
                     if self._manual:
                         self.infos.emit("v0.0.0", "检查更新时发生异常，请重试！")
-                except:
-                    logger.debug("chcek update version unexpect error")
+                except Exception as e:
+                    logger.error(f"Check Update Version error: {e=}")
             else:
                 if self._manual:
                     self.infos.emit("v0.0.0", f"检查更新时 <a href='{self._api}'>api.github.com</a>、<a href='{self._api_mirror}'>gitee.com</a> 拒绝连接，请稍后重试！")

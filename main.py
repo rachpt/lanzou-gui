@@ -4,14 +4,14 @@ import sys
 import os
 import re
 from pickle import dump, load
-from logging import getLevelName, DEBUG, INFO
+from logging import getLevelName, DEBUG, ERROR
 
-from PyQt5.QtCore import Qt, QCoreApplication, QTimer, QUrl, QSize, QRectF
-from PyQt5.QtGui import (QIcon, QStandardItem, QStandardItemModel, QDesktopServices, QMovie, QTextDocument,
+from PyQt5.QtCore import Qt, QCoreApplication, QTimer, QUrl, QSize
+from PyQt5.QtGui import (QIcon, QStandardItem, QStandardItemModel, QDesktopServices, QTextDocument,
                          QAbstractTextDocumentLayout, QPalette)
-from PyQt5.QtWidgets import (QApplication, QAbstractItemView, QHeaderView, QMenu, QAction, QLabel,
-                             QPushButton, QFileDialog, QDesktopWidget, QMessageBox, QSystemTrayIcon, QStyle,
-                             QStyledItemDelegate, QStyleOptionViewItem, QWidget, QVBoxLayout, QHBoxLayout)
+from PyQt5.QtWidgets import (QApplication, QAbstractItemView, QHeaderView, QMenu, QAction, QStyle,
+                             QPushButton, QFileDialog, QDesktopWidget, QMessageBox, QSystemTrayIcon,
+                             QStyledItemDelegate, QStyleOptionViewItem)
 
 from ui_lanzou import Ui_MainWindow
 from lanzou.api import LanZouCloud
@@ -26,6 +26,7 @@ from dialogs import (update_settings, set_file_icon, btn_style, LoginDialog, Upl
                      SettingDialog, RecFolderDialog, SetPwdDialog, MoveFileDialog, DeleteDialog, KEY,
                      AboutDialog, CaptchaDialog)
 from tools import UserInfo, decrypt
+
 
 action_btn_style = '''
     QPushButton {
@@ -286,8 +287,6 @@ class MainWindow(Ui_MainWindow):
         self._dl_path = "./downloads"
         self._dl_jobs_lists = {}
         self._up_jobs_lists = {}
-        self._current_up = 0  # 当前上传
-        self._current_dl = 0  # 当前下载
         self._captcha_code = None
         self.init_default_settings()
 
@@ -323,10 +322,10 @@ class MainWindow(Ui_MainWindow):
         if debug:
             if getLevelName(logger.level) != "DEBUG":
                 logger.setLevel(DEBUG)
-                logger.debug("\n" + "-" * 60)
-                logger.debug("Start New Debug")
+                logger.debug("\n" + "=" * 69)
+                logger.debug(f"Start New Debug: version {self.__version__}")
         else:
-            logger.setLevel(INFO)
+            logger.setLevel(ERROR)
         # 托盘图标
         if self.to_tray:
             self.create_tray()

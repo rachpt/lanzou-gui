@@ -59,16 +59,22 @@ class LanZouCloud(object):
             kwargs.setdefault('timeout', self._timeout)
             kwargs.setdefault('headers', self._headers)
             return self._session.get(url, verify=False, **kwargs)
-        except (ConnectionError, requests.RequestException):
+        except requests.Timeout:
+            logging.warning("Encountered timeout error while requesting network!")
             raise TimeoutError
+        except (requests.RequestException, Exception) as e:
+            logger.error(f"Unexpected error: {e=}")
 
     def _post(self, url, data, **kwargs):
         try:
             kwargs.setdefault('timeout', self._timeout)
             kwargs.setdefault('headers', self._headers)
             return self._session.post(url, data, verify=False, **kwargs)
-        except (ConnectionError, requests.RequestException):
+        except requests.Timeout:
+            logging.warning("Encountered timeout error while requesting network!")
             raise TimeoutError
+        except (requests.RequestException, Exception) as e:
+            logger.error(f"Unexpected error: {e=}")
 
     def set_max_size(self, max_size=100) -> int:
         """设置单文件大小限制(会员用户可超过 100M)"""
@@ -95,6 +101,7 @@ class LanZouCloud(object):
             return LanZouCloud.NETWORK_ERROR
         formhash = re.findall(r'name="formhash" value="(.+?)"', html.text)
         if not formhash:
+            logging.error("formhash is None!")
             return LanZouCloud.FAILED
         login_data['formhash'] = formhash[0]
         html = self._post(self._account_url, login_data, headers=phone_header)
@@ -947,7 +954,8 @@ class LanZouCloud(object):
             return FolderDetail(LanZouCloud.URL_INVALID)
         try:
             html = requests.get(share_url, headers=self._headers).text
-        except requests.RequestException:
+        except requests.RequestException as e:
+            logging.error(f"requests error: {e}")
             return FolderDetail(LanZouCloud.NETWORK_ERROR)
         if any(each in html for each in ["文件不存在", "文件取消分享了"]):
             return FolderDetail(LanZouCloud.FILE_CANCELLED)
@@ -966,6 +974,7 @@ class LanZouCloud(object):
             folder_desc = re.findall(r'id="filename">(.+?)</span>', html)  # 无描述时无法完成匹配
             folder_desc = folder_desc[0] if len(folder_desc) == 1 else ''
         except IndexError:
+            logging.error("IndexError")
             return FolderDetail(LanZouCloud.FAILED)
 
         page = 1
