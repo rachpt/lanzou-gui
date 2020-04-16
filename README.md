@@ -32,15 +32,20 @@
 
 - 更多说明与界面预览详见 [WiKi](https://github.com/rachpt/lanzou-gui/wiki)。
 
-## 命令行版本
-
-[zaxtyson/LanZouCloud-CMD](https://github.com/zaxtyson/LanZouCloud-CMD)
-
 
 # 其他
 
-[Gitee 镜像 repo](https://gitee.com/rachpt/lanzou-gui)
+[Gitee 镜像 repo](https://gitee.com/rachpt/lanzou-gui)，[命令行版本](https://github.com/zaxtyson/LanZouCloud-CMD)。
+
+本项目的目的旨在学习 `PyQt5` 在开发桌面程序方面的应用，如需进行其他目的使用，请遵按许可协议 Fork，使用本软件所造成的一切后果与本人无关。
 
 # 致谢
 
 [zaxtyson/LanZouCloud-API](https://github.com/zaxtyson/LanZouCloud-API)
+
+
+# Licenses
+
+lanzou-gui: Copyright (c) [rachpt](https://gitee.com/rachpt/). See the [MIT LICENSE](https://github.com/rachpt/lanzou-gui/blob/master/LICENSE) for details.
+
+lanzou-api: Copyright (c) [zaxtyson](https://github.com/zaxtyson/).
