@@ -417,7 +417,7 @@ class UploadWorker(QThread):
                     msg = f"<b>INFO :</b> <font color='#00CC00'>上传文件:{self._furl}</font>"
                     self.code.emit(msg, 20000)
                     try:
-                        self._disk.upload_file(self._task.furl, self._task.id, self._show_progress)
+                        code, fid, isfile = self._disk.upload_file(self._task.furl, self._task.id, self._show_progress)
                     except TimeoutError:
                         msg = "<b>ERROR :</b> <font color='red'>网络连接超时，请重试！</font>"
                         self.code.emit(msg, 3100)
@@ -427,6 +427,13 @@ class UploadWorker(QThread):
                         logger.error(f"UploadWorker error: {e=}")
                         self._task = self._task._replace(info="未知错误")
                         self.update.emit({self._furl: self._task})
+                    else:
+                        self._task = self._task._replace(info="上传成功")
+                        if code == LanZouCloud.SUCCESS:
+                            if self._task.set_pwd:
+                                self._disk.set_passwd(fid, self._task.pwd, is_file=isfile)
+                            if self._task.set_desc:
+                                self._disk.set_desc(fid, self._task.desc, is_file=isfile)
                 del self._tasks[self._furl]
             self._is_work = False
             self._mutex.unlock()

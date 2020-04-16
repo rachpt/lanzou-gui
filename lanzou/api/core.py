@@ -726,10 +726,10 @@ class LanZouCloud(object):
         self.delete_rec(folder_id, False)
         return LanZouCloud.SUCCESS
 
-    def _upload_small_file(self, file_path, folder_id=-1, callback=None) -> int:
+    def _upload_small_file(self, file_path, folder_id=-1, callback=None) -> (int, int, bool):
         """绕过格式限制上传不超过 max_size 的文件"""
         if not os.path.isfile(file_path):
-            return LanZouCloud.PATH_ERROR
+            return LanZouCloud.PATH_ERROR, 0, True
 
         need_delete = False  # 上传完成是否删除
         if not is_name_valid(os.path.basename(file_path)):  # 不允许上传的格式
@@ -772,19 +772,19 @@ class LanZouCloud(object):
         result = self._post('https://pc.woozooo.com/fileup.php', monitor, headers=tmp_header, timeout=None)
         if not result:  # 网络异常
             logger.debug('Upload file no result')
-            return LanZouCloud.NETWORK_ERROR
+            return LanZouCloud.NETWORK_ERROR, 0, True
         else:
             result = result.json()
         if result["zt"] != 1:
             logger.debug(f'Upload failed: {result=}')
-            return LanZouCloud.FAILED  # 上传失败
+            return LanZouCloud.FAILED, 0, True  # 上传失败
 
         file_id = result["text"][0]["id"]
         self.set_passwd(file_id)  # 文件上传后默认关闭提取码
         if need_delete:
             file.close()
             os.remove(file_path)
-        return LanZouCloud.SUCCESS
+        return LanZouCloud.SUCCESS, int(file_id), True
 
     def _upload_big_file(self, file_path, dir_id, callback=None):
         """上传大文件, 且使得回调函数只显示一个文件"""
@@ -816,7 +816,7 @@ class LanZouCloud(object):
 
         while uploaded_size < file_size:
             data_size, data_path = big_file_split(file_path, self._max_size, start_byte=uploaded_size)
-            code = self._upload_small_file(data_path, dir_id, _callback)
+            code, _, _ = self._upload_small_file(data_path, dir_id, _callback)
             if code == LanZouCloud.SUCCESS:
                 uploaded_size += data_size  # 更新已上传的总字节大小
                 info['uploaded'] = uploaded_size
@@ -826,7 +826,7 @@ class LanZouCloud(object):
                     pickle.dump(info, f)
             else:
                 logger.debug(f"Upload data file failed: {data_path=}")
-                return LanZouCloud.FAILED
+                return LanZouCloud.FAILED, 0, False
 
         # 全部数据块上传完成
         record_name = list(file_name.replace('.', ''))  # 记录文件名也打乱
@@ -834,19 +834,19 @@ class LanZouCloud(object):
         record_name = name_format(''.join(record_name)) + '.txt'
         record_file_new = tmp_dir + os.sep + record_name
         os.rename(record_file, record_file_new)
-        code = self._upload_small_file(record_file_new, dir_id)  # 上传记录文件
+        code, _, _ = self._upload_small_file(record_file_new, dir_id)  # 上传记录文件
         if code != LanZouCloud.SUCCESS:
             logger.debug(f"Upload record file failed: {record_file_new}")
-            return LanZouCloud.FAILED
+            return LanZouCloud.FAILED, 0, False
         # 记录文件上传成功，删除临时文件
         shutil.rmtree(tmp_dir)
         logger.debug(f"Upload finished, Delete tmp folder:{tmp_dir}")
-        return LanZouCloud.SUCCESS
+        return LanZouCloud.SUCCESS, int(dir_id), False  # 大文件返回文件夹id
 
-    def upload_file(self, file_path, folder_id=-1, callback=None) -> int:
+    def upload_file(self, file_path, folder_id=-1, callback=None) -> (int, int, bool):
         """解除限制上传文件"""
         if not os.path.isfile(file_path):
-            return LanZouCloud.PATH_ERROR
+            return LanZouCloud.PATH_ERROR, 0, True
 
         # 单个文件不超过 max_size 直接上传
         if os.path.getsize(file_path) <= self._max_size * 1048576:
@@ -856,7 +856,7 @@ class LanZouCloud(object):
         folder_name = os.path.basename(file_path)  # 保存分段文件的文件夹名
         dir_id = self.mkdir(folder_id, folder_name, 'Big File')
         if dir_id == LanZouCloud.MKDIR_ERROR:
-            return LanZouCloud.MKDIR_ERROR  # 创建文件夹失败就退出
+            return LanZouCloud.MKDIR_ERROR, 0, False  # 创建文件夹失败就退出
         return self._upload_big_file(file_path, dir_id, callback)
 
     def upload_dir(self, dir_path, folder_id=-1, callback=None, failed_callback=None):
@@ -878,7 +878,7 @@ class LanZouCloud(object):
             file_path = dir_path + os.sep + filename
             if not os.path.isfile(file_path):
                 continue  # 跳过子文件夹
-            code = self.upload_file(file_path, dir_id, callback)
+            code, _, _ = self.upload_file(file_path, dir_id, callback)
             if code != LanZouCloud.SUCCESS:
                 if failed_callback is not None:
                     failed_callback(code, filename)

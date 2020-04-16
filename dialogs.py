@@ -168,8 +168,10 @@ class MyListView(QListView):
 class AutoResizingTextEdit(QTextEdit):
     """添加单击事件的自动改变大小的文本输入框，用于显示描述与下载直链
     https://github.com/cameel/auto-resizing-text-edit
+    https://gist.github.com/hahastudio/4345418
     """
     clicked = pyqtSignal()
+    editingFinished = pyqtSignal()
 
     def __init__(self, parent = None):
         super(AutoResizingTextEdit, self).__init__(parent)
@@ -181,8 +183,11 @@ class AutoResizingTextEdit(QTextEdit):
         size_policy.setHeightForWidth(True)
         size_policy.setVerticalPolicy(QSizePolicy.Preferred)
         self.setSizePolicy(size_policy)
-
         self.textChanged.connect(self.updateGeometry)
+
+        self._changed = False
+        self.setTabChangesFocus(True)
+        self.textChanged.connect(self._handle_text_changed)
 
     def setMinimumLines(self, num_lines):
         """ Sets minimum widget height to a value corresponding to specified number of lines
@@ -242,6 +247,14 @@ class AutoResizingTextEdit(QTextEdit):
             self.document().documentMargin()          +
             widget_margins.bottom()
         )
+
+    def focusOutEvent(self, event):
+        if self._changed:
+            self.editingFinished.emit()
+        super(AutoResizingTextEdit, self).focusOutEvent(event)
+
+    def _handle_text_changed(self):
+        self._changed = True
 
 
 class LoginDialog(QDialog):
@@ -458,10 +471,20 @@ class UploadDialog(QDialog):
         self.cwd = os.getcwd()
         self._folder_id = -1
         self._folder_name = "LanZouCloud"
+        self.set_pwd = False
+        self.set_desc = False
+        self.pwd = ''
+        self.desc = ''
         self.selected = []
         self.initUI()
         self.set_size()
         self.setStyleSheet(dialog_qss_style)
+
+    def set_pwd_desc(self, set_pwd, pwd, set_desc, desc):
+        self.set_pwd = set_pwd
+        self.set_desc = set_desc
+        self.pwd = pwd
+        self.desc = desc
 
     def set_values(self, folder_name, folder_id, files):
         self.setWindowTitle("上传文件至 ➩ " + str(folder_name))
@@ -576,7 +599,13 @@ class UploadDialog(QDialog):
         tasks = {}
         for item in self.selected:
             furl = os.path.normpath(item)
-            tasks[furl] = UpJob(furl=furl, id=self._folder_id, folder=self._folder_name)
+            tasks[furl] = UpJob(furl=furl,
+                                id=self._folder_id,
+                                folder=self._folder_name,
+                                set_pwd=self.set_pwd,
+                                pwd=self.pwd,
+                                set_desc=self.set_desc,
+                                desc=self.desc)
         return tasks
 
     def slot_btn_ok(self):
@@ -624,6 +653,7 @@ class UploadDialog(QDialog):
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_Delete:  # delete
             self.slot_btn_deleteSelect()
+
 
 class InfoDialog(QDialog):
     """文件信息对话框"""
@@ -684,7 +714,7 @@ class InfoDialog(QDialog):
         else:
             self.tx_pwd.setText("")
             self.tx_pwd.setPlaceholderText("无")
-        
+
         if self.infos[6]:
             self.tx_desc.setText(self.infos[6])
             self.tx_desc.setPlaceholderText("")
@@ -1205,6 +1235,7 @@ Python 依赖见<a href="{self._github }/blob/master/requirements.txt">requireme
             painter.setPen(pen)
             painter.drawLine(self.line)
 
+
 class SettingDialog(QDialog):
     saved = pyqtSignal()
 
@@ -1219,9 +1250,13 @@ class SettingDialog(QDialog):
         self.timeout = None
         self.dl_path = None
         self.time_fmt = False
-        self.to_tary = False
+        self.to_tray = False
         self.watch_clipboard = False
         self.debug = False
+        self.set_pwd = False
+        self.set_desc = False
+        self.pwd = ""
+        self.desc = ""
         self.initUI()
         self.set_values()
         self.setStyleSheet(dialog_qss_style)
@@ -1260,6 +1295,12 @@ class SettingDialog(QDialog):
         self.to_tray_box.setChecked(self.to_tray)
         self.watch_clipboard_box.setChecked(self.watch_clipboard)
         self.debug_box.setChecked(self.debug)
+        self.set_pwd_box.setChecked(self.set_pwd)
+        self.set_pwd_var.setEnabled(self.set_pwd)
+        self.set_pwd_var.setText(self.pwd)
+        self.set_desc_box.setChecked(self.set_desc)
+        self.set_desc_var.setEnabled(self.set_desc)
+        self.set_desc_var.setText(self.desc)
 
     def set_values(self, reset=False):
         """设置控件对应变量初始值"""
@@ -1272,6 +1313,10 @@ class SettingDialog(QDialog):
         self.to_tray = settings["to_tray"] if "to_tray" in settings else False  # 兼容
         self.watch_clipboard = settings["watch_clipboard"] if "watch_clipboard" in settings else False  # 兼容
         self.debug = settings["debug"] if "debug" in settings else False  # 兼容
+        self.set_pwd = settings["set_pwd"] if "set_pwd" in settings else False  # 兼容
+        self.pwd = settings["pwd"] if "pwd" in settings else ""  # 兼容
+        self.set_desc = settings["set_desc"] if "set_desc" in settings else False  # 兼容
+        self.desc = settings["desc"] if "desc" in settings else ""  # 兼容
         self.show_values()
 
     def get_values(self) -> dict:
@@ -1280,6 +1325,8 @@ class SettingDialog(QDialog):
         self.max_size = int(self.max_size_var.text())
         self.timeout = int(self.timeout_var.text())
         self.dl_path = str(self.dl_path_var.text())
+        self.pwd = str(self.set_pwd_var.toPlainText())
+        self.desc = str(self.set_desc_var.toPlainText())
         return {"download_threads": self.download_threads,
                 "max_size": self.max_size,
                 "timeout": self.timeout,
@@ -1287,7 +1334,11 @@ class SettingDialog(QDialog):
                 "time_fmt": self.time_fmt,
                 "to_tray": self.to_tray,
                 "watch_clipboard": self.watch_clipboard,
-                "debug": self.debug}
+                "debug": self.debug,
+                "set_pwd": self.set_pwd,
+                "pwd": self.pwd,
+                "set_desc": self.set_desc,
+                "desc": self.desc}
 
     def initUI(self):
         self.setWindowTitle("设置")
@@ -1317,11 +1368,21 @@ class SettingDialog(QDialog):
         self.to_tray_box = QCheckBox("关闭到系统托盘")
         self.watch_clipboard_box = QCheckBox("监听系统剪切板")
         self.debug_box = QCheckBox("开启调试日志")
+        self.set_pwd_box = QCheckBox("上传文件自动设置密码")
+        self.set_pwd_var = AutoResizingTextEdit()
+        self.set_pwd_var.setPlaceholderText(" 2-8 位数字或字母")
+        self.set_pwd_var.setToolTip("2-8 位数字或字母")
+        self.set_desc_box = QCheckBox("上传文件自动设置描述")
+        self.set_desc_var = AutoResizingTextEdit()
+
         self.time_fmt_box.toggle()
         self.time_fmt_box.stateChanged.connect(self.change_time_fmt)
         self.to_tray_box.stateChanged.connect(self.change_to_tray)
         self.watch_clipboard_box.stateChanged.connect(self.change_watch_clipboard)
         self.debug_box.stateChanged.connect(self.change_debug)
+        self.set_pwd_box.stateChanged.connect(self.change_set_pwd)
+        self.set_pwd_var.editingFinished.connect(self.check_pwd)
+        self.set_desc_box.stateChanged.connect(self.change_set_desc)
 
         buttonBox = QDialogButtonBox()
         buttonBox.setOrientation(Qt.Horizontal)
@@ -1353,6 +1414,16 @@ class SettingDialog(QDialog):
         hbox.addWidget(self.debug_box)
         vbox.addLayout(hbox)
         vbox.addStretch(1)
+        hbox_2 = QHBoxLayout()
+        hbox_2.addWidget(self.set_pwd_box)
+        hbox_2.addWidget(self.set_pwd_var)
+        vbox.addLayout(hbox_2)
+        vbox.addStretch(1)
+        hbox_3 = QHBoxLayout()
+        hbox_3.addWidget(self.set_desc_box)
+        hbox_3.addWidget(self.set_desc_var)
+        vbox.addLayout(hbox_3)
+        vbox.addStretch(2)
         vbox.addWidget(buttonBox)
         self.setLayout(vbox)
         self.setMinimumWidth(500)
@@ -1380,6 +1451,29 @@ class SettingDialog(QDialog):
             self.debug = True
         else:
             self.debug = False
+
+    def change_set_pwd(self, state):
+        if state == Qt.Checked:
+            self.set_pwd = True
+            self.set_pwd_var.setDisabled(False)
+        else:
+            self.set_pwd = False
+            self.set_pwd_var.setDisabled(True)
+
+    def change_set_desc(self, state):
+        if state == Qt.Checked:
+            self.set_desc = True
+            self.set_desc_var.setDisabled(False)
+        else:
+            self.set_desc = False
+            self.set_desc_var.setDisabled(True)
+
+    def check_pwd(self):
+        pwd = self.set_pwd_var.toPlainText()
+        pwd = ''.join(list(filter(str.isalnum, pwd)))
+        if len(pwd) < 2:
+            pwd = ""
+        self.set_pwd_var.setText(pwd[:8])
 
     def set_download_path(self):
         """设置下载路径"""

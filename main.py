@@ -196,7 +196,11 @@ class MainWindow(Ui_MainWindow):
                                   "time_fmt": time_fmt,
                                   "to_tray": to_tray,
                                   "watch_clipboard": watch_clipboard,
-                                  "debug": debug}
+                                  "debug": debug,
+                                  "set_pwd": False,
+                                  "pwd": "",
+                                  "set_desc": False,
+                                  "desc": ""}
 
     def init_variables(self):
         self._disk = LanZouCloud()
@@ -247,6 +251,11 @@ class MainWindow(Ui_MainWindow):
         self.time_fmt = settings["time_fmt"]  # 时间显示格式
         self.to_tray = settings["to_tray"] if "to_tray" in settings else False
         self.watch_clipboard = settings["watch_clipboard"] if "watch_clipboard" in settings else False
+        set_pwd = settings["set_pwd"] if "set_pwd" in settings else False  # 兼容旧版
+        set_desc = settings["set_desc"] if "set_desc" in settings else False  # 兼容旧版
+        pwd = settings["pwd"] if "pwd" in settings else ""  # 兼容旧版
+        desc = settings["desc"] if "desc" in settings else ""  # 兼容旧版
+        self.upload_dialog.set_pwd_desc(set_pwd, pwd, set_desc, desc)
         # debug
         debug = settings["debug"] if "debug" in settings else False  # 兼容旧版
         if debug:
@@ -1101,7 +1110,7 @@ class MainWindow(Ui_MainWindow):
             name.setIcon(download_ico)
             txt = dl_job.name + path_style + '➩ ' + dl_job.path + "</span>"
             if dl_job.info:
-                txt = txt + error_style + set(dl_job.info) + "</span>"
+                txt = txt + error_style + str(dl_job.info) + "</span>"
             name.setText(txt)
             name.setData(dl_job)
             rate = "{:5.1f}".format(dl_job.rate / 10)
@@ -1145,7 +1154,7 @@ class MainWindow(Ui_MainWindow):
             name.setIcon(upload_ico)
             txt = str(up_job.furl[-100:]) + path_style + '➩ ' + str(up_job.folder) + "</span>"
             if up_job.info:
-                txt = txt + error_style + set(up_job.info) + "</span>"
+                txt = txt + error_style + str(up_job.info) + "</span>"
             name.setText(txt)
             name.setData(up_job)
             rate = "{:5.1f}".format(up_job.rate / 10)

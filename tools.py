@@ -147,5 +147,5 @@ def decrypt(ksa, s):
 
 
 # PyQt5 信号传递数据
-DlJob = namedtuple('UpJob', ['name', 'url', 'pwd', 'path', 'info', 'run', 'rate'], defaults=('', '', '', '', None, False, 0))
-UpJob = namedtuple('DlJob', ['furl', 'id', 'folder', 'info', 'run', 'rate'], defaults=('', -1, '', None, False, 0))
+DlJob = namedtuple('DlJob', ['name', 'url', 'pwd', 'path', 'info', 'run', 'rate'], defaults=('', '', '', '', None, False, 0))
+UpJob = namedtuple('UpJob', ['furl', 'id', 'folder', 'info', 'run', 'rate', 'set_pwd', 'pwd', 'set_desc', 'desc'], defaults=('', -1, '', None, False, 0, False, '', False, ''))
