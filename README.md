@@ -37,7 +37,7 @@
 
 [Gitee 镜像 repo](https://gitee.com/rachpt/lanzou-gui)，[命令行版本](https://github.com/zaxtyson/LanZouCloud-CMD)。
 
-本项目的目的旨在学习 `PyQt5` 在开发桌面程序方面的应用，如需进行其他目的使用，请遵按许可协议 Fork，使用本软件所造成的一切后果与本人无关。
+本项目的目的旨在学习 `PyQt5` 在开发桌面程序方面的应用，如需进行其他目的使用，请遵照许可协议 Fork，使用本软件所造成的一切后果与本人无关。
 
 # 致谢
 
