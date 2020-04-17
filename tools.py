@@ -68,12 +68,18 @@ class UserInfo():
         return var
 
     def decode(self, var):
-        if isinstance(var, dict):
-            for k, v in var.items():
-                var[k] = decrypt(KEY, str(v))
-        elif var:
-            var = decrypt(KEY, var)
-        return var
+        try:
+            if isinstance(var, dict):
+                dvar = {}  # 新开内存，否则会修改原字典
+                for k, v in var.items():
+                    dvar[k] = decrypt(KEY, str(v))
+            elif var:
+                dvar = decrypt(KEY, var)
+            else:
+                dvar = None
+        except:
+            dvar = None
+        return dvar
 
     @property
     def name(self):

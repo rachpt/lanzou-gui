@@ -444,9 +444,10 @@ class LoginDialog(QDialog):
 
     def set_cookie(self):
         cookies = self.cookie_ed.toPlainText()
-        try:
-            self._cookie = {kv.split("=")[0].strip(" "): kv.split("=")[1].strip(" ") for kv in cookies.split(";")}
-        except: self._cookie = None
+        if cookies:
+            try:
+                self._cookie = {kv.split("=")[0].strip(" "): kv.split("=")[1].strip(" ") for kv in cookies.split(";")}
+            except: self._cookie = None
 
     def change_cancel_btn(self):
         self.default_var()
