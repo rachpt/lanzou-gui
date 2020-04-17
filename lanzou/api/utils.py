@@ -17,10 +17,10 @@ __all__ = ['logger', 'remove_notes', 'name_format', 'time_format', 'is_name_vali
 logger = logging.getLogger('lanzou')
 fmt_str = "%(asctime)s [%(filename)s:%(lineno)d] %(funcName)s %(levelname)s - %(message)s"
 logging.basicConfig(level=logging.ERROR,
-                   filename="debug-lanzou-gui.log",
-                   filemode="a",
-                   format=fmt_str,
-                   datefmt="%Y-%m-%d %H:%M:%S")
+                    filename="debug-lanzou-gui.log",
+                    filemode="a",
+                    format=fmt_str,
+                    datefmt="%Y-%m-%d %H:%M:%S")
 
 
 headers = {
@@ -74,8 +74,8 @@ def is_name_valid(filename: str) -> bool:
 
 def is_file_url(share_url: str) -> bool:
     """判断是否为文件的分享链接"""
-    base_pat = 'https?://([-A-Za-z0-9\.]+?)?lanzous.com/.+'
-    user_pat = 'https?://([-A-Za-z0-9\.]+?)?lanzous.com/i[a-z0-9]{5,}/?'  # 普通用户 URL 规则
+    base_pat = 'https?://(\w[-\w]*\.)?lanzous.com/.+'
+    user_pat = 'https?://(\w[-\w]*\.)?lanzous.com/i[a-z0-9]{5,}/?'  # 普通用户 URL 规则
     if not re.fullmatch(base_pat, share_url):
         return False
     elif re.fullmatch(user_pat, share_url):
@@ -86,14 +86,14 @@ def is_file_url(share_url: str) -> bool:
             html = remove_notes(html)
             return True if re.search(r'class="fileinfo"|id="file"|文件描述', html) else False
         except (requests.RequestException, Exception) as e:
-            logging.error(f"Unexpected error: {e=}")
+            logger.error(f"Unexpected error: {e=}")
             return False
 
 
 def is_folder_url(share_url: str) -> bool:
     """判断是否为文件夹的分享链接"""
-    base_pat = 'https?://([-A-Za-z0-9\.]+?)?lanzous.com/.+'
-    user_pat = 'https?://([-A-Za-z0-9\.]+?)?lanzous.com/b[a-z0-9]{7,}/?'
+    base_pat = 'https?://(\w[-\w]*\.)?lanzous.com/.+'
+    user_pat = 'https?://(\w[-\w]*\.)?lanzous.com/b[a-z0-9]{7,}/?'
     if not re.fullmatch(base_pat, share_url):
         return False
     elif re.fullmatch(user_pat, share_url):
@@ -104,7 +104,7 @@ def is_folder_url(share_url: str) -> bool:
             html = remove_notes(html)
             return True if re.search(r'id="infos"', html) else False
         except (requests.RequestException, Exception) as e:
-            logging.error(f"Unexpected error: {e=}")
+            logger.error(f"Unexpected error: {e=}")
             return False
 
 
