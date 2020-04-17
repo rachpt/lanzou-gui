@@ -2,7 +2,6 @@
 
 import os
 import re
-from random import random
 from time import sleep
 from PyQt5.QtCore import QThread, pyqtSignal, QMutex
 import requests
@@ -11,7 +10,7 @@ from lanzou.api import LanZouCloud
 from lanzou.api.utils import is_folder_url, is_file_url, logger
 from lanzou.api.types import RecFolder, RecFile
 
-from tools import DlJob
+from tools import DlJob, FileInfos, FolderInfos
 
 
 def show_progress(file_name, total_size, now_size, symbol="█"):
@@ -492,7 +491,7 @@ class LoginLuncher(QThread):
 
 class DescPwdFetcher(QThread):
     '''获取描述与提取码 线程'''
-    desc = pyqtSignal(object, object, object)
+    desc = pyqtSignal(object)
     tasks = pyqtSignal(object)
     msg = pyqtSignal(object, object)
 
@@ -530,24 +529,26 @@ class DescPwdFetcher(QThread):
                 if not self.infos:
                     raise UserWarning
                 _tasks = {}
+                _infos = []
                 for info in self.infos:
-                    if info[0]:  # disk 运行
-                        if info[2]:  # 文件
-                            res = self._disk.get_share_info(info[0], is_file=True)
+                    if info.id:  # disk 运行
+                        if info.is_file:  # 文件
+                            res = self._disk.get_share_info(info.id, is_file=True)
                         else:  # 文件夹
-                            res = self._disk.get_share_info(info[0], is_file=False)
+                            res = self._disk.get_share_info(info.id, is_file=False)
                         if res.code == LanZouCloud.SUCCESS:
-                            if not self.download:  # 激发简介更新
-                                self.desc.emit(res.desc, res.pwd, info)
-                            info[5] = res.pwd
-                            info.append(res.url)
+                            info.pwd = res.pwd
+                            info.url = res.url
+                            info.desc = res.desc
                         elif res.code == LanZouCloud.NETWORK_ERROR:
                             self.msg.emit("网络错误，请稍后重试！", 6000)
                             continue
-                    name, url, pwd, path = info[1], info[7], info[5], self.dl_path
-                    _tasks[url] = DlJob(name=name, url=url, pwd=pwd, path=path)
+                    _infos.append(info)
+                    _tasks[info.url] = DlJob(name=info.name, url=info.url, pwd=info.pwd, path=self.dl_path)
                 if self.download:
                     self.tasks.emit(_tasks)
+                else:  # 激发简介更新
+                    self.desc.emit(_infos)
             except TimeoutError:
                 self.msg.emit("网络超时，请稍后重试！", 6000)
             except UserWarning:
@@ -605,12 +606,13 @@ class ListRefresher(QThread):
             emit_infos['r'] = {'fid': self._fid, 'files': self.r_files, 'folders': self.r_folders, 'path': self.r_path}
             try:
                 if self.r_files:
-                    info = {i.name: [i.id, i.name, i.size, i.time, i.downs, i.has_pwd, i.has_des] for i in self._disk.get_file_list(self._fid)}
-                    emit_infos['file_list'] = {key: info.get(key) for key in sorted(info.keys())}  # {name-[id,...]}
+                    # [i.id, i.name, i.size, i.time, i.downs, i.has_pwd, i.has_des]
+                    info = {i.name: i for i in self._disk.get_file_list(self._fid)}
+                    emit_infos['file_list'] = {key: info.get(key) for key in sorted(info.keys())}  # {name-File}
                 if self.r_folders:
                     folders, full_path = self._disk.get_dir_list(self._fid)
-                    info = {i.name: [i.id, i.name,  "", "", "", i.has_pwd, i.desc] for i in folders}
-                    emit_infos['folder_list'] = {key: info.get(key) for key in sorted(info.keys())}  # {name-[id,...]}
+                    info = {i.name: i for i in folders}
+                    emit_infos['folder_list'] = {key: info.get(key) for key in sorted(info.keys())}  # {name-Folder}
                     emit_infos['path_list'] = full_path
             except TimeoutError:
                 self.err_msg.emit("网络超时，无法更新目录，稍后再试！", 7000)
@@ -675,23 +677,26 @@ class RemoveFilesWorker(QThread):
 class GetMoreInfoWorker(QThread):
     '''获取文件直链、文件(夹)提取码描述，用于登录后显示更多信息'''
     infos = pyqtSignal(object)
+    share_url = pyqtSignal(object)
     dl_link = pyqtSignal(object)
     msg = pyqtSignal(str, int)
 
     def __init__(self, parent=None):
         super(GetMoreInfoWorker, self).__init__(parent)
         self._disk = None
-        self.emit_infos = None
+        self._infos = None
         self._url = ''
         self._pwd = ''
+        self._emit_link= False
         self._mutex = QMutex()
         self._is_work = False
 
     def set_disk(self, disk):
         self._disk = disk
 
-    def set_values(self, infos):
-        self.emit_infos = infos
+    def set_values(self, infos, emit_link=False):
+        self._infos = infos
+        self._emit_link= emit_link
         self.start()
     
     def get_dl_link(self, url, pwd):
@@ -709,23 +714,22 @@ class GetMoreInfoWorker(QThread):
 
     def run(self):
         # infos: ID/None，文件名，大小，日期，下载次数(dl_count)，提取码(pwd)，描述(desc)，|链接(share-url)
-        if not self._is_work and self.emit_infos:
+        if not self._is_work and self._infos:
             self._mutex.lock()
             self._is_work = True
             try:
-                if not self._url:  # 获取普通星系
-                    if self.emit_infos[0]:  # 从 disk 运行
+                if not self._url:  # 获取普通信息
+                    if isinstance(self._infos, (FolderInfos, FileInfos)):  # 从 disk 运行
                         self.msg.emit("网络请求中，请稍后……", 0)
-                        if self.emit_infos[2]:  # 文件
-                            _info = self._disk.get_share_info(self.emit_infos[0], is_file=True)
-                        else:  # 文件夹
-                            _info = self._disk.get_share_info(self.emit_infos[0], is_file=False)
-                        self.emit_infos[5] = _info.pwd
-                        self.emit_infos[6] = _info.desc
-                        self.emit_infos.append(_info.url)
+                        _info = self._disk.get_share_info(self._infos.id, is_file=self._infos.is_file)
+                        self._infos.desc = _info.desc
+                        self._infos.pwd = _info.pwd
+                        self._infos.url = _info.url
+                        if self._emit_link:
+                            self.share_url.emit(self._infos)
+                        else:
+                            self.infos.emit(self._infos)
                         self.msg.emit("", 0)  # 删除提示信息
-
-                    self.infos.emit(self.emit_infos)
                 else:  # 获取下载直链
                     res = self._disk.get_file_info_by_url(self._url, self._pwd)
                     if res.code == LanZouCloud.SUCCESS:
@@ -877,15 +881,14 @@ class RenameMkdirWorker(QThread):
             self._is_work = True
 
             action = self.infos[0]
-            fid = self.infos[1]
-            new_name = self.infos[2]
-            new_desc = self.infos[3]
             try:
-                if not fid:  # 新建文件夹
+                if action == 'new':  # 新建文件夹
+                    new_name = self.infos[1]
+                    new_des = self.infos[2]
                     if new_name in self._folder_list.keys():
                         self.msg.emit(f"文件夹已存在：{new_name}", 7000)
                     else:
-                        res = self._disk.mkdir(self._work_id, new_name, new_desc)
+                        res = self._disk.mkdir(self._work_id, new_name, new_des)
                         if res == LanZouCloud.MKDIR_ERROR:
                             self.msg.emit(f"创建文件夹失败：{new_name}", 7000)
                         else:
@@ -893,22 +896,28 @@ class RenameMkdirWorker(QThread):
                             self.update.emit(self._work_id, False, True, False)  # 此处仅更新文件夹，并显示
                             self.msg.emit(f"成功创建文件夹：{new_name}", 4000)
                 else:  # 重命名、修改简介
-                    if action == "file":  # 修改文件描述
-                        res = self._disk.set_desc(fid, str(new_desc), is_file=True)
-                    else:  # 修改文件夹，action == "folder"
-                        _res = self._disk.get_share_info(fid, is_file=False)
-                        if _res.code == LanZouCloud.SUCCESS:
-                            res = self._disk._set_dir_info(fid, str(new_name), str(new_desc))
-                        else:
-                            res = _res.code
-                    if res == LanZouCloud.SUCCESS:
-                        if action == "file":  # 只更新文件列表
-                            self.update.emit(self._work_id, True, False, False)
-                        else:  # 只更新文件夹列表
-                            self.update.emit(self._work_id, False, True, False)
+                    has_file = False
+                    has_folder = False
+                    failed = False
+                    for info in self.infos[1]:
+                        if info.is_file:  # 修改文件描述
+                            res = self._disk.set_desc(info.id, info.new_des, is_file=info.is_file)
+                            if res == LanZouCloud.SUCCESS:
+                                has_file = True
+                            else:
+                                failed = True
+                        else:  # 修改文件夹，action == "folder"
+                            name = info.new_name or info.nmae 
+                            res = self._disk._set_dir_info(info.id, str(name), str(info.new_des))
+                            if res == LanZouCloud.SUCCESS:
+                                has_folder = True
+                            else:
+                                failed = True
+                    self.update.emit(self._work_id, has_file, has_folder, False)
+                    if failed:
+                        self.msg.emit("有发生错误！", 6000)
+                    else:
                         self.msg.emit("修改成功！", 4000)
-                    elif res == LanZouCloud.FAILED:
-                        self.msg.emit("失败：发生错误！", 6000)
             except TimeoutError:
                 self.msg.emit("网络超时，请稍后重试！", 6000)
             except Exception as e:
@@ -928,7 +937,7 @@ class SetPwdWorker(QThread):
     def __init__(self, parent=None):
         super(SetPwdWorker, self).__init__(parent)
         self._disk = None
-        self.infos = None
+        self.infos = []
         self._work_id = -1
         self._mutex = QMutex()
         self._is_work = False
@@ -953,27 +962,32 @@ class SetPwdWorker(QThread):
         if not self._is_work:
             self._mutex.lock()
             self._is_work = True
-            fid = self.infos[0]
-            new_pass = self.infos[1]
             try:
-                if self.infos[2]:  # 文件
-                    is_file = True
-                    if 2 > len(new_pass) >= 1 or len(new_pass) > 6:
-                        self.msg.emit("文件提取码为2-6位字符,关闭请留空！", 4000)
-                        raise UserWarning
-                else:  # 文件夹
-                    is_file = False
-                    if 2 > len(new_pass) >= 1 or len(new_pass) > 12:
-                        self.msg.emit("文件夹提取码为0-12位字符,关闭请留空！", 4000)
-                        raise UserWarning
-                res = self._disk.set_passwd(fid, new_pass, is_file)
-                if res == LanZouCloud.SUCCESS:
-                    self.msg.emit("提取码变更成功！♬", 3000)
-                elif res == LanZouCloud.NETWORK_ERROR:
-                    self.msg.emit("网络错误，稍后重试！☒", 4000)
+                has_file = False
+                has_folder = False
+                failed = False
+                for infos in self.infos:
+                    if infos.is_file:  # 文件
+                        has_file = True
+                        new_pwd = infos.new_pwd
+                        if 2 > len(new_pwd) >= 1 or len(new_pwd) > 6:
+                            self.msg.emit("文件提取码为2-6位字符,关闭请留空！", 4000)
+                            raise UserWarning
+                    else:  # 文件夹
+                        has_folder = True
+                        new_pwd = infos.new_pwd
+                        if 2 > len(new_pwd) >= 1 or len(new_pwd) > 12:
+                            self.msg.emit("文件夹提取码为0-12位字符,关闭请留空！", 4000)
+                            raise UserWarning
+                    res = self._disk.set_passwd(infos.id, infos.new_pwd, infos.is_file)
+                    if res != LanZouCloud.SUCCESS:
+                        failed = True
+                if failed:
+                    self.msg.emit("部分提取码变更失败❀╳❀:{}，请勿使用特殊符号!".format(res), 4000)
                 else:
-                    self.msg.emit("提取码变更失败❀╳❀:{}，请勿使用特殊符号!".format(res), 4000)
-                self.update.emit(self._work_id, is_file, not is_file, False)
+                    self.msg.emit("提取码变更成功！♬", 3000)
+
+                self.update.emit(self._work_id, has_file, has_folder, False)
             except TimeoutError:
                 self.msg.emit("网络超时，请稍后重试！", 6000)
             except UserWarning:

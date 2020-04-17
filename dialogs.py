@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (QAbstractItemView, QPushButton, QFileDialog, QLineE
                              QTextEdit, QGridLayout, QListView, QDialogButtonBox, QVBoxLayout, QHBoxLayout,
                              QComboBox, QCheckBox, QSizePolicy)
 
-from tools import UserInfo, encrypt, decrypt, UpJob
+from tools import UserInfo, encrypt, decrypt, UpJob, FileInfos, FolderInfos
 KEY = 89
 
 
@@ -658,7 +658,6 @@ class UploadDialog(QDialog):
 
 class InfoDialog(QDialog):
     """文件信息对话框"""
-
     get_dl_link = pyqtSignal(str, str)
     closed = pyqtSignal()
 
@@ -670,8 +669,8 @@ class InfoDialog(QDialog):
 
     def update_ui(self):
         self.tx_dl_link.setPlaceholderText("单击获取")
-        self.tx_name.setText(self.infos[1])
-        if self.infos[2]:
+        self.tx_name.setText(self.infos.name)
+        if self.infos.is_file:
             self.setWindowTitle("文件信息")
             self.lb_name.setText("文件名：")
             self.lb_desc.setText("文件描述：")
@@ -685,45 +684,45 @@ class InfoDialog(QDialog):
             self.lb_dl_link.setVisible(False)
             self.tx_dl_link.setVisible(False)
 
-        if self.infos[2]:
-            self.tx_size.setText(self.infos[2])
+        if self.infos.size:
+            self.tx_size.setText(self.infos.size)
             self.lb_size.setVisible(True)
             self.tx_size.setVisible(True)
         else:
             self.tx_size.setVisible(False)
             self.lb_size.setVisible(False)
 
-        if self.infos[3]:
+        if self.infos.time:
             self.lb_time.setVisible(True)
             self.tx_time.setVisible(True)
-            self.tx_time.setText(self.infos[3])
+            self.tx_time.setText(self.infos.time)
         else:
             self.lb_time.setVisible(False)
             self.tx_time.setVisible(False)
 
-        if self.infos[4]:
+        if self.infos.downs:
             self.lb_dl_count.setVisible(True)
             self.tx_dl_count.setVisible(True)
-            self.tx_dl_count.setText(str(self.infos[4]))
+            self.tx_dl_count.setText(str(self.infos.downs))
         else:
             self.tx_dl_count.setVisible(False)
             self.lb_dl_count.setVisible(False)
 
-        if self.infos[5]:
-            self.tx_pwd.setText(self.infos[5])
+        if self.infos.pwd:
+            self.tx_pwd.setText(self.infos.pwd)
             self.tx_pwd.setPlaceholderText("")
         else:
             self.tx_pwd.setText("")
             self.tx_pwd.setPlaceholderText("无")
 
-        if self.infos[6]:
-            self.tx_desc.setText(self.infos[6])
+        if self.infos.desc:
+            self.tx_desc.setText(self.infos.desc)
             self.tx_desc.setPlaceholderText("")
         else:
             self.tx_desc.setText("")
             self.tx_desc.setPlaceholderText("无")
 
-        self.tx_share_url.setText(self.infos[7])
+        self.tx_share_url.setText(self.infos.url)
 
     def set_values(self, infos):
         self.infos = infos
@@ -841,14 +840,14 @@ class RenameDialog(QDialog):
 
     def __init__(self, parent=None):
         super(RenameDialog, self).__init__(parent)
-        self.infos = None
+        self.infos = []
         self.min_width = 400
         self.initUI()
         self.update_text()
         self.setStyleSheet(dialog_qss_style)
 
-    def set_values(self, infos):
-        self.infos = infos
+    def set_values(self, infos=None):
+        self.infos = infos or []
         self.update_text()  # 更新界面
 
     def initUI(self):
@@ -881,26 +880,36 @@ class RenameDialog(QDialog):
         self.buttonBox.rejected.connect(self.reject)
 
     def update_text(self):
-        if self.infos:
+        num= len(self.infos)
+        if num == 1:
+            self.lb_name.setVisible(True)
+            self.tx_name.setVisible(True)
+            infos = self.infos[0]
             self.buttonBox.button(QDialogButtonBox.Ok).setToolTip("")  # 去除新建文件夹影响
             self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(True)  # 去除新建文件夹影响
             self.setWindowTitle("修改文件夹名与描述")
-            self.tx_name.setText(str(self.infos[1]))
-            if self.infos[6]:
-                self.tx_desc.setText(str(self.infos[6]))
-                self.tx_desc.setToolTip('原描述：' + str(self.infos[6]))
+            self.tx_name.setText(str(infos.name))
+            if infos.desc:
+                self.tx_desc.setText(str(infos.desc))
+                self.tx_desc.setToolTip('原描述：' + str(infos.desc))
             else:
                 self.tx_desc.setText("无")
                 self.tx_desc.setToolTip('')
             self.tx_desc.setPlaceholderText("无")
-            self.min_width = len(str(self.infos[1])) * 8
-            if self.infos[2]:  # 文件无法重命名，由 infos[2] size表示文件
+            self.min_width = len(str(infos.name)) * 8
+            if infos.is_file:
                 self.setWindowTitle("修改文件描述")
                 self.tx_name.setFocusPolicy(Qt.NoFocus)
                 self.tx_name.setReadOnly(True)
             else:
                 self.tx_name.setFocusPolicy(Qt.StrongFocus)
                 self.tx_name.setReadOnly(False)
+        elif num > 1:
+            self.lb_name.setVisible(False)
+            self.tx_name.setVisible(False)
+            self.setWindowTitle(f"批量修改{num}个文件(夹)的描述")
+            self.tx_desc.setText('')
+            self.tx_desc.setPlaceholderText("建议160字数以内。")
 
         else:
             self.setWindowTitle("新建文件夹")
@@ -923,17 +932,22 @@ class RenameDialog(QDialog):
 
     def btn_ok(self):
         new_name = self.tx_name.text()
-        new_desc = self.tx_desc.toPlainText()
+        new_des = self.tx_desc.toPlainText()
         if not self.infos:  # 在 work_id 新建文件夹
             if new_name:
-                self.out.emit(("new", "", new_name, new_desc))
+                self.out.emit(("new", new_name, new_des))
             else:
                 return
-        elif new_name != self.infos[1] or new_desc != self.infos[6]:
-            if self.infos[2]:  # 文件
-                self.out.emit(("file", self.infos[0], new_name, new_desc))
-            else:
-                self.out.emit(("folder", self.infos[0], new_name, new_desc))
+        if len(self.infos) == 1:
+            if new_name != self.infos[0].name or new_des != self.infos[0].desc:
+                self.infos[0].new_des = new_des
+                self.infos[0].new_name = new_name
+                self.out.emit(("change", self.infos))
+        else:
+            if new_des:
+                for infos in self.infos:
+                    infos.new_des = new_des
+                self.out.emit(("change", self.infos))
 
 
 class SetPwdDialog(QDialog):
@@ -941,7 +955,7 @@ class SetPwdDialog(QDialog):
 
     def __init__(self, parent=None):
         super(SetPwdDialog, self).__init__(parent)
-        self.infos = None
+        self.infos = []
         self.initUI()
         self.update_text()
         self.setStyleSheet(dialog_qss_style)
@@ -967,7 +981,7 @@ class SetPwdDialog(QDialog):
         self.lb_newpwd.setText("新的提取码：")
         self.lb_newpwd.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
         self.tx_newpwd = QLineEdit()
-        
+
         self.buttonBox = QDialogButtonBox()
         self.buttonBox.setOrientation(Qt.Horizontal)
         self.buttonBox.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -990,15 +1004,19 @@ class SetPwdDialog(QDialog):
         self.setMinimumWidth(280)
 
     def update_text(self):
-        if self.infos:
-            if self.infos[5]:
-                self.tx_oldpwd.setText(str(self.infos[5]))
+        num = len(self.infos)
+        if num == 1:
+            self.tx_oldpwd.setVisible(True)
+            self.lb_oldpwd.setVisible(True)
+            infos = self.infos[0]
+            if infos.has_pwd:
+                self.tx_oldpwd.setText(str(infos.pwd))
                 self.tx_oldpwd.setPlaceholderText("")
             else:
                 self.tx_oldpwd.setText("")
                 self.tx_oldpwd.setPlaceholderText("无")
 
-            if self.infos[2]:  # 文件  通过size列判断是否为文件
+            if isinstance(infos, FileInfos):  # 文件  通过size列判断是否为文件
                 self.setWindowTitle("修改文件提取码")
                 self.tx_newpwd.setPlaceholderText("2-6位字符,关闭请留空")
                 self.tx_newpwd.setMaxLength(6)  # 最长6个字符
@@ -1006,33 +1024,52 @@ class SetPwdDialog(QDialog):
                 self.setWindowTitle("修改文件夹名提取码")
                 self.tx_newpwd.setPlaceholderText("2-12位字符,关闭请留空")
                 self.tx_newpwd.setMaxLength(12)  # 最长12个字符
+        elif num > 1:
+            self.tx_oldpwd.setVisible(False)
+            self.lb_oldpwd.setVisible(False)
+            self.setWindowTitle(f"批量修改{num}个文件(夹)的提取码")
+            self.tx_newpwd.setPlaceholderText("2-12位字符,关闭请留空")
+            self.tx_newpwd.setMaxLength(12)  # 最长12个字符
+            self.tx_newpwd.setText('')
+            for infos in self.infos:
+                if isinstance(infos, FileInfos):  # 文件
+                    self.tx_newpwd.setPlaceholderText("2-6位字符,文件无法关闭")
+                    self.tx_newpwd.setMaxLength(6)  # 最长6个字符
+                    break
 
     def btn_ok(self):
         new_pwd = self.tx_newpwd.text()
-        if new_pwd != self.infos[5]:
-            self.new_infos.emit((self.infos[0], new_pwd, self.infos[2]))  # 最后一位用于标示文件还是文件夹
+        for infos in self.infos:
+            infos.new_pwd = new_pwd
+        # if new_pwd != self.infos[5]:
+        self.new_infos.emit(self.infos)  # 最后一位用于标示文件还是文件夹
 
 
 class MoveFileDialog(QDialog):
     '''移动文件对话框'''
     new_infos = pyqtSignal(object)
 
-    def __init__(self, infos, all_dirs_dict, parent=None):
+    def __init__(self, parent=None):
         super(MoveFileDialog, self).__init__(parent)
-        self.infos = infos
-        self.dirs = all_dirs_dict
-        self.initUI()
+        self.infos = None
+        self.dirs = {}
         self.setStyleSheet(dialog_qss_style)
 
-    def initUI(self):
+    def set_values(self, infos, all_dirs_dict):
+        self.infos = infos
+        self.dirs = all_dirs_dict
+        self.show_ui()
+        self.exec()
+
+    def show_ui(self):
         self.setWindowTitle("移动文件(夹)")
         self.setWindowIcon(QIcon("./src/move.ico"))
         self.lb_name = QLabel()
         self.lb_name.setText("文件(夹)名：")
         self.lb_name.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
-        self.tx_name = QLineEdit()
-        names = " | ".join([i[1] for i in self.infos])
-        names_tip = "\n".join([i[1] for i in self.infos])
+        self.tx_name = AutoResizingTextEdit()
+        names = "\n".join([i.name for i in self.infos])
+        names_tip = "\n".join([i.name for i in self.infos])
         self.tx_name.setText(names)
         self.tx_name.setToolTip(names_tip)
         # 只读
