@@ -486,7 +486,7 @@ class LoginLuncher(QThread):
         except TimeoutError:
             self.code.emit(False, "<font color='red'>网络超时！</font>", 3000)
         except Exception as e:
-                logger.error(f"LoginLuncher error: {e=}")
+            logger.error(f"LoginLuncher error: {e=}")
 
 
 class DescPwdFetcher(QThread):
