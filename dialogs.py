@@ -455,7 +455,7 @@ class LoginDialog(QDialog):
         self.close()
 
     def change_ok_btn(self):
-        if self._user and self._pwd and self._user not in self._infos:
+        if (self._user and self._pwd) and (self._user not in self._infos['users']):
             self._cookie = None
         up_info = {"name": self._user, "pwd": self._pwd, "cookie": self._cookie}
         update_settings(self._config, up_info, self._user)
