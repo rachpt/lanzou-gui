@@ -360,6 +360,7 @@ class UploadWorker(QThread):
         self._is_work = False
         self._furl = ""
         self._task = None
+        self._allow_big_file = False
 
     def _show_progress(self, file_name, total_size, now_size):
         """显示进度条的回调函数"""
@@ -368,6 +369,9 @@ class UploadWorker(QThread):
         self._task = self._task._replace(rate=rate)
         self.update.emit({self._furl: self._task})
         self.code.emit(msg, 0)
+
+    def set_allow_big_file(self, allow_big_file):
+        self._allow_big_file = allow_big_file
 
     def set_disk(self, disk):
         self._disk = disk
@@ -411,12 +415,19 @@ class UploadWorker(QThread):
                     logger.error(f"upload dir : {self._furl}")
                     msg = f"<b>INFO :</b> <font color='#00CC00'>批量上传文件夹:{self._furl}</font>"
                     self.code.emit(msg, 30000)
-                    self._disk.upload_dir(self._furl, self._task.id, self._show_progress, None)
+                    self._disk.upload_dir(self._furl,
+                                          self._task.id,
+                                          self._show_progress,
+                                          None,
+                                          self._allow_big_file)
                 else:
                     msg = f"<b>INFO :</b> <font color='#00CC00'>上传文件:{self._furl}</font>"
                     self.code.emit(msg, 20000)
                     try:
-                        code, fid, isfile = self._disk.upload_file(self._task.furl, self._task.id, self._show_progress)
+                        code, fid, isfile = self._disk.upload_file(self._task.furl,
+                                                                   self._task.id,
+                                                                   self._show_progress,
+                                                                   self._allow_big_file)
                     except TimeoutError:
                         msg = "<b>ERROR :</b> <font color='red'>网络连接超时，请重试！</font>"
                         self.code.emit(msg, 3100)
@@ -769,12 +780,12 @@ class GetAllFoldersWorker(QThread):
 
     def set_values(self, org_infos):
         self.org_infos = org_infos  # 对话框标识文件与文件夹
-        self.move_infos = None # 清除上次影响
+        self.move_infos = [] # 清除上次影响
         self.start()
 
-    def move_file(self, info):
+    def move_file(self, infos):
         '''移动文件至新的文件夹'''
-        self.move_infos = info # file_id, folder_id, f_name, type(size)
+        self.move_infos = infos # file_id, folder_id, f_name, type(size)
         self.start()
 
     def __del__(self):
@@ -785,27 +796,23 @@ class GetAllFoldersWorker(QThread):
         self._is_work = False
         self._mutex.unlock()
 
-    def move_file_folder(self, info:list, no_err:bool, r_files:bool, r_folders:bool):
+    def move_file_folder(self, info, no_err:bool, r_files:bool, r_folders:bool):
         """移动文件(夹)"""
         # no_err 判断是否需要更新 UI
-        fid = int(info[0])
-        target_id = int(info[1])
-        fname = info[2]
-        is_file = True if info[3] else False
-        if is_file:  # 文件
-            if self._disk.move_file(fid, target_id) == LanZouCloud.SUCCESS:
-                self.msg.emit(f"{fname} 移动成功！", 3000)
+        if info.is_file:  # 文件
+            if self._disk.move_file(info.id, info.new_id) == LanZouCloud.SUCCESS:
+                self.msg.emit(f"{info.name} 移动成功！", 3000)
                 no_err = True
                 r_files = True
             else:
-                self.msg.emit(f"移动文件{fname}失败！", 4000)
+                self.msg.emit(f"移动文件{info.name}失败！", 4000)
         else:  # 文件夹
-            if self._disk.move_folder(fid, target_id) == LanZouCloud.SUCCESS:
-                self.msg.emit(f"{fname} 移动成功！", 3000)
+            if self._disk.move_folder(info.id, info.new_id) == LanZouCloud.SUCCESS:
+                self.msg.emit(f"{info.name} 移动成功！", 3000)
                 no_err = True
                 r_folders = True
             else:
-                self.msg.emit(f"移动文件夹 {fname} 失败！移动的文件夹中不能包含子文件夹！", 4000)
+                self.msg.emit(f"移动文件夹 {info.name} 失败！移动的文件夹中不能包含子文件夹！", 4000)
         return no_err, r_files, r_folders
 
     def run(self):
@@ -820,10 +827,10 @@ class GetAllFoldersWorker(QThread):
                     try:
                         no_err, r_files, r_folders = self.move_file_folder(info, no_err, r_files, r_folders)
                     except TimeoutError:
-                        self.msg.emit(f"移动文件(夹) {info[2]} 失败，网络超时！请稍后重试", 5000)
+                        self.msg.emit(f"移动文件(夹) {info.name} 失败，网络超时！请稍后重试", 5000)
                     except Exception as e:
                         logger.error(f"GetAllFoldersWorker error: {e=}")
-                        self.msg.emit(f"移动文件(夹) {info[2]} 失败，未知错误！", 5000)
+                        self.msg.emit(f"移动文件(夹) {info.name} 失败，未知错误！", 5000)
                 if no_err:  # 没有错误就更新ui
                     sleep(2.1)  # 等一段时间后才更新文件列表
                     self.moved.emit(r_files, r_folders, False)

@@ -188,6 +188,7 @@ class MainWindow(Ui_MainWindow):
         to_tray = False                # 关闭到系统托盘
         watch_clipboard = False        # 监听系统剪切板
         debug = False                  # 调试
+        upload_delay = 20              # 上传大文件延时 0 - 20s
         dl_path = os.path.dirname(os.path.abspath(__file__)) + os.sep + "downloads"
         self._default_settings = {"download_threads": download_threads,
                                   "timeout": timeout,
@@ -200,7 +201,9 @@ class MainWindow(Ui_MainWindow):
                                   "set_pwd": False,
                                   "pwd": "",
                                   "set_desc": False,
-                                  "desc": ""}
+                                  "desc": "",
+                                  "upload_delay": upload_delay,
+                                  "allow_big_file": False}
 
     def init_variables(self):
         self._disk = LanZouCloud()
@@ -255,7 +258,15 @@ class MainWindow(Ui_MainWindow):
         set_desc = settings["set_desc"] if "set_desc" in settings else False  # 兼容旧版
         pwd = settings["pwd"] if "pwd" in settings else ""  # 兼容旧版
         desc = settings["desc"] if "desc" in settings else ""  # 兼容旧版
-        self.upload_dialog.set_pwd_desc(set_pwd, pwd, set_desc, desc)
+        allow_big_file = settings["allow_big_file"] if "allow_big_file" in settings else False
+        self.upload_dialog.set_pwd_desc_bigfile(set_pwd, pwd, set_desc, desc, allow_big_file, settings["max_size"])
+        self.upload_worker.set_allow_big_file(allow_big_file)
+        if 'upload_delay' in settings:
+            delay = int(settings["upload_delay"])
+            if delay > 0:
+                self._disk.set_upload_delay((delay/2, delay))
+            else:
+                self._disk.set_upload_delay((0, 0))
         # debug
         debug = settings["debug"] if "debug" in settings else False  # 兼容旧版
         if debug:

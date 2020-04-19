@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (QAbstractItemView, QPushButton, QFileDialog, QLineE
                              QTextEdit, QGridLayout, QListView, QDialogButtonBox, QVBoxLayout, QHBoxLayout,
                              QComboBox, QCheckBox, QSizePolicy)
 
-from tools import UserInfo, encrypt, decrypt, UpJob, FileInfos, FolderInfos
+from tools import UserInfo, encrypt, decrypt, UpJob, FileInfos
 KEY = 89
 
 
@@ -90,7 +90,7 @@ others_style = """
         border: 2px solid gray;
         border-radius: 8px;
     }
-    #btn_chooseMutiFile, #btn_chooseDir {
+    #btn_chooseMultiFile, #btn_chooseDir {
         min-width: 90px;
         max-width: 90px;
     }
@@ -476,16 +476,24 @@ class UploadDialog(QDialog):
         self.set_desc = False
         self.pwd = ''
         self.desc = ''
+        self.allow_big_file = False
+        self.max_size = 100
         self.selected = []
         self.initUI()
         self.set_size()
         self.setStyleSheet(dialog_qss_style)
 
-    def set_pwd_desc(self, set_pwd, pwd, set_desc, desc):
+    def set_pwd_desc_bigfile(self, set_pwd, pwd, set_desc, desc, allow_big_file, max_size):
         self.set_pwd = set_pwd
         self.set_desc = set_desc
         self.pwd = pwd
         self.desc = desc
+        self.allow_big_file = allow_big_file
+        self.max_size = max_size
+        if self.allow_big_file:
+            self.btn_chooseMultiFile.setToolTip("")
+        else:
+            self.btn_chooseMultiFile.setToolTip(f"文件大小上线 {self.max_size}MB")
 
     def set_values(self, folder_name, folder_id, files):
         self.setWindowTitle("上传文件至 ➩ " + str(folder_name))
@@ -511,10 +519,10 @@ class UploadDialog(QDialog):
         self.btn_chooseDir.setIcon(QIcon("./src/folder.gif"))
 
         # btn 2
-        self.btn_chooseMutiFile = QPushButton("选择多文件", self)
-        self.btn_chooseDir.setObjectName("btn_chooseMutiFile")
-        self.btn_chooseMutiFile.setObjectName("btn_chooseMutiFile")
-        self.btn_chooseMutiFile.setIcon(QIcon("./src/file.ico"))
+        self.btn_chooseMultiFile = QPushButton("选择多文件", self)
+        self.btn_chooseDir.setObjectName("btn_chooseMultiFile")
+        self.btn_chooseMultiFile.setObjectName("btn_chooseMultiFile")
+        self.btn_chooseMultiFile.setIcon(QIcon("./src/file.ico"))
 
         # btn 3
         self.btn_deleteSelect = QPushButton("移除", self)
@@ -545,7 +553,7 @@ class UploadDialog(QDialog):
         hbox_button = QHBoxLayout()
         hbox_head.addWidget(self.btn_chooseDir)
         hbox_head.addStretch(1)
-        hbox_head.addWidget(self.btn_chooseMutiFile)
+        hbox_head.addWidget(self.btn_chooseMultiFile)
         hbox_button.addWidget(self.btn_deleteSelect)
         hbox_button.addStretch(1)
         hbox_button.addWidget(self.buttonBox)
@@ -558,7 +566,7 @@ class UploadDialog(QDialog):
 
         # 设置信号
         self.btn_chooseDir.clicked.connect(self.slot_btn_chooseDir)
-        self.btn_chooseMutiFile.clicked.connect(self.slot_btn_chooseMutiFile)
+        self.btn_chooseMultiFile.clicked.connect(self.slot_btn_chooseMultiFile)
         self.btn_deleteSelect.clicked.connect(self.slot_btn_deleteSelect)
 
         self.buttonBox.accepted.connect(self.slot_btn_ok)
@@ -642,13 +650,16 @@ class UploadDialog(QDialog):
             self.selected.append(dir_choose)
         self.show_selected()
 
-    def slot_btn_chooseMutiFile(self):
+    def slot_btn_chooseMultiFile(self):
         files, _ = QFileDialog.getOpenFileNames(self, "选择多文件", self.cwd, "All Files (*)")
         if len(files) == 0:
             return
         for _file in files:
             if _file not in self.selected:
-                self.selected.append(_file)
+                if os.path.getsize(_file) <= self.max_size * 1048576:
+                    self.selected.append(_file)
+                elif self.allow_big_file:
+                    self.selected.append(_file)
         self.show_selected()
 
     def keyPressEvent(self, e):
@@ -1041,7 +1052,6 @@ class SetPwdDialog(QDialog):
         new_pwd = self.tx_newpwd.text()
         for infos in self.infos:
             infos.new_pwd = new_pwd
-        # if new_pwd != self.infos[5]:
         self.new_infos.emit(self.infos)  # 最后一位用于标示文件还是文件夹
 
 
@@ -1053,39 +1063,41 @@ class MoveFileDialog(QDialog):
         super(MoveFileDialog, self).__init__(parent)
         self.infos = None
         self.dirs = {}
+        self.initUI()
         self.setStyleSheet(dialog_qss_style)
+
+    def update_ui(self):
+        names = "\n".join([i.name for i in self.infos])
+        names_tip = "\n".join([i.name for i in self.infos])
+        self.tx_name.setText(names)
+        self.tx_name.setToolTip(names_tip)
+
+        self.tx_new_path.clear()
+        f_icon = QIcon("./src/folder.gif")
+        for f_name, fid in self.dirs.items():
+            if len(f_name) > 50:  # 防止文件夹名字过长？
+                f_name = f_name[:47] + "..."
+            self.tx_new_path.addItem(f_icon, "id：{:>8}，name：{}".format(fid, f_name))
 
     def set_values(self, infos, all_dirs_dict):
         self.infos = infos
         self.dirs = all_dirs_dict
-        self.show_ui()
+        self.update_ui()
         self.exec()
 
-    def show_ui(self):
+    def initUI(self):
         self.setWindowTitle("移动文件(夹)")
         self.setWindowIcon(QIcon("./src/move.ico"))
         self.lb_name = QLabel()
         self.lb_name.setText("文件(夹)名：")
         self.lb_name.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
         self.tx_name = AutoResizingTextEdit()
-        names = "\n".join([i.name for i in self.infos])
-        names_tip = "\n".join([i.name for i in self.infos])
-        self.tx_name.setText(names)
-        self.tx_name.setToolTip(names_tip)
-        # 只读
-        self.tx_name.setFocusPolicy(Qt.NoFocus)
+        self.tx_name.setFocusPolicy(Qt.NoFocus)  # 只读
         self.tx_name.setReadOnly(True)
         self.lb_new_path = QLabel()
         self.lb_new_path.setText("目标文件夹：")
-        self.lb_new_path.setAlignment(
-            Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter
-        )
+        self.lb_new_path.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
         self.tx_new_path = QComboBox()
-        f_icon = QIcon("./src/folder.gif")
-        for f_name, fid in self.dirs.items():
-            if len(f_name) > 50:  # 防止文件夹名字过长？
-                f_name = f_name[:47] + "..."
-            self.tx_new_path.addItem(f_icon, "id：{:>8}，name：{}".format(fid, f_name))
 
         self.buttonBox = QDialogButtonBox()
         self.buttonBox.setOrientation(Qt.Horizontal)
@@ -1107,9 +1119,10 @@ class MoveFileDialog(QDialog):
         self.setMinimumWidth(280)
 
     def btn_ok(self):
-        selected = self.tx_new_path.currentText().split("，")[0].split("：")[1]
-        # file_id, folder_id, f_name, type(size)
-        self.new_infos.emit([(info[0], selected, info[1], info[2]) for info in self.infos])
+        new_id = self.tx_new_path.currentText().split("，")[0].split("：")[1]
+        for index in range(len(self.infos)):
+            self.infos[index].new_id = int(new_id)
+        self.new_infos.emit(self.infos)
 
 
 class DeleteDialog(QDialog):
@@ -1283,9 +1296,9 @@ class SettingDialog(QDialog):
         self._config_file = config_file
         self._default_settings = default_settings
         self._user = None
-        self.download_threads = None
-        self.max_size = None
-        self.timeout = None
+        self.download_threads = 3
+        self.max_size = 100
+        self.timeout = 5
         self.dl_path = None
         self.time_fmt = False
         self.to_tray = False
@@ -1293,6 +1306,8 @@ class SettingDialog(QDialog):
         self.debug = False
         self.set_pwd = False
         self.set_desc = False
+        self.upload_delay = 0
+        self.allow_big_file = False
         self.pwd = ""
         self.desc = ""
         self.initUI()
@@ -1339,6 +1354,9 @@ class SettingDialog(QDialog):
         self.set_desc_box.setChecked(self.set_desc)
         self.set_desc_var.setEnabled(self.set_desc)
         self.set_desc_var.setText(self.desc)
+        self.upload_delay_var.setText(str(self.upload_delay))
+        self.big_file_box.setChecked(self.allow_big_file)
+        self.big_file_box.setText(f"允许上传超过 {self.max_size}MB 的大文件")
 
     def set_values(self, reset=False):
         """设置控件对应变量初始值"""
@@ -1355,13 +1373,19 @@ class SettingDialog(QDialog):
         self.pwd = settings["pwd"] if "pwd" in settings else ""  # 兼容
         self.set_desc = settings["set_desc"] if "set_desc" in settings else False  # 兼容
         self.desc = settings["desc"] if "desc" in settings else ""  # 兼容
+        self.upload_delay = settings["upload_delay"] if "upload_delay" in settings else 0  # 兼容
         self.show_values()
 
     def get_values(self) -> dict:
         """读取输入控件的值"""
-        self.download_threads = int(self.download_threads_var.text())
-        self.max_size = int(self.max_size_var.text())
-        self.timeout = int(self.timeout_var.text())
+        if self.download_threads_var.text():
+            self.download_threads = int(self.download_threads_var.text())
+        if self.max_size_var.text():
+            self.max_size = int(self.max_size_var.text())
+        if self.timeout_var.text():
+            self.timeout = int(self.timeout_var.text())
+        if self.upload_delay_var.text():
+            self.upload_delay = int(self.upload_delay_var.text())
         self.dl_path = str(self.dl_path_var.text())
         self.pwd = str(self.set_pwd_var.toPlainText())
         self.desc = str(self.set_desc_var.toPlainText())
@@ -1376,7 +1400,9 @@ class SettingDialog(QDialog):
                 "set_pwd": self.set_pwd,
                 "pwd": self.pwd,
                 "set_desc": self.set_desc,
-                "desc": self.desc}
+                "desc": self.desc,
+                "upload_delay": self.upload_delay,
+                "allow_big_file": self.allow_big_file}
 
     def initUI(self):
         self.setWindowTitle("设置")
@@ -1399,6 +1425,11 @@ class SettingDialog(QDialog):
         self.timeout_var.setPlaceholderText("范围：1-99")
         self.timeout_var.setToolTip("范围：1-99")
         self.timeout_var.setInputMask("D9")
+        self.upload_delay_lb = QLabel("上传延时(秒)")
+        self.upload_delay_var = QLineEdit()
+        self.upload_delay_var.setPlaceholderText("范围：1-99")
+        self.upload_delay_var.setToolTip("范围：1-99")
+        self.upload_delay_var.setInputMask("D9")
         self.dl_path_lb = QLabel("下载保存路径")
         self.dl_path_var = MyLineEdit(self)
         self.dl_path_var.clicked.connect(self.set_download_path)
@@ -1412,6 +1443,7 @@ class SettingDialog(QDialog):
         self.set_pwd_var.setToolTip("2-8 位数字或字母")
         self.set_desc_box = QCheckBox("上传文件自动设置描述")
         self.set_desc_var = AutoResizingTextEdit()
+        self.big_file_box = QCheckBox(f"允许上传超过 {self.max_size}MB 的大文件")
 
         self.time_fmt_box.toggle()
         self.time_fmt_box.stateChanged.connect(self.change_time_fmt)
@@ -1421,6 +1453,7 @@ class SettingDialog(QDialog):
         self.set_pwd_box.stateChanged.connect(self.change_set_pwd)
         self.set_pwd_var.editingFinished.connect(self.check_pwd)
         self.set_desc_box.stateChanged.connect(self.change_set_desc)
+        self.big_file_box.stateChanged.connect(self.change_big_file)
 
         buttonBox = QDialogButtonBox()
         buttonBox.setOrientation(Qt.Horizontal)
@@ -1437,6 +1470,7 @@ class SettingDialog(QDialog):
         form.setSpacing(10)
         form.addRow(self.download_threads_lb, self.download_threads_var)
         form.addRow(self.timeout_lb, self.timeout_var)
+        form.addRow(self.upload_delay_lb, self.upload_delay_var)
         form.addRow(self.max_size_lb, self.max_size_var)
         form.addRow(self.dl_path_lb, self.dl_path_var)
 
@@ -1461,6 +1495,7 @@ class SettingDialog(QDialog):
         hbox_3.addWidget(self.set_desc_box)
         hbox_3.addWidget(self.set_desc_var)
         vbox.addLayout(hbox_3)
+        vbox.addWidget(self.big_file_box)
         vbox.addStretch(2)
         vbox.addWidget(buttonBox)
         self.setLayout(vbox)
@@ -1489,6 +1524,12 @@ class SettingDialog(QDialog):
             self.debug = True
         else:
             self.debug = False
+
+    def change_big_file(self, state):
+        if state == Qt.Checked:
+            self.allow_big_file = True
+        else:
+            self.allow_big_file = False
 
     def change_set_pwd(self, state):
         if state == Qt.Checked:

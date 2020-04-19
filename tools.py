@@ -173,6 +173,7 @@ class Infos:
         self._new_pwd = ''
         self._new_des = ''
         self._new_name = ''
+        self._new_fid = ''
 
     @property
     def name(self):
@@ -261,6 +262,15 @@ class Infos:
     @new_name.setter
     def new_name(self, new_name):
         self._new_name = new_name
+
+    @property
+    def new_id(self):
+        return self._new_fid
+
+    @new_id.setter
+    def new_id(self, new_id):
+        self._new_fid = new_id
+
 
 class FileInfos(Infos):
     def __init__(self, file):

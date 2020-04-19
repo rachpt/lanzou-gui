@@ -48,4 +48,4 @@
 
 lanzou-gui: Copyright (c) [rachpt](https://gitee.com/rachpt/). See the [MIT LICENSE](https://github.com/rachpt/lanzou-gui/blob/master/LICENSE) for details.
 
-lanzou-api: Copyright (c) [zaxtyson](https://github.com/zaxtyson/).
+lanzou-api: Copyright (c) [zaxtyson](https://github.com/zaxtyson/). [MIT LICENSE](https://github.com/zaxtyson/LanZouCloud-API/blob/master/LICENSE).
