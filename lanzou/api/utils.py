@@ -115,7 +115,8 @@ def un_serialize(data: bytes):
         if not isinstance(ret, dict):
             return None
         return ret
-    except (TypeError, pickle.UnpicklingError, ValueError):
+    except Exception as e:  # 这里可能会丢奇怪的异常
+        logger.debug(f"Pickle {e=}")
         return None
 
 
