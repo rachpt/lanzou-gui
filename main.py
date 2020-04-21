@@ -75,7 +75,7 @@ class TableDelegate(QStyledItemDelegate):
 
 
 class MainWindow(Ui_MainWindow):
-    __version__ = 'v0.2.6'
+    __version__ = 'v0.2.7'
     if not os.path.isdir("./src") or not os.path.isfile("./src/file.ico"):
         from src import release_src
 
