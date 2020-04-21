@@ -455,8 +455,9 @@ class LoginDialog(QDialog):
         self.close()
 
     def change_ok_btn(self):
-        if (self._user and self._pwd) and (self._user not in self._infos['users']):
-            self._cookie = None
+        if self._user and self._pwd:
+            if 'users' in self._infos and self._user not in self._infos['users']:
+                self._cookie = None
         up_info = {"name": self._user, "pwd": self._pwd, "cookie": self._cookie}
         update_settings(self._config, up_info, self._user)
         self.clicked_ok.emit()
@@ -1357,6 +1358,7 @@ class SettingDialog(QDialog):
         self.upload_delay_var.setText(str(self.upload_delay))
         self.big_file_box.setChecked(self.allow_big_file)
         self.big_file_box.setText(f"允许上传超过 {self.max_size}MB 的大文件")
+        self.big_file_box.setDisabled(True)
 
     def set_values(self, reset=False):
         """设置控件对应变量初始值"""
