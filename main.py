@@ -749,7 +749,7 @@ class MainWindow(Ui_MainWindow):
         for index in indexs:
             info = self.model_disk.item(index, 0).data()  # 用于提示删除的文件名
             if info:
-                infos.append(info[:3])
+                infos.append(info)
         delete_dialog = DeleteDialog(infos)
         delete_dialog.new_infos.connect(self.remove_files_worker.set_values)
         delete_dialog.exec()

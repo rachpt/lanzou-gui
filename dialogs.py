@@ -1147,15 +1147,15 @@ class DeleteDialog(QDialog):
         self.model = QStandardItemModel()
         max_len = 10
         count = 0
-        for i in self.infos:
-            if i[2]:  # 有大小，是文件
-                self.model.appendRow(QStandardItem(set_file_icon(i[1]), i[1]))
+        for info in self.infos:
+            if info.is_file:  # 文件
+                self.model.appendRow(QStandardItem(set_file_icon(info.name), info.name))
             else:
-                self.model.appendRow(QStandardItem(QIcon("./src/folder.gif"), i[1]))
-            self.out.append({'fid': i[0], 'is_file': True if i[2] else False, 'name': i[1]})  # id，文件标示, 文件名
+                self.model.appendRow(QStandardItem(QIcon("./src/folder.gif"), info.name))
+            self.out.append({'fid': info.id, 'is_file': info.is_file, 'name': info.name})  # id，文件标示, 文件名
             count += 1
-            if max_len < len(i[1]):  # 使用最大文件名长度
-                max_len = len(i[1])
+            if max_len < len(info.name):  # 使用最大文件名长度
+                max_len = len(info.name)
         self.list_view.setModel(self.model)
 
         self.lb_name = QLabel("尝试删除以下{}个文件(夹)：".format(count))
