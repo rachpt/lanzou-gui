@@ -1,3 +1,4 @@
 PyQt5
+PyQtWebEngine
 requests
 requests_toolbelt
