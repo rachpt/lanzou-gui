@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (QAbstractItemView, QPushButton, QFileDialog, QLineE
                              QTextEdit, QGridLayout, QListView, QDialogButtonBox, QVBoxLayout, QHBoxLayout,
                              QComboBox, QCheckBox, QSizePolicy)
 
+from web_login import LoginWindow
 from tools import UserInfo, encrypt, decrypt, UpJob, FileInfos
 KEY = 89
 
@@ -297,8 +298,10 @@ class LoginDialog(QDialog):
         self.name_ed.setText(self._user)
         self.pwd_ed.setText(self._pwd)
         if self._cookie:
-            _text = str(";".join([str(k) +'='+ str(v) for k, v in self._cookie.items()]))
-            self.cookie_ed.setPlainText(_text)
+            try:
+                _text = str(";".join([str(k) +'='+ str(v) for k, v in self._cookie.items()]))
+                self.cookie_ed.setPlainText(_text)
+            except: pass
         else:
             self.cookie_ed.setPlainText("")
 
@@ -458,11 +461,23 @@ class LoginDialog(QDialog):
         if self._user and self._pwd:
             if 'users' in self._infos and self._user not in self._infos['users']:
                 self._cookie = None
+        if self._cookie:
+            up_info = {"name": self._user, "pwd": self._pwd, "cookie": self._cookie}
+            update_settings(self._config, up_info, self._user)
+            self.clicked_ok.emit()
+            self.close()
+        else:
+            self.web = LoginWindow(self._user, self._pwd)
+            self.web.cookie.connect(self.get_cookie_by_web)
+            self.web.setWindowModality(Qt.ApplicationModal)
+            self.web.exec()
+
+    def get_cookie_by_web(self, cookie):
+        self._cookie = cookie
         up_info = {"name": self._user, "pwd": self._pwd, "cookie": self._cookie}
         update_settings(self._config, up_info, self._user)
         self.clicked_ok.emit()
         self.close()
-
 
 class UploadDialog(QDialog):
     """文件上传对话框"""
