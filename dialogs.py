@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt, pyqtSignal, QSize, QLine, QPoint, QTimer
 from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel, QPixmap, QFontMetrics, QPainter, QPen
 from PyQt5.QtWidgets import (QAbstractItemView, QPushButton, QFileDialog, QLineEdit, QDialog, QLabel, QFormLayout,
                              QTextEdit, QGridLayout, QListView, QDialogButtonBox, QVBoxLayout, QHBoxLayout,
-                             QComboBox, QCheckBox, QSizePolicy)
+                             QComboBox, QCheckBox, QSizePolicy, QMessageBox)
 
 from web_login import LoginWindow
 from tools import UserInfo, encrypt, decrypt, UpJob, FileInfos
@@ -269,9 +269,9 @@ class LoginDialog(QDialog):
         self._infos = {}
         self._users = {}
         self._user = ""
+        self._user_old = ""
         self._del_user = ""
         self._pwd = ""
-        self._choose = ""
         self._cookie = {}
         self.initUI()
         self.setStyleSheet(dialog_qss_style)
@@ -286,24 +286,20 @@ class LoginDialog(QDialog):
             with open(self._config, "rb") as _file:
                 self._infos = load(_file)
             self._users = self._infos["users"]
-            self._choose = decrypt(KEY, self._infos["choose"])
+            self._user_old = decrypt(KEY, self._infos["choose"])
         except: pass
 
-    def update_selection(self):
+    def update_selection(self, user):
         if self._infos and "choose" in self._infos:
-            user_info = self._infos["users"][self._choose]
+            user_info = self._infos["users"][user]
             self._user = user_info.name
             self._pwd = user_info.pwd
             self._cookie = user_info.cookie
         self.name_ed.setText(self._user)
         self.pwd_ed.setText(self._pwd)
-        if self._cookie:
-            try:
-                _text = str(";".join([str(k) +'='+ str(v) for k, v in self._cookie.items()]))
-                self.cookie_ed.setPlainText(_text)
-            except: pass
-        else:
-            self.cookie_ed.setPlainText("")
+        try: text = ";".join([str(k) +'='+ str(v) for k, v in self._cookie.items()])
+        except: text = ''
+        self.cookie_ed.setPlainText(text)
 
     def initUI(self):
         self.setWindowTitle("登录蓝奏云")
@@ -362,7 +358,7 @@ class LoginDialog(QDialog):
             user = str(user)
             self.user_btns[user] = QDoublePushButton(user)
             self.user_btns[user].setStyleSheet("QPushButton {border:none;}")
-            if user == self._choose:
+            if user == self._user_old:
                 self.user_btns[user].setStyleSheet("QPushButton {background-color:rgb(0,153,2);}")
             self.user_btns[user].setToolTip(f"点击选中，双击切换至用户：{user}")
             self.user_btns[user].doubleClicked.connect(self.choose_user)
@@ -374,7 +370,7 @@ class LoginDialog(QDialog):
         vbox = QVBoxLayout()
         vbox.addWidget(logo)
         vbox.addStretch(1)
-        if self._choose:
+        if self._user_old:
             vbox.addWidget(lb_line_1)
             vbox.addLayout(user_box)
             vbox.addWidget(lb_line_2)
@@ -389,30 +385,46 @@ class LoginDialog(QDialog):
         vbox.addStretch(1)
         vbox.addLayout(hbox)
         self.setLayout(vbox)
-        self.update_selection()
+        self.update_selection(self._user_old)
 
     def call_del_chose_user(self):
         if self._del_user:
-            self.user_num -= 1
-            update_settings(self._config, None, self._del_user, action="del")
-            self.user_btns[self._del_user].close()
-            self._del_user = ""
-            if self.user_num <= 1:
-                self.del_user_btn.close()
+            if self._del_user != self._user_old:
+                self.user_num -= 1
+                update_settings(self._config, None, self._del_user, action="del")
+                self.user_btns[self._del_user].close()
+                self._del_user = ""
+                if self.user_num <= 1:
+                    self.del_user_btn.close()
+                return
+            else:
+                title = '不能删除'
+                msg = '不能删除当前登录账户，请先切换用户！'
+        else:
+            title = '请选择账户'
+            msg = '请单击选择需要删除的账户\n\n注意不能删除当前账户(绿色)'
+        message_box = QMessageBox(self)
+        message_box.setStyleSheet(btn_style)
+        message_box.setWindowTitle(title)
+        message_box.setText(msg)
+        message_box.setStandardButtons(QMessageBox.Close)
+        buttonC = message_box.button(QMessageBox.Close)
+        buttonC.setText('关闭')
+        message_box.exec()
 
     def delete_chose_user(self):
         user = str(self.sender().text())
         self._del_user = user
-        self.del_user_btn.setText(f"删除 <{user}>")
+        if self.del_user_btn:
+            self.del_user_btn.setText(f"删除 <{user}>")
 
     def choose_user(self):
-        user = str(self.sender().text())
-        if user != self._choose:
+        user = self.sender().text()
+        if user != self._user_old:
             self.ok_btn.setText("切换用户")
         else:
             self.ok_btn.setText("登录")
-        self._choose = user
-        self.update_selection()
+        self.update_selection(user)
 
     def change_show_input_cookie(self):
         if self.form.rowCount() < 3:
@@ -429,21 +441,30 @@ class LoginDialog(QDialog):
                 self.show_input_cookie_btn.setText("隐藏Cookie输入框")
 
     def set_user(self, user):
-        self._user = str(user)
-        if self._user not in self._infos:
+        self._user = user
+        if not user:
+            return
+        if 'users' not in self._infos or user not in self._infos['users']:
             self.ok_btn.setText("添加用户")
             self.cookie_ed.setPlainText("")
-        else:
-            self._choose = str(user)
-            self.update_selection()
+        elif user != self._user_old:
+            self.update_selection(user)
             self.ok_btn.setText("切换用户")
+        else:
+            self.update_selection(user)
+            self.ok_btn.setText("登录")
 
     def set_pwd(self, pwd):
-        if self._user in self._infos and pwd and pwd != self._infos[self._user]["pwd"]:
-            self._cookie = None
+        if 'users' in self._infos and self._user in self._infos['users']:
+            if pwd and pwd != self._infos['users'][self._user].pwd:  # 改变密码，cookie作废
+                self.cookie_ed.setPlainText("")
+                self._cookie = None
+            if not pwd:  # 输入空密码，表示删除对pwd的存储，并使用以前的cookie
+                self._cookie = self._infos['users'][self._user].cookie
+                try: text = ";".join([str(k) +'='+ str(v) for k, v in self._cookie.items()])
+                except: text = ''
+                self.cookie_ed.setPlainText(text)
         self._pwd = pwd
-        if not pwd:
-            self.set_cookie()
 
     def set_cookie(self):
         cookies = self.cookie_ed.toPlainText()
@@ -454,7 +475,7 @@ class LoginDialog(QDialog):
 
     def change_cancel_btn(self):
         self.default_var()
-        self.update_selection()
+        self.update_selection(self._user_old)
         self.close()
 
     def change_ok_btn(self):

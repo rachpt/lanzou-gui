@@ -29,7 +29,7 @@ class MyWebEngineView(QWebEngineView):
     def get_cookie(self):
         cookie_dict = {}
         for key, value in self.cookies.items():
-            if key in ['ylogin', 'phpdisk_info']:
+            if key in ('ylogin', 'phpdisk_info'):
                 cookie_dict[key] = value
         return cookie_dict
 
@@ -41,11 +41,12 @@ class LoginWindow(QDialog):
         super().__init__()
         self._user = user
         self._pwd = pwd
+        self._base_url = 'https://pc.woozooo.com/'
         self.setup()
 
     def setup(self):
         self.setWindowTitle('滑动滑块，完成登录')
-        url = "https://pc.woozooo.com/account.php?action=login&ref=/mydisk.php"
+        url = self._base_url + 'account.php'
         QWebEngineProfile.defaultProfile().cookieStore().deleteAllCookies()
         self.web = MyWebEngineView(self._user, self._pwd)
         self.web.urlChanged.connect(self.get_cookie)
@@ -55,7 +56,7 @@ class LoginWindow(QDialog):
         self.box.addWidget(self.web)
 
     def get_cookie(self):
-        home_url = 'https://pc.woozooo.com/mydisk.php'
+        home_url = self._base_url + 'mydisk.php'
         if self.web.url().toString() == home_url:
             cookie = self.web.get_cookie()
             if cookie:
