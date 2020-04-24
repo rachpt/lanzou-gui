@@ -251,6 +251,7 @@ class MainWindow(Ui_MainWindow):
         self._disk.set_max_size(settings["max_size"])
         self.download_manager.set_thread(settings["download_threads"])  # 同时下载任务数量
         self._dl_path = settings["dl_path"]  # 下载路径
+        self.share_set_dl_path.setText(self._dl_path)
         self.time_fmt = settings["time_fmt"]  # 时间显示格式
         self.to_tray = settings["to_tray"] if "to_tray" in settings else False
         self.watch_clipboard = settings["watch_clipboard"] if "watch_clipboard" in settings else False
