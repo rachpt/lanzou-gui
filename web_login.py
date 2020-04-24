@@ -12,14 +12,17 @@ class MyWebEngineView(QWebEngineView):
         # 绑定cookie被添加的信号槽
         QWebEngineProfile.defaultProfile().cookieStore().cookieAdded.connect(self.onCookieAdd)
         self.loadFinished.connect(self._on_load_finished)
+        self.urlChanged.connect(self._on_load_finished)
 
     def _on_load_finished(self):
         self.page().toHtml(self.Callable)
 
     def Callable(self, html_str):
-        self.html = html_str
-        self.page().runJavaScript(f"document.getElementsByName('username')[0].value = '{self._user}'")
-        self.page().runJavaScript(f"document.getElementsByName('password')[0].value = '{self._pwd}'")
+        try:
+            self.html = html_str
+            self.page().runJavaScript(f"document.getElementsByName('username')[0].value = '{self._user}'")
+            self.page().runJavaScript(f"document.getElementsByName('password')[0].value = '{self._pwd}'")
+        except: pass
 
     def onCookieAdd(self, cookie):
         name = cookie.name().data().decode('utf-8')
@@ -46,7 +49,7 @@ class LoginWindow(QDialog):
 
     def setup(self):
         self.setWindowTitle('滑动滑块，完成登录')
-        url = self._base_url + 'account.php'
+        url = self._base_url + 'account.php?action=login&ref=/mydisk.php'
         QWebEngineProfile.defaultProfile().cookieStore().deleteAllCookies()
         self.web = MyWebEngineView(self._user, self._pwd)
         self.web.urlChanged.connect(self.get_cookie)
