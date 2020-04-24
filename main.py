@@ -536,6 +536,7 @@ class MainWindow(Ui_MainWindow):
         """根据登录是否成功更新UI"""
         self.show_status(msg, duration)
         if success:
+            self._work_id = -1  # 切换用户后刷新 根目录
             if self._user:
                 if len(self._user) <= 6:
                     disk_tab = f"我的蓝奏<{self._user}>"
@@ -658,7 +659,7 @@ class MainWindow(Ui_MainWindow):
             self._path_list = infos['path_list']
 
         self._work_id = self._path_list[-1].id
-        if infos['r']['fid'] != -1:
+        if len(self._path_list) > 1:
             self._parent_id = self._path_list[-2].id
         self.show_file_and_folder_lists()
         if infos['r']['path']:
