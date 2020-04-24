@@ -14,5 +14,5 @@ FileDetail = namedtuple('FileDetail', ['code', 'name', 'size', 'type', 'time', '
 ShareInfo = namedtuple('ShareInfo', ['code', 'name', 'url', 'pwd', 'desc', 'time', 'size'], defaults=(0, *[''] * 6))
 DirectUrlInfo = namedtuple('DirectUrlInfo', ['code', 'name', 'durl'])
 FolderInfo = namedtuple('Folder', ['name', 'id', 'pwd', 'time', 'desc', 'url'], defaults=('',) * 6)
-FileInFolder = namedtuple('FileInFolder', ['name', 'time', 'size', 'type', 'url'], defaults=('',) * 5)
+FileInFolder = namedtuple('FileInFolder', ['name', 'time', 'size', 'type', 'url', 'pwd'], defaults=('',) * 6)
 FolderDetail = namedtuple('FolderDetail', ['code', 'folder', 'files'], defaults=(0, None, None))
