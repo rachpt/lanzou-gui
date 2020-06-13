@@ -25,7 +25,7 @@ from workers import (DownloadManager, GetSharedInfo, UploadWorker, LoginLuncher,
 from dialogs import (update_settings, set_file_icon, btn_style, LoginDialog, UploadDialog, InfoDialog, RenameDialog, 
                      SettingDialog, RecFolderDialog, SetPwdDialog, MoveFileDialog, DeleteDialog, KEY,
                      AboutDialog, CaptchaDialog)
-from tools import UserInfo, decrypt, DlJob, FileInfos, FolderInfos
+from tools import UserInfo, decrypt, DlJob, FileInfos, FolderInfos, ShareFileInfos
 from qss import *
 
 
@@ -802,6 +802,8 @@ class MainWindow(Ui_MainWindow):
         action = self.left_menus.exec_(self.sender().mapToGlobal(pos))
         if action == self.left_menu_share_url:  # 显示详细信息
             # 后台跟新信息，并显示信息对话框
+            if isinstance(info, tuple) and len(info) == 3:
+                info = ShareFileInfos(info[0])  # 提取界面 info 在第一个位置
             self.more_info_worker.set_values(info)
             self.info_dialog.exec()
         elif action == self.left_menu_move:  # 移动文件
@@ -817,6 +819,8 @@ class MainWindow(Ui_MainWindow):
             self.rename_dialog.set_values(infos)
             self.rename_dialog.exec()
         elif action == self.left_menu_copy:  # 复制分享链接
+            if isinstance(info, tuple) and len(info) == 3:
+                info = ShareFileInfos(info[0])  # 提取界面 info 在第一个位置
             self.more_info_worker.set_values(info, emit_link=True)
 
     def call_update_desc_pwd(self, infos):
@@ -1314,7 +1318,10 @@ class MainWindow(Ui_MainWindow):
             self._watch_clipboard_old = self.watch_clipboard
             self.watch_clipboard = False
         else:
-            self.watch_clipboard = self._watch_clipboard_old
+            try:
+                self.watch_clipboard = self._watch_clipboard_old
+            except:
+                pass
 
     def auto_extract_clipboard(self):
         if not self.watch_clipboard:

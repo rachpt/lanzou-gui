@@ -818,7 +818,7 @@ class InfoDialog(QDialog):
 
         self.lb_name = QLabel()
         self.lb_name.setText("文件名：")
-        self.tx_name = QLineEdit()
+        self.tx_name = AutoResizingTextEdit()
         self.tx_name.setReadOnly(True)
 
         self.lb_size = QLabel()

@@ -10,7 +10,7 @@ from lanzou.api import LanZouCloud
 from lanzou.api.utils import is_folder_url, is_file_url, logger
 from lanzou.api.types import RecFolder, RecFile
 
-from tools import DlJob, FileInfos, FolderInfos
+from tools import DlJob, Infos
 
 
 def show_progress(file_name, total_size, now_size, symbol="█"):
@@ -730,12 +730,13 @@ class GetMoreInfoWorker(QThread):
             self._is_work = True
             try:
                 if not self._url:  # 获取普通信息
-                    if isinstance(self._infos, (FolderInfos, FileInfos)):  # 从 disk 运行
-                        self.msg.emit("网络请求中，请稍后……", 0)
-                        _info = self._disk.get_share_info(self._infos.id, is_file=self._infos.is_file)
-                        self._infos.desc = _info.desc
-                        self._infos.pwd = _info.pwd
-                        self._infos.url = _info.url
+                    if isinstance(self._infos, Infos):
+                        if self._infos.id:  # 从 disk 运行
+                            self.msg.emit("网络请求中，请稍后……", 0)
+                            _info = self._disk.get_share_info(self._infos.id, is_file=self._infos.is_file)
+                            self._infos.desc = _info.desc
+                            self._infos.pwd = _info.pwd
+                            self._infos.url = _info.url
                         if self._emit_link:
                             self.share_url.emit(self._infos)
                         else:

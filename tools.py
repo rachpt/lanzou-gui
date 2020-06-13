@@ -294,3 +294,12 @@ class FolderInfos(Infos):
         self._fid = folder.id
         self._desc = folder.desc
         self._has_pwd = folder.has_pwd
+
+class ShareFileInfos(Infos):
+    def __init__(self, file):
+        super(ShareFileInfos, self).__init__(is_file=True)
+        self._name = file.name
+        self._time = file.time
+        self._size = file.size
+        self._url = file.url
+        self._pwd = file.pwd
