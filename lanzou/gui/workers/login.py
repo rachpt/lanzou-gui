@@ -6,7 +6,7 @@ from lanzou.api import LanZouCloud
 class LoginLuncher(QThread):
     '''登录线程'''
     code = pyqtSignal(bool, str, int)
-    update_cookie = pyqtSignal(object, str)
+    update_cookie = pyqtSignal(object)
 
     def __init__(self, parent=None):
         super(LoginLuncher, self).__init__(parent)
@@ -24,8 +24,8 @@ class LoginLuncher(QThread):
         self.cookie = cookie
         self.start()
 
-    def __del__(self):
-        self.wait()
+    # def __del__(self):
+    #     self.wait()
 
     def run(self):
         try:
@@ -43,11 +43,11 @@ class LoginLuncher(QThread):
                 if res == LanZouCloud.SUCCESS:
                     self.code.emit(True, "<font color='#00CC00'>登录<b>成功</b>！ ≧◉◡◉≦</font>", 5000)
                     _cookie = self._disk.get_cookie()
-                    self.update_cookie.emit(_cookie, str(self.username))
+                    self.update_cookie.emit(_cookie)
                 else:
                     logger.debug(f"login err: {res=}")
                     self.code.emit(False, "<font color='red'>登录失败，可能是用户名或密码错误！</font>", 8000)
-                    self.update_cookie.emit(None, str(self.username))
+                    self.update_cookie.emit(None)
         except TimeoutError:
             self.code.emit(False, "<font color='red'>网络超时！</font>", 3000)
         except Exception as e:
@@ -55,7 +55,7 @@ class LoginLuncher(QThread):
 
 
 class LogoutWorker(QThread):
-    '''获取所有文件夹name与fid，用于文件移动'''
+    '''登出'''
     succeeded = pyqtSignal()
     msg = pyqtSignal(str, int)
 

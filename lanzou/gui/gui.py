@@ -15,9 +15,8 @@ from lanzou.api.types import RecFolder, FolderDetail
 
 from lanzou.gui.models import DlJob, FileInfos, FolderInfos, ShareFileInfos
 from lanzou.gui.ui import Ui_MainWindow
-from lanzou.gui.others import TableDelegate
+from lanzou.gui.others import set_file_icon, TableDelegate
 from lanzou.gui.config import config
-from lanzou.gui.utils import btn_style
 from lanzou.gui.workers import *
 from lanzou.gui.dialogs import *
 from lanzou.gui.qss import *
@@ -117,7 +116,6 @@ class MainWindow(Ui_MainWindow):
         self._up_jobs_lists = {}
         self._captcha_code = None
         self._to_tray = False
-        # self.init_default_settings()
 
     def set_disk(self):
         """方便切换用户更新信息"""
@@ -138,6 +136,7 @@ class MainWindow(Ui_MainWindow):
 
     def update_lanzoucloud_settings(self):
         """更新LanzouCloud实例设置"""
+        self._user = self._config.name
         settings = self._config.settings
         self._disk.set_captcha_handler(self.captcha_handler)
         self._disk.set_timeout(settings["timeout"])
@@ -181,7 +180,7 @@ class MainWindow(Ui_MainWindow):
         # 登录器
         self.login_luncher = LoginLuncher()
         self.login_luncher.code.connect(self.login_update_ui)
-        self.login_luncher.update_cookie.connect(self.call_update_cookie)
+        self.login_luncher.update_cookie.connect(self._config.set_cookie)
         # 登出器
         self.logout_worker = LogoutWorker()
         self.logout_worker.succeeded.connect(self.call_logout_update_ui)
@@ -295,7 +294,7 @@ class MainWindow(Ui_MainWindow):
 
     def show_login_dialog(self):
         """显示登录对话框"""
-        login_dialog = LoginDialog(self._config_file)
+        login_dialog = LoginDialog(self._config)
         login_dialog.clicked_ok.connect(self.call_login_luncher)
         login_dialog.setWindowModality(Qt.ApplicationModal)
         login_dialog.exec()
@@ -413,6 +412,7 @@ class MainWindow(Ui_MainWindow):
         """根据登录是否成功更新UI"""
         self.show_status(msg, duration)
         if success:
+            self.update_lanzoucloud_settings()
             self._work_id = -1  # 切换用户后刷新 根目录
             if self._user:
                 if len(self._user) <= 6:
@@ -464,11 +464,6 @@ class MainWindow(Ui_MainWindow):
             self.login_luncher.set_values(username, password, cookie)
         except Exception as err:
             logger.error(f"Login: {err=}")
-
-    def call_update_cookie(self, cookie, user):
-        """更新cookie至config文件"""
-        up_info = {"cookie": cookie}
-        update_settings(self._config_file, up_info, user=user)
 
     def show_file_and_folder_lists(self):
         """显示用户文件和文件夹列表"""

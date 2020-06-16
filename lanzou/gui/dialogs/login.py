@@ -4,7 +4,8 @@ from PyQt5.QtWidgets import (QDialog, QLabel, QLineEdit, QTextEdit, QPushButton,
                              QHBoxLayout, QVBoxLayout, QMessageBox)
 
 from lanzou.gui.utils import dialog_qss_style, btn_style
-from lanzou.gui.others import QDoublePushButton
+from lanzou.gui.others import QDoublePushButton, MyLineEdit
+from lanzou.gui.web_login import LoginWindow
 
 
 class LoginDialog(QDialog):
@@ -15,6 +16,7 @@ class LoginDialog(QDialog):
     def __init__(self, config):
         super().__init__()
         self._config = config
+        self._cookie_assister = ''
         self._infos = {}
         self._users = {}
         self._user = ""
@@ -29,14 +31,6 @@ class LoginDialog(QDialog):
         self.name_ed.textChanged.connect(self.set_user)
         self.pwd_ed.textChanged.connect(self.set_pwd)
         self.cookie_ed.textChanged.connect(self.set_cookie)
-
-    def default_var(self):
-        try:
-            with open(self._config, "rb") as _file:
-                self._infos = load(_file)
-            self._users = self._infos["users"]
-            self._user_old = decrypt(KEY, self._infos["choose"])
-        except: pass
 
     def update_selection(self, user):
         if self._infos and "choose" in self._infos:
@@ -57,6 +51,11 @@ class LoginDialog(QDialog):
         logo.setPixmap(QPixmap("./src/logo3.gif"))
         logo.setStyleSheet("background-color:rgb(0,153,255);")
         logo.setAlignment(Qt.AlignCenter)
+        self.assister_lb = QLabel("登录辅助程序")
+        self.assister_lb.setAlignment(Qt.AlignCenter)
+        self.assister_ed = MyLineEdit(self)
+        self.assister_lb.setBuddy(self.assister_ed)
+
         self.name_lb = QLabel("&U 用户")
         self.name_lb.setAlignment(Qt.AlignCenter)
         self.name_ed = QLineEdit()
@@ -92,13 +91,14 @@ class LoginDialog(QDialog):
         self.form.setLabelAlignment(Qt.AlignRight)
         self.form.addRow(self.name_lb, self.name_ed)
         self.form.addRow(self.pwd_lb, self.pwd_ed)
+        self.form.addRow(self.assister_lb, self.assister_ed)
 
         hbox = QHBoxLayout()
         hbox.addWidget(self.show_input_cookie_btn)
         hbox.addStretch(1)
         hbox.addWidget(self.ok_btn)
         hbox.addWidget(self.cancel_btn)
-        self.default_var()
+        # self.default_var()
 
         user_box = QHBoxLayout()
         self.user_num = 0
@@ -223,7 +223,7 @@ class LoginDialog(QDialog):
             except: self._cookie = None
 
     def change_cancel_btn(self):
-        self.default_var()
+        # self.default_var()
         self.update_selection(self._user_old)
         self.close()
 
@@ -245,6 +245,6 @@ class LoginDialog(QDialog):
     def get_cookie_by_web(self, cookie):
         self._cookie = cookie
         up_info = {"name": self._user, "pwd": self._pwd, "cookie": self._cookie}
-        update_settings(self._config, up_info, self._user)
+        self._config.set_infos(up_info)
         self.clicked_ok.emit()
         self.close()

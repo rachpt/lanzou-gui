@@ -137,3 +137,4 @@ config.pickle
 *.log
 
 src/
+.congif

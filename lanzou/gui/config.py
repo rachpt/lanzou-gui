@@ -76,6 +76,7 @@ def decrypt(ksa, s):
 
 
 def save_config(cf):
+    print(config_file)
     with open(config_file, 'wb') as f:
         dump(cf, f)
 
@@ -169,6 +170,10 @@ class Config:
 
     @cookie.setter
     def cookie(self, cookie):
+        self._cookie = self.encode(cookie)
+        save_config(self)
+
+    def set_cookie(self, cookie):
         self._cookie = self.encode(cookie)
         save_config(self)
 

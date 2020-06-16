@@ -2,11 +2,20 @@
 重新封装的控件
 '''
 
+import os
 from PyQt5.QtCore import Qt, pyqtSignal, QTimer, QSize
-from PyQt5.QtGui import QTextDocument, QAbstractTextDocumentLayout, QPalette, QFontMetrics
+from PyQt5.QtGui import QTextDocument, QAbstractTextDocumentLayout, QPalette, QFontMetrics, QIcon
 from PyQt5.QtWidgets import (QApplication, QAbstractItemView, QStyle, QListView, QLineEdit, QTableView,
                              QPushButton, QStyledItemDelegate, QStyleOptionViewItem, QTextEdit, QSizePolicy)
 
+
+def set_file_icon(name):
+    suffix = name.split(".")[-1]
+    ico_path = "./src/{}.gif".format(suffix)
+    if os.path.isfile(ico_path):
+        return QIcon(ico_path)
+    else:
+        return QIcon("./src/file.ico")
 
 
 class QDoublePushButton(QPushButton):

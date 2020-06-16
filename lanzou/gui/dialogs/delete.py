@@ -3,7 +3,8 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel
 from PyQt5.QtWidgets import  QDialog, QLabel, QListView, QDialogButtonBox, QVBoxLayout
 
-from lanzou.gui.utils import dialog_qss_style
+from lanzou.gui.others import set_file_icon
+from lanzou.gui.qss import dialog_qss_style
 
 
 class DeleteDialog(QDialog):

@@ -45,13 +45,3 @@ others_style = """
 """
 dialog_qss_style = others_style + btn_style
 # https://thesmithfam.org/blog/2009/09/10/qt-stylesheets-tutorial/
-
-
-
-def set_file_icon(name):
-    suffix = name.split(".")[-1]
-    ico_path = "./src/{}.gif".format(suffix)
-    if os.path.isfile(ico_path):
-        return QIcon(ico_path)
-    else:
-        return QIcon("./src/file.ico")

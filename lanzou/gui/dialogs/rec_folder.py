@@ -1,7 +1,8 @@
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import QDialog, QLabel, QDialogButtonBox, QVBoxLayout, QPushButton, QHBoxLayout
 
-from lanzou.gui.utils import others_style, btn_style, set_file_icon
+from lanzou.gui.others import set_file_icon
+from lanzou.gui.qss import others_style, btn_style
 
 
 class RecFolderDialog(QDialog):
