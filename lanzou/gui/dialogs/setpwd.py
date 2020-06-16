@@ -2,7 +2,7 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QDialog, QLabel, QGridLayout, QDialogButtonBox, QLineEdit
 
-from lanzou.gui.utils import dialog_qss_style
+from lanzou.gui.qss import dialog_qss_style
 from lanzou.gui.models import FileInfos, FolderInfos
 
 

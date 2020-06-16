@@ -20,14 +20,14 @@ from lanzou.gui.config import config
 from lanzou.gui.workers import *
 from lanzou.gui.dialogs import *
 from lanzou.gui.qss import *
+from lanzou.gui import version
 
 
 __ALL__ = ['MainWindow']
 
 class MainWindow(Ui_MainWindow):
-    __version__ = 'v0.3.0'
     if not os.path.isdir("./src") or not os.path.isfile("./src/file.ico"):
-        from src import release_src
+        from lanzou.gui.src import release_src
 
         os.makedirs("./src", exist_ok=True)
         release_src()
@@ -47,9 +47,9 @@ class MainWindow(Ui_MainWindow):
         self.call_login_luncher()
         self.create_left_menus()
 
-        self.setWindowTitle("蓝奏云客户端 - {}".format(self.__version__))
+        self.setWindowTitle("蓝奏云客户端 - {}".format(version))
         self.setStyleSheet(qssStyle)
-        self.check_update_worker.set_values(self.__version__, False)  # 检测新版
+        self.check_update_worker.set_values(version, False)  # 检测新版
         self.clipboard_monitor()  # 系统粘贴板
 
     def create_tray(self):
@@ -165,7 +165,7 @@ class MainWindow(Ui_MainWindow):
             if getLevelName(logger.level) != "DEBUG":
                 logger.setLevel(DEBUG)
                 logger.debug("\n" + "=" * 69)
-                logger.debug(f"Start New Debug: version {self.__version__}")
+                logger.debug(f"Start New Debug: version {version}")
         else:
             logger.setLevel(ERROR)
         # 托盘图标
@@ -243,7 +243,7 @@ class MainWindow(Ui_MainWindow):
         self.set_pwd_dialog.new_infos.connect(self.set_passwd)
         # 菜单栏关于
         self.about_dialog = AboutDialog()
-        self.about_dialog.set_values(self.__version__)
+        self.about_dialog.set_values(version)
 
         # 菜单栏设置
         self.setting_dialog = SettingDialog()
@@ -412,6 +412,7 @@ class MainWindow(Ui_MainWindow):
         """根据登录是否成功更新UI"""
         self.show_status(msg, duration)
         if success:
+            self._config.update_user()
             self.update_lanzoucloud_settings()
             self._work_id = -1  # 切换用户后刷新 根目录
             if self._user:

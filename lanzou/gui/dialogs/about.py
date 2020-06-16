@@ -3,7 +3,7 @@ from PyQt5.QtGui import  QPixmap, QPainter, QPen
 from PyQt5.QtWidgets import (QPushButton, QDialog, QLabel, QFormLayout,
                              QDialogButtonBox, QVBoxLayout, QHBoxLayout)
 
-from lanzou.gui.utils import others_style, btn_style
+from lanzou.gui.qss import others_style, btn_style
 
 
 class AboutDialog(QDialog):

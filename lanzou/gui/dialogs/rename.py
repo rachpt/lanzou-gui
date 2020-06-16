@@ -2,7 +2,7 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QDialog, QLabel, QGridLayout, QDialogButtonBox, QLineEdit, QTextEdit
 
-from lanzou.gui.utils import dialog_qss_style
+from lanzou.gui.qss import dialog_qss_style
 
 
 class RenameDialog(QDialog):

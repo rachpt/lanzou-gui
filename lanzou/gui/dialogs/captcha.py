@@ -3,7 +3,7 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import (QLineEdit, QDialog, QLabel, QDialogButtonBox, QVBoxLayout)
 
-from lanzou.gui.utils import others_style, btn_style
+from lanzou.gui.qss import others_style, btn_style
 
 class CaptchaDialog(QDialog):
     captcha = pyqtSignal(object)

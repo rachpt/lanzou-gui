@@ -3,7 +3,7 @@ from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtWidgets import (QLineEdit, QDialog, QLabel, QFormLayout,
                              QDialogButtonBox, QVBoxLayout)
 
-from lanzou.gui.utils import dialog_qss_style
+from lanzou.gui.qss import dialog_qss_style
 from lanzou.gui.others import AutoResizingTextEdit
 
 

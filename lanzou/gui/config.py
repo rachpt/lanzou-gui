@@ -2,8 +2,8 @@ import os
 import sys
 from pickle import load, dump
 
-
 __all__ = ['config']
+
 KEY = 152
 config_file = os.path.dirname(sys.argv[0]) + os.sep + '.config'
 
@@ -76,7 +76,6 @@ def decrypt(ksa, s):
 
 
 def save_config(cf):
-    print(config_file)
     with open(config_file, 'wb') as f:
         dump(cf, f)
 
@@ -118,6 +117,7 @@ class Config:
         if self._name:
             self._users[self._name] = (self._cookie, self._name, self._pwd,
                                        self._work_id, self._settings)
+            save_config(self)
 
     def del_user(self, name) -> bool:
         name = self.encode(name)
@@ -139,13 +139,16 @@ class Config:
             return True
         return False
 
-    def get_users_name(self) -> list:
+    @property
+    def users_name(self) -> list:
         return [self.decode(user) for user in self._users]
 
     def get_user_info(self, name):
-        name = self.encode(name)
-        if name in self._users:
-            return self._users[name]
+        """返回用户名、pwd、cookie"""
+        en_name = self.encode(name)
+        if en_name in self._users:
+            user_info = self._users[en_name]
+            return (name, self.decode(user_info[2]), self.decode(user_info[0]))
 
     def default_path(self):
         path = default_settings()['dl_path']

@@ -50,7 +50,7 @@ class MyWebEngineView(QWebEngineView):
 class LoginWindow(QDialog):
     cookie = pyqtSignal(object)
 
-    def __init__(self, user, pwd, gui=False):
+    def __init__(self, user=None, pwd=None, gui=False):
         super().__init__()
         self._user = user
         self._pwd = pwd
@@ -75,7 +75,7 @@ class LoginWindow(QDialog):
             cookie = self.web.get_cookie()
             if cookie:
                 if self._gui:
-                    try: print(";".join([f'{k}={v}' for k, v in cookie.items()]))
+                    try: print(";".join([f'{k}={v}' for k, v in cookie.items()]), end='')
                     except: pass
                 else:
                     self.cookie.emit(cookie)

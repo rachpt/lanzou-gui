@@ -4,7 +4,7 @@ from PyQt5.QtGui import QIcon, QPixmap, QStandardItem, QStandardItemModel
 from PyQt5.QtWidgets import (QDialog, QLabel, QDialogButtonBox, QPushButton, QListView,
                              QVBoxLayout, QHBoxLayout, QAbstractItemView, QFileDialog)
 
-from lanzou.gui.utils import dialog_qss_style
+from lanzou.gui.qss import dialog_qss_style
 from lanzou.gui.others import MyListView
 from lanzou.gui.models import UpJob
 
