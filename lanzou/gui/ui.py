@@ -1,42 +1,5 @@
-# -*- coding: utf-8 -*-
-
-# Form implementation generated from reading ui file 'lanzou-gui/lanzou.ui'
-#
-# Created by: PyQt5 UI code generator 5.13.2, and I have edited
-#
 from PyQt5 import QtCore, QtGui, QtWidgets
-from dialogs import MyLineEdit
-
-class MyTableView(QtWidgets.QTableView):
-    """加入拖拽功能的表格显示器"""
-    drop_files = QtCore.pyqtSignal(object)
-
-    def __init__(self, parent):
-        super(MyTableView, self).__init__(parent)
-        self.setDragDropMode(QtWidgets.QAbstractItemView.InternalMove)
-        self.setDragEnabled(True)
-        self.setAcceptDrops(True)
-        self.setDropIndicatorShown(True)
-
-    def dragEnterEvent(self, event):
-        m = event.mimeData()
-        if m.hasUrls():
-            for url in m.urls():
-                if url.isLocalFile():
-                    event.accept()
-                    return
-        event.ignore()
-
-    def dropEvent(self, event):
-        if event.source():
-            QtWidgets.QListView.dropEvent(self, event)
-        else:
-            m = event.mimeData()
-            if m.hasUrls():
-                urls = [url.toLocalFile() for url in m.urls() if url.isLocalFile()]
-                if urls:
-                    self.drop_files.emit(urls)
-                    event.acceptProposedAction()
+from lanzou.gui.others import MyLineEdit, MyTableView
 
 
 class Ui_MainWindow(QtWidgets.QMainWindow):
@@ -231,7 +194,10 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.statusbar.addWidget(self.statusbar_msg_label)
 
         self.retranslateUi(MainWindow)
-        self.tabWidget.setCurrentIndex(1)
+        self.other_init()
+        self.set_window_at_center()
+        self.create_left_menus()
+        self.init_main_menu()
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
@@ -270,3 +236,58 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.delete.setText(_translate("MainWindow", "删除"))
         self.how.setText(_translate("MainWindow", "使用说明"))
         self.about.setText(_translate("MainWindow", "关于"))
+
+    def other_init(self):
+        # 设置 tab
+        self.tabWidget.setCurrentIndex(0)
+        self.tabWidget.removeTab(3)
+        self.tabWidget.removeTab(2)
+        self.tabWidget.removeTab(1)
+        self.disk_tab.setEnabled(False)
+        self.rec_tab.setEnabled(False)
+        self.jobs_tab.setEnabled(False)
+
+    def set_window_at_center(self):
+        screen = QtWidgets.QDesktopWidget().screenGeometry()
+        size = self.geometry()
+        new_left = int((screen.width() - size.width()) / 2)
+        new_top = int((screen.height() - size.height()) / 2)
+        self.move(new_left, new_top)
+
+    
+    def create_left_menus(self):
+        self.left_menus = QtWidgets.QMenu()
+        self.left_menu_share_url = self.left_menus.addAction("外链分享地址等")
+        self.left_menu_share_url.setIcon(QtGui.QIcon("./src/share.ico"))
+        self.left_menu_rename_set_desc = self.left_menus.addAction("修改文件描述（支持批量）")
+        self.left_menu_rename_set_desc.setIcon(QtGui.QIcon("./src/desc.ico"))
+        self.left_menu_set_pwd = self.left_menus.addAction("设置提取码（支持批量）")
+        self.left_menu_set_pwd.setIcon(QtGui.QIcon("./src/password.ico"))
+        self.left_menu_move = self.left_menus.addAction("移动（支持批量）")
+        self.left_menu_move.setIcon(QtGui.QIcon("./src/move.ico"))
+        self.left_menu_copy = self.left_menus.addAction("复制分享链接")
+        self.left_menu_copy.setIcon(QtGui.QIcon("./src/count.ico"))
+
+    def init_main_menu(self):
+        self.login.setIcon(QtGui.QIcon("./src/login.ico"))
+        self.login.setShortcut("Ctrl+L")
+        self.logout.setIcon(QtGui.QIcon("./src/logout.ico"))
+        self.logout.setShortcut("Ctrl+Q")    # 登出快捷键
+        self.download.setShortcut("Ctrl+J")
+        self.download.setIcon(QtGui.QIcon("./src/download.ico"))
+        self.download.setEnabled(False)  # 暂时不用
+        self.delete.setShortcut("Ctrl+D")
+        self.delete.setIcon(QtGui.QIcon("./src/delete.ico"))
+        self.delete.setEnabled(False)  # 暂时不用
+        self.how.setShortcut("F1")
+        self.how.setIcon(QtGui.QIcon("./src/help.ico"))
+        self.about.setShortcut("Ctrl+B")
+        self.about.setIcon(QtGui.QIcon("./src/about.ico"))
+        self.upload.setIcon(QtGui.QIcon("./src/upload.ico"))
+        self.upload.setShortcut("Ctrl+U")  # 上传快捷键
+        # 添加设置菜单，暂时放这里
+        self.setting_menu = QtWidgets.QAction(self)  # 设置菜单
+        self.setting_menu.setObjectName("setting_menu")
+        self.setting_menu.setText("设置")
+        self.setting_menu.setIcon(QtGui.QIcon("./src/settings.ico"))
+        self.setting_menu.setShortcut("Ctrl+P")  # 设置快捷键
