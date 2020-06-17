@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (QApplication, QAbstractItemView, QHeaderView, QMenu
                              QPushButton, QFileDialog, QMessageBox, QSystemTrayIcon)
 
 from lanzou.api import LanZouCloud
-from lanzou.api.utils import time_format, logger
+from lanzou.api.utils import time_format
 from lanzou.api.models import FolderList
 from lanzou.api.types import RecFolder, FolderDetail
 
@@ -21,6 +21,7 @@ from lanzou.gui.workers import *
 from lanzou.gui.dialogs import *
 from lanzou.gui.qss import *
 from lanzou.gui import version
+from lanzou.debug import logger
 
 
 __ALL__ = ['MainWindow']
@@ -36,7 +37,6 @@ class MainWindow(Ui_MainWindow):
         super(MainWindow, self).__init__()
         self.setupUi(self)
         self.init_variables()
-
         self.init_workers()
 
         self.main_menu_add_slot()
@@ -142,7 +142,7 @@ class MainWindow(Ui_MainWindow):
         self._disk.set_timeout(settings["timeout"])
         self._disk.set_max_size(settings["max_size"])
         self.download_manager.set_thread(settings["download_threads"])  # 同时下载任务数量
-        self.share_set_dl_path.setText(self._config.path)  # 下载路径
+        self.share_set_dl_path.setText(self._config.path)  # 提取界面下载路径
         self.time_fmt = settings["time_fmt"]  # 时间显示格式
         self._to_tray = settings["to_tray"]
         self.watch_clipboard = settings["watch_clipboard"]
@@ -248,6 +248,7 @@ class MainWindow(Ui_MainWindow):
         # 菜单栏设置
         self.setting_dialog = SettingDialog()
         self.setting_dialog.saved.connect(self.update_time_fmt)
+        self.setting_dialog.saved.connect(self.update_lanzoucloud_settings)
         # 登录回收站信息更新器
         self.get_rec_lists_worker = GetRecListsWorker()
         self.get_rec_lists_worker.msg.connect(self.show_status)
@@ -412,7 +413,7 @@ class MainWindow(Ui_MainWindow):
         """根据登录是否成功更新UI"""
         self.show_status(msg, duration)
         if success:
-            self._config.update_user()
+            self._config.update_user()  # 存储用户信息
             self.update_lanzoucloud_settings()
             self._work_id = -1  # 切换用户后刷新 根目录
             if self._user:
@@ -600,15 +601,15 @@ class MainWindow(Ui_MainWindow):
         self.rename_dialog.exec()
 
     def call_remove_files(self):
-        indexs = []
+        indexes = []
         infos = []
-        _indexs = self.table_disk.selectionModel().selection().indexes()
-        if not _indexs:
+        _indexes = self.table_disk.selectionModel().selection().indexes()
+        if not _indexes:
             return
-        for i in _indexs:  # 获取所选行号
-            indexs.append(i.row())
-        indexs = set(indexs)
-        for index in indexs:
+        for i in _indexes:  # 获取所选行号
+            indexes.append(i.row())
+        indexes = set(indexes)
+        for index in indexes:
             info = self.model_disk.item(index, 0).data()  # 用于提示删除的文件名
             if info:
                 infos.append(info)

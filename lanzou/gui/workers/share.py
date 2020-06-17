@@ -1,8 +1,9 @@
 import re
 from PyQt5.QtCore import QThread, pyqtSignal, QMutex
 
-from lanzou.api.utils import is_folder_url, is_file_url, logger
+from lanzou.api.utils import is_folder_url, is_file_url
 from lanzou.api import LanZouCloud
+from lanzou.debug import logger
 
 
 class GetSharedInfo(QThread):

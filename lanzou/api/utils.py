@@ -2,7 +2,6 @@
 API 处理网页数据、数据切片时使用的工具
 """
 
-import logging
 import os
 import pickle
 import re
@@ -10,21 +9,18 @@ from datetime import timedelta, datetime
 from random import uniform, choices, sample, shuffle, choice
 import requests
 
-__all__ = ['logger', 'remove_notes', 'name_format', 'time_format', 'is_name_valid', 'is_file_url',
-           'is_folder_url', 'big_file_split', 'un_serialize', 'let_me_upload']
+from lanzou.debug import logger
 
-# 调试日志设置
-logger = logging.getLogger('lanzou')
-fmt_str = "%(asctime)s [%(filename)s:%(lineno)d] %(funcName)s %(levelname)s - %(message)s"
-logging.basicConfig(level=logging.ERROR,
-                    filename="debug-lanzou-gui.log",
-                    filemode="a",
-                    format=fmt_str,
-                    datefmt="%Y-%m-%d %H:%M:%S")
+
+__all__ = ['remove_notes', 'name_format', 'time_format', 'is_name_valid', 'is_file_url',
+           'is_folder_url', 'big_file_split', 'un_serialize', 'let_me_upload', 'USER_AGENT']
+
+
+USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0'
 
 
 headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36',
+    'User-Agent': USER_AGENT,
     'Referer': 'https://www.lanzous.com',
     'Accept-Language': 'zh-CN,zh;q=0.9',
 }

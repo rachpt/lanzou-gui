@@ -1,6 +1,6 @@
 from PyQt5.QtCore import QThread, pyqtSignal, QMutex
 from lanzou.api import LanZouCloud
-from lanzou.api.utils import logger
+from lanzou.debug import logger
 
 
 class SetPwdWorker(QThread):

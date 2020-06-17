@@ -1,8 +1,8 @@
 from PyQt5.QtCore import QThread, pyqtSignal, QMutex
-from lanzou.api.utils import logger
 from lanzou.api import LanZouCloud
 
 from lanzou.gui.models import Infos
+from lanzou.debug import logger
 
 
 class GetMoreInfoWorker(QThread):

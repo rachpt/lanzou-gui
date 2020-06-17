@@ -1,6 +1,7 @@
 from PyQt5.QtCore import QThread, pyqtSignal, QMutex
 
-from lanzou.api.utils import is_folder_url, is_file_url, logger
+from lanzou.api.utils import is_folder_url, is_file_url
+from lanzou.debug import logger
 
 
 def show_progress(file_name, total_size, now_size, symbol="█"):

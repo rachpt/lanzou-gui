@@ -2,7 +2,7 @@ from time import sleep
 import re
 import requests
 from PyQt5.QtCore import QThread, pyqtSignal, QMutex
-from lanzou.api.utils import logger
+from lanzou.debug import logger
 
 
 class CheckUpdateWorker(QThread):

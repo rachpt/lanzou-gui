@@ -138,3 +138,5 @@ config.pickle
 
 src/
 .config
+*.bak
+login_assister.exe

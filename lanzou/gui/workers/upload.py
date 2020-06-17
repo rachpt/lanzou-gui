@@ -1,8 +1,8 @@
 import os
 from PyQt5.QtCore import QThread, pyqtSignal, QMutex
 from lanzou.gui.workers.down import show_progress
-from lanzou.api.utils import logger
 from lanzou.api import LanZouCloud
+from lanzou.debug import logger
 
 
 class UploadWorker(QThread):

@@ -1,9 +1,9 @@
 from time import sleep
 from PyQt5.QtCore import QThread, pyqtSignal, QMutex
-from lanzou.api.utils import logger
 from lanzou.api import LanZouCloud
 
 from lanzou.api.types import RecFolder, RecFile
+from lanzou.debug import logger
 
 
 class GetRecListsWorker(QThread):

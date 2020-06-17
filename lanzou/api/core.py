@@ -19,6 +19,8 @@ from urllib3.exceptions import InsecureRequestWarning
 from lanzou.api.models import FileList, FolderList
 from lanzou.api.types import *
 from lanzou.api.utils import *
+from lanzou.debug import logger
+
 
 __all__ = ['LanZouCloud']
 
@@ -49,7 +51,7 @@ class LanZouCloud(object):
         self._mydisk_url = 'https://pc.woozooo.com/mydisk.php'
         self._cookies = None
         self._headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36',
+            'User-Agent': USER_AGENT,
             'Referer': 'https://www.lanzous.com',
             'Accept-Language': 'zh-CN,zh;q=0.9',  # 提取直连必需设置这个，否则拿不到数据
         }
