@@ -26,6 +26,7 @@ from lanzou.debug import logger
 
 __ALL__ = ['MainWindow']
 
+
 class MainWindow(Ui_MainWindow):
     if not os.path.isdir("./src") or not os.path.isfile("./src/file.ico"):
         from lanzou.gui.src import release_src
@@ -65,7 +66,7 @@ class MainWindow(Ui_MainWindow):
             show_action.setIcon(self.style().standardIcon(QStyle.SP_ComputerIcon))
             hide_action.setIcon(self.style().standardIcon(QStyle.SP_TitleBarMinButton))
             quit_action.setIcon(self.style().standardIcon(QStyle.SP_TitleBarCloseButton))
-            self.tray.activated[QSystemTrayIcon.ActivationReason].connect(self.icon_activated)  #托盘点击事件
+            self.tray.activated[QSystemTrayIcon.ActivationReason].connect(self.icon_activated)  # 托盘点击事件
             tray_menu = QMenu(QApplication.desktop())
             tray_menu.addAction(show_action)
             tray_menu.addAction(hide_action)
@@ -156,7 +157,7 @@ class MainWindow(Ui_MainWindow):
         if 'upload_delay' in settings:
             delay = int(settings["upload_delay"])
             if delay > 0:
-                self._disk.set_upload_delay((delay/2, delay))
+                self._disk.set_upload_delay((delay / 2, delay))
             else:
                 self._disk.set_upload_delay((0, 0))
         # debug
@@ -213,7 +214,7 @@ class MainWindow(Ui_MainWindow):
         self.all_folders_worker.msg.connect(self.show_status)
         self.move_file_dialog.new_infos.connect(self.all_folders_worker.move_file)  # 调用移动线程
         self.all_folders_worker.infos.connect(self.move_file_dialog.set_values)
-        self.all_folders_worker.moved.connect(self.on_moved) # 更新文件列表
+        self.all_folders_worker.moved.connect(self.on_moved)  # 更新文件列表
 
         # 重命名、修改简介、新建文件夹
         self.rename_mkdir_worker = RenameMkdirWorker()
@@ -590,7 +591,7 @@ class MainWindow(Ui_MainWindow):
     def set_passwd(self, infos):
         """设置文件(夹)提取码"""
         self.set_pwd_worker.set_values(infos, self._work_id)
-    
+
     def on_moved(self, r_files=True, r_folders=True, r_path=True):
         """移动文件(夹)后更新界面槽函数"""
         self.list_refresher.set_values(self._work_id, r_files, r_folders, r_path)
@@ -671,12 +672,12 @@ class MainWindow(Ui_MainWindow):
             self.all_folders_worker.set_values(infos)
         elif action == self.left_menu_set_pwd:  # 修改提取码
             if len(infos) == 1:
-                self.desc_pwd_fetcher.set_values([info,])  # 兼容下载器，使用列表的列表
+                self.desc_pwd_fetcher.set_values([info, ])  # 兼容下载器，使用列表的列表
             self.set_pwd_dialog.set_values(infos)
             self.set_pwd_dialog.exec()
         elif action == self.left_menu_rename_set_desc:  # 重命名与修改描述
             if len(infos) == 1:
-                self.desc_pwd_fetcher.set_values([info,])  # 兼容下载器，使用列表的列表
+                self.desc_pwd_fetcher.set_values([info, ])  # 兼容下载器，使用列表的列表
             self.rename_dialog.set_values(infos)
             self.rename_dialog.exec()
         elif action == self.left_menu_copy:  # 复制分享链接
@@ -815,7 +816,7 @@ class MainWindow(Ui_MainWindow):
         self.model_rec.removeRows(0, self.model_rec.rowCount())  # 清理旧的内容
         file_count = len(file_lists)
         folder_count = len(dir_lists)
-        if ((not dir_lists) and (not file_lists)) or (file_count==0 and folder_count==0):
+        if ((not dir_lists) and (not file_lists)) or (file_count == 0 and folder_count == 0):
             self.show_status("回收站为空！", 4000)
             return
         name_header = ["文件夹{}个".format(folder_count), ] if folder_count else []
@@ -1033,7 +1034,7 @@ class MainWindow(Ui_MainWindow):
                     _status.setText("暂停中")
                 _status.setStyleSheet(jobs_btn_processing_style)
 
-            self.table_jobs.setIndexWidget(self.model_jobs.index(_index,2), _status)
+            self.table_jobs.setIndexWidget(self.model_jobs.index(_index, 2), _status)
             _index += 1
 
         for up_job in self._up_jobs_lists.values():  # 上传

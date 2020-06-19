@@ -14,6 +14,9 @@ if HAVE_WEB_ENG:
     from lanzou.gui.login_assister import LoginWindow
 
 
+is_windows = True if os.name == 'nt' else False
+
+
 class LoginDialog(QDialog):
     """登录对话框"""
 
@@ -98,14 +101,14 @@ class LoginDialog(QDialog):
         self.form.setLabelAlignment(Qt.AlignRight)
         self.form.addRow(self.name_lb, self.name_ed)
         self.form.addRow(self.pwd_lb, self.pwd_ed)
-        self.form.addRow(self.assister_lb, self.assister_ed)
+        if is_windows:
+            self.form.addRow(self.assister_lb, self.assister_ed)
 
         hbox = QHBoxLayout()
         hbox.addWidget(self.show_input_cookie_btn)
         hbox.addStretch(1)
         hbox.addWidget(self.ok_btn)
         hbox.addWidget(self.cancel_btn)
-        # self.default_var()
 
         user_box = QHBoxLayout()
         self.user_num = 0
@@ -136,6 +139,8 @@ class LoginDialog(QDialog):
                 self.del_user_btn.setStyleSheet("QPushButton {max-width: 180px;}")
                 self.del_user_btn.clicked.connect(self.call_del_chose_user)
                 vbox.addWidget(self.del_user_btn)
+            else:
+                self.del_user_btn = None
             vbox.addStretch(1)
         vbox.addLayout(self.form)
         vbox.addStretch(1)
@@ -152,6 +157,7 @@ class LoginDialog(QDialog):
                 self._del_user = ""
                 if self.user_num <= 1:
                     self.del_user_btn.close()
+                    self.del_user_btn = None
                 return
             else:
                 title = '不能删除'
@@ -185,7 +191,8 @@ class LoginDialog(QDialog):
         self.update_selection(user)
 
     def change_show_input_cookie(self):
-        if self.form.rowCount() < 4:
+        row_c = 4 if is_windows else 3
+        if self.form.rowCount() < row_c:
             self.form.addRow(self.cookie_lb, self.cookie_ed)
             self.show_input_cookie_btn.setText("隐藏Cookie输入框")
         else:
