@@ -988,10 +988,16 @@ class LanZouCloud(object):
             k = re.findall(r"var [0-9a-z]{6} = '([0-9a-z]{15,})';", html)[0]
             # 文件夹的信息
             folder_id = re.findall(r"'fid':'?(\d+)'?,", html)[0]
-            folder_name = re.findall(r"var.+?='(.+?)';\n.+document.title", html)[0]
-            folder_time = re.findall(r'class="rets">([\d\-]+?)<a', html)[0]  # 日期不全 %m-%d
-            folder_desc = re.findall(r'id="filename">(.+?)</span>', html)  # 无描述时无法完成匹配
-            folder_desc = folder_desc[0] if len(folder_desc) == 1 else ''
+            if folder_name := re.search(r"var.+?='(.+?)';\n.+document.title", html):
+                folder_name = folder_name.group(1)
+            elif folder_name := re.search(r'user-title">(.+?)</div>', html):  # 会员自定义
+                folder_name = folder_name.group(1)
+            else:
+                folder_name = ''
+            folder_time = re.search(r'class="rets">([\d\-]+?)<a', html)  # 日期不全 %m-%d
+            folder_time = folder_time.group(1) if folder_time else ''
+            folder_desc = re.search(r'id="filename">(.+?)</span>', html)  # 无描述时无法完成匹配
+            folder_desc = folder_desc.group(1) if folder_desc else ''
         except IndexError:
             logger.error("IndexError")
             return FolderDetail(LanZouCloud.FAILED)
