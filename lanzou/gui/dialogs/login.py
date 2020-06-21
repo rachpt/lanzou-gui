@@ -96,7 +96,7 @@ class LoginDialog(QDialog):
         self.form.addRow(self.name_lb, self.name_ed)
         self.form.addRow(self.pwd_lb, self.pwd_ed)
         if is_windows:
-            def set_assister_path(self):
+            def set_assister_path():
                 """设置辅助登录程序路径"""
                 assister_path = QFileDialog.getOpenFileName(self, "选择辅助登录程序路径",
                                                             self._cwd, "EXE Files (*.exe)")
@@ -112,7 +112,7 @@ class LoginDialog(QDialog):
             self.assister_lb.setAlignment(Qt.AlignCenter)
             self.assister_ed = MyLineEdit(self)
             self.assister_ed.setText(self._cookie_assister)
-            self.assister_ed.clicked.connect(self.set_assister_path)
+            self.assister_ed.clicked.connect(set_assister_path)
             self.assister_lb.setBuddy(self.assister_ed)
             self.form.addRow(self.assister_lb, self.assister_ed)
 
@@ -140,7 +140,6 @@ class LoginDialog(QDialog):
 
         vbox = QVBoxLayout()
         vbox.addWidget(logo)
-        vbox.addStretch(1)
         if self._config.name:
             vbox.addWidget(lb_line_1)
             vbox.addLayout(user_box)
