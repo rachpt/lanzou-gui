@@ -734,7 +734,8 @@ class MainWindow(Ui_MainWindow):
             tip = f"fid:{item.id} | 描述:{item.desc}" if item.desc else f"fid:{item.id}"
             self._locs[index].setToolTip(tip)
             self._locs[index].setIcon(QIcon("./src/folder.gif"))
-            self._locs[index].setStyleSheet("QPushButton {border:none; background:transparent;}")
+            self._locs[index].setStyleSheet("QPushButton {border:none; background:transparent;\
+                                            color: rgb(139,0,139); font-weight:bold;}")
             self.disk_loc_hbox.insertWidget(index, self._locs[index])
             self._locs[index].clicked.connect(self.call_change_dir(item.id))
             index += 1
@@ -924,7 +925,8 @@ class MainWindow(Ui_MainWindow):
         self.model_share = QStandardItemModel(1, 3)
         self.config_tableview("share")
 
-        self.get_shared_info_thread.update.connect(lambda: self.model_share.removeRows(0, self.model_share.rowCount()))  # 清理旧的信息
+        # 清理旧的信息
+        self.get_shared_info_thread.update.connect(lambda: self.model_share.removeRows(0, self.model_share.rowCount()))
         self.get_shared_info_thread.msg.connect(self.show_status)  # 提示信息
         self.get_shared_info_thread.infos.connect(self.show_share_url_file_lists)  # 内容信息
         self.get_shared_info_thread.finished.connect(lambda: self.btn_extract.setEnabled(True))
@@ -932,6 +934,7 @@ class MainWindow(Ui_MainWindow):
         # 控件设置
         self.line_share_url.setPlaceholderText("蓝奏云链接，如有提取码，放后面，空格或汉字等分割，回车键提取")
         self.line_share_url.returnPressed.connect(self.call_get_shared_info)
+        self.line_share_url.setFocus()  # 光标焦点
         self.btn_extract.clicked.connect(self.call_get_shared_info)
         self.btn_share_dl.clicked.connect(lambda: self.call_multi_manipulator("download"))
         self.btn_share_dl.setIcon(QIcon("./src/downloader.ico"))
@@ -942,10 +945,6 @@ class MainWindow(Ui_MainWindow):
         # 添加文件下载路径选择器
         self.share_set_dl_path.setText(self._config.path)
         self.share_set_dl_path.clicked.connect(self.set_download_path)
-
-        # QSS
-        self.label_share_url.setStyleSheet("#label_share_url {color: rgb(255,255,60);}")
-        self.label_dl_path.setStyleSheet("#label_dl_path {color: rgb(255,255,60);}")
 
     # jobs tab
     def call_jobs_clean_all(self):

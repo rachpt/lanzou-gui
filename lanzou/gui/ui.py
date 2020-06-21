@@ -60,7 +60,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.disk_hlayout_top = QtWidgets.QHBoxLayout()
         self.disk_hlayout_top.setObjectName("disk_hlayout_top")
         self.disk_loc_hbox = QtWidgets.QHBoxLayout()
-        self.disk_loc_hbox.setObjectName("disk_loc")
+        self.disk_loc_hbox.setObjectName("disk_loc_hbox")
         self.label_disk_loc = QtWidgets.QLabel(self.disk_tab)
         self.label_disk_loc.setObjectName("label_disk_loc")
         self.disk_loc_hbox.addWidget(self.label_disk_loc)

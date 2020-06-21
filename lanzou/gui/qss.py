@@ -67,7 +67,7 @@ QPushButton {
 QTabWidget::pane {
     border: 1px;
     /* background:transparent;  # 完全透明 */
-    background-color: rgba(255, 255, 255, 100);
+    background-color: rgba(255, 255, 255, 90);
 }
 QTabWidget::tab-bar {
     background:transparent;
@@ -105,6 +105,21 @@ QTabBar::tab:hover {
     font: 14px;
     color: white;
     background:transparent;
+}
+/*提取界面文字颜色*/
+#label_share_url {
+    color: rgb(255,255,60);
+}
+#label_dl_path {
+    color: rgb(255,255,60);
+}
+/*网盘界面文字颜色*/
+#label_disk_loc {
+    color: rgb(0,0,0);
+    font-weight:bold;
+}
+#disk_tab {
+    background-color: rgba(255, 255, 255, 120);
 }
 '''
 

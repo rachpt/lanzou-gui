@@ -6,11 +6,9 @@ from PyQt5.QtWidgets import (QDialog, QLabel, QLineEdit, QTextEdit, QPushButton,
 
 from lanzou.gui.others import QDoublePushButton, MyLineEdit
 from lanzou.gui.qss import dialog_qss_style, btn_style
+from lanzou.gui import USE_WEB_ENG
 
-HAVE_WEB_ENG = True  # 是否使用 PyQtWebEngine 辅助登录
-
-
-if HAVE_WEB_ENG:
+if USE_WEB_ENG:  # 是否使用 PyQtWebEngine 辅助登录
     from lanzou.gui.login_assister import LoginWindow
 
 
@@ -34,6 +32,7 @@ class LoginDialog(QDialog):
         self.initUI()
         self.setStyleSheet(dialog_qss_style)
         self.setMinimumWidth(380)
+        self.name_ed.setFocus()
         # 信号
         self.name_ed.textChanged.connect(self.set_user)
         self.pwd_ed.textChanged.connect(self.set_pwd)
@@ -281,7 +280,7 @@ class LoginDialog(QDialog):
                 self._config.set_infos(up_info)
             self.clicked_ok.emit()
             self.close()
-        elif HAVE_WEB_ENG:
+        elif USE_WEB_ENG:
             self.web = LoginWindow(self._user, self._pwd)
             self.web.cookie.connect(self.get_cookie_by_web)
             self.web.setWindowModality(Qt.ApplicationModal)

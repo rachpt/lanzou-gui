@@ -72,8 +72,8 @@ class Downloader(QThread):
         """显示下载失败的回调函数"""
         self.folder_file_failed.emit(code, file)
 
-    # def __del__(self):
-    #     self.wait()
+    def __del__(self):
+        self.wait()
 
     def set_values(self, name, url, pwd, save_path):
         self.name = name
