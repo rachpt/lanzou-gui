@@ -376,7 +376,6 @@ class LanZouCloud(object):
         """获取子文件夹列表与全路径"""
         folder_list = FolderList()
         path_list = FolderList()
-        path_list.append(FolderId('LanZouCloud', -1, '根目录', -1))
         post_data = {'task': 47, 'folder_id': folder_id}
         resp = self._post(self._doupload_url, post_data)
         if resp:
@@ -390,6 +389,8 @@ class LanZouCloud(object):
                     has_pwd=True if int(folder['onof']) == 1 else False,
                     desc=folder['folder_des'][1:-1]
                 ))
+            if folder_id == -1 or resp["info"]:  # 如果 folder_id 有误，就返回空 list
+                path_list.append(FolderId('LanZouCloud', -1, '根目录', -1))
             for folder in resp["info"]:
                 if "folderid" not in folder:
                     continue
@@ -1244,3 +1245,12 @@ class LanZouCloud(object):
             f_desc = re.search(r'文件描述：</span><br>([^<]+)</td>', first_page)
             f_desc = f_desc.group(1).strip() if f_desc else ""
             return ShareInfo(LanZouCloud.SUCCESS, name=f_name, url=f_url, pwd=pwd, desc=f_desc, time=f_time, size=f_size)
+
+    def get_user_name(self):
+        """获取用户名"""
+        params = {'item': 'profile', 'action': 'mypower'}
+        resp = self._get(self._mydisk_url, params=params)
+        if not resp:
+            return LanZouCloud.NETWORK_ERROR
+        username = re.search(r"com/u/(\w+?)\?t2", remove_notes(resp.text))
+        return username.group(1) if username else None

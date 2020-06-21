@@ -181,8 +181,9 @@ class MainWindow(Ui_MainWindow):
     def init_workers(self):
         # 登录器
         self.login_luncher = LoginLuncher()
+        self.login_luncher.update_username.connect(self._config.set_username)
+        self.login_luncher.update_cookie.connect(self._config.set_cookie)  # 目前失效
         self.login_luncher.code.connect(self.login_update_ui)
-        self.login_luncher.update_cookie.connect(self._config.set_cookie)
         # 登出器
         self.logout_worker = LogoutWorker()
         self.logout_worker.succeeded.connect(self.call_logout_update_ui)
@@ -412,12 +413,11 @@ class MainWindow(Ui_MainWindow):
         self._user = None
 
     def login_update_ui(self, success, msg, duration):
-        """根据登录是否成功更新UI"""
+        """根据登录是否成功更新UI，并保持用户信息"""
         self.show_status(msg, duration)
         if success:
-            self._config.update_user()  # 存储用户信息
             self.update_lanzoucloud_settings()
-            self._work_id = -1  # 切换用户后刷新 根目录
+            self._work_id = self._config.work_id  # 切换用户后刷新 根目录
             if self._user:
                 if len(self._user) <= 6:
                     disk_tab = f"我的蓝奏<{self._user}>"
@@ -439,6 +439,7 @@ class MainWindow(Ui_MainWindow):
             # 设置当前显示 tab
             self.tabWidget.setCurrentIndex(self.tabWidget.indexOf(self.disk_tab))
             QCoreApplication.processEvents()  # 重绘界面
+            self._config.update_user()  # 存储用户信息
             # 刷新文件列表
             # self.list_refresher.set_values(self._work_id)
         else:
@@ -462,8 +463,8 @@ class MainWindow(Ui_MainWindow):
             username = self._config.name
             password = self._config.pwd
             cookie = self._config.cookie
-            if not username:
-                return
+            if not username and not cookie:
+                return None
             self.show_status("正在登陆，稍候……", 25000)
             self.login_luncher.set_values(username, password, cookie)
         except Exception as err:
@@ -535,6 +536,7 @@ class MainWindow(Ui_MainWindow):
             self._path_list = infos['path_list']
 
         self._work_id = self._path_list[-1].id
+        self._config.work_id = self._work_id
         if len(self._path_list) > 1:
             self._parent_id = self._path_list[-2].id
         self.show_file_and_folder_lists()
@@ -1177,7 +1179,7 @@ class MainWindow(Ui_MainWindow):
         if not self.watch_clipboard:
             return
         text = self.clipboard.text()
-        pat = r"(https?://(\w[-\w]*\.)?lanzous.com/[bi]?[a-z0-9]+)[^0-9a-z]*([a-z0-9]+)?"
+        pat = r"(https?://(\w[-\w]*\.)?lanzou[six].com/[bi]?[a-z0-9]+)[^0-9a-z]*([a-z0-9]+)?"
         for share_url, _, pwd in re.findall(pat, text):
             if share_url and not self.get_shared_info_thread.isRunning():
                 self.line_share_url.setEnabled(False)

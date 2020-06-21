@@ -73,7 +73,7 @@ class LoginDialog(QDialog):
 
         self.cookie_lb = QLabel("&Cookie")
         self.cookie_ed = QTextEdit()
-        notice = "由于滑动验证的存在，需要输入用户名与cookie，cookie请使用浏览器获取\n" + \
+        notice = "由于滑动验证的存在，需要输入cookie，cookie请使用浏览器获取\n" + \
             "cookie会保存在本地，下次使用。其格式如下：\n ylogin=value1; phpdisk_info=value2"
         self.cookie_ed.setPlaceholderText(notice)
         self.cookie_lb.setBuddy(self.cookie_ed)
@@ -274,8 +274,11 @@ class LoginDialog(QDialog):
             if self._user not in self._config.users_name:
                 self._cookie = None
         if self._cookie:
-            up_info = {"name": self._user, "pwd": self._pwd, "cookie": self._cookie}
-            self._config.set_infos(up_info)
+            up_info = {"name": self._user, "pwd": self._pwd, "cookie": self._cookie, "work_id": -1}
+            if self.ok_btn.text() == "切换用户":
+                self._config.change_user(self._user)
+            else:
+                self._config.set_infos(up_info)
             self.clicked_ok.emit()
             self.close()
         elif HAVE_WEB_ENG:
@@ -292,7 +295,7 @@ class LoginDialog(QDialog):
                 except: self._cookie = None
                 if not self._cookie:
                     return None
-                up_info = {"name": self._user, "pwd": self._pwd, "cookie": self._cookie}
+                up_info = {"name": self._user, "pwd": self._pwd, "cookie": self._cookie, "work_id": -1}
                 self._config.set_infos(up_info)
                 self.clicked_ok.emit()
                 self.close()

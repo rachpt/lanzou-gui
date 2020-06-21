@@ -38,6 +38,10 @@ class ListRefresher(QThread):
         self._is_work = False
         self._mutex.unlock()
 
+    def goto_root_dir(self):
+        self._fid = -1
+        self.run()
+
     def run(self):
         if not self._is_work:
             self._mutex.lock()
@@ -52,6 +56,11 @@ class ListRefresher(QThread):
                     emit_infos['file_list'] = {key: info.get(key) for key in sorted(info.keys())}  # {name-File}
                 if self.r_folders:
                     folders, full_path = self._disk.get_dir_list(self._fid)
+                    if not full_path and not folders and self._fid != -1:
+                        self.err_msg.emit(f"文件夹id {self._fid} 不存在，将切换到更目录", 2900)
+                        self._is_work = False
+                        self._mutex.unlock()
+                        return self.goto_root_dir()
                     info = {i.name: i for i in folders}
                     emit_infos['folder_list'] = {key: info.get(key) for key in sorted(info.keys())}  # {name-Folder}
                     emit_infos['path_list'] = full_path

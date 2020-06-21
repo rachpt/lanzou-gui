@@ -7,6 +7,7 @@ class LoginLuncher(QThread):
     '''登录线程'''
     code = pyqtSignal(bool, str, int)
     update_cookie = pyqtSignal(object)
+    update_username = pyqtSignal(object)
 
     def __init__(self, parent=None):
         super(LoginLuncher, self).__init__(parent)
@@ -24,16 +25,18 @@ class LoginLuncher(QThread):
         self.cookie = cookie
         self.start()
 
-    # def __del__(self):
-    #     self.wait()
-
     def run(self):
         try:
             if self.cookie:
                 res = self._disk.login_by_cookie(self.cookie)
                 if res == LanZouCloud.SUCCESS:
+                    if not self.username:
+                        username = self._disk.get_user_name()
+                        if isinstance(username, str):
+                            self.update_username.emit(username)
+                        logger.debug(f"login by Cookie: {username=}")
                     self.code.emit(True, "<font color='#00CC00'>通过<b>Cookie</b>登录<b>成功</b>！ ≧◉◡◉≦</font>", 5000)
-                    return
+                    return None
                 logger.debug(f"login by Cookie err: {res=}")
             if (not self.username or not self.password) and not self.cookie:
                 logger.debug("login err: No UserName、No cookie")

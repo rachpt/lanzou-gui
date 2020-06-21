@@ -87,7 +87,7 @@ class Config:
         self._cookie = ''
         self._name = ''
         self._pwd = ''
-        self._work_id = ''
+        self._work_id = -1
         self._settings = default_settings()
 
     def encode(self, var):
@@ -129,6 +129,7 @@ class Config:
     def change_user(self, name) -> bool:
         name = self.encode(name)
         if name in self._users:
+            self.update_user()  # 切换用户前保持目前用户信息
             user = self._users[name]
             self._cookie = user[0]
             self._name = user[1]
@@ -176,8 +177,21 @@ class Config:
         self._cookie = self.encode(cookie)
         save_config(self)
 
+    @property
+    def work_id(self):
+        return self._work_id
+
+    @work_id.setter
+    def work_id(self, work_id):
+        self._work_id = work_id
+        save_config(self)
+
     def set_cookie(self, cookie):
         self._cookie = self.encode(cookie)
+        save_config(self)
+
+    def set_username(self, username):
+        self._name = self.encode(username)
         save_config(self)
 
     @property
@@ -199,6 +213,7 @@ class Config:
         save_config(self)
 
     def set_infos(self, infos: dict):
+        self.update_user()  # 切换用户前保持目前用户信息
         if "name" in infos:
             self._name = self.encode(infos["name"])
         if "pwd" in infos:
