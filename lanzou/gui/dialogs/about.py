@@ -21,7 +21,7 @@ class AboutDialog(QDialog):
 
     def set_values(self, version):
         self._ver = version
-        self.lb_name_text.setText(f"{version}  (点击检查更新)")  # 更新版本
+        self.lb_name_text.setText(f"v{version}  (点击检查更新)")  # 更新版本
 
     def show_update(self, ver, msg):
         self.lb_new_ver = QLabel("新版")  # 检测新版
@@ -70,9 +70,11 @@ Python 依赖见<a href="{self._github }/blob/master/requirements.txt">requireme
         self.buttonBox.rejected.connect(self.reject)
         self.buttonBox.setStyleSheet(btn_style)
 
+        self.recommend = QLabel("<br />大文件推荐使用 <a href='https://github.com/Aruelius/cloud189'>cloud189-cli</a>")
+        self.recommend.setOpenExternalLinks(True)
+
         self.line = QLine(QPoint(), QPoint(550, 0))
-        self.lb_line = QLabel()
-        self.lb_line.setText('<html><hr /></html>')
+        self.lb_line = QLabel('<html><hr /></html>')
 
         vbox = QVBoxLayout()
         vbox.addWidget(self.logo)
@@ -88,6 +90,7 @@ Python 依赖见<a href="{self._github }/blob/master/requirements.txt">requireme
         self.form.addRow(self.lb_about, self.lb_about_text)
         vbox.addLayout(self.form)
         vbox.addStretch(1)
+        vbox.addWidget(self.recommend)
         vbox.addWidget(self.lb_line)
         donate = QLabel()
         donate.setText("<b>捐助我</b>&nbsp;如果你愿意")
