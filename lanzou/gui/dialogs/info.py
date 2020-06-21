@@ -74,10 +74,15 @@ class InfoDialog(QDialog):
             self.tx_desc.setPlaceholderText("无")
 
         self.tx_share_url.setText(self.infos.url)
+        self.adjustSize()
 
     def set_values(self, infos):
         self.infos = infos
         self.update_ui()
+
+    def set_dl_link_tx(self, text):
+        self.tx_dl_link.setText(text)
+        self.adjustSize()
 
     def call_get_dl_link(self):
         url = self.tx_share_url.text()
@@ -122,6 +127,7 @@ class InfoDialog(QDialog):
         self.lb_name.setText("文件名：")
         self.tx_name = AutoResizingTextEdit()
         self.tx_name.setReadOnly(True)
+        self.tx_name.setMinimumLines(1)
 
         self.lb_size = QLabel()
         self.lb_size.setText("文件大小：")
@@ -151,11 +157,13 @@ class InfoDialog(QDialog):
         self.tx_short.setPlaceholderText("单击获取")
         self.tx_short.clicked.connect(self.call_get_short_url)
         self.tx_short.setReadOnly(True)
+        self.tx_short.setMinimumLines(1)
 
         self.lb_desc = QLabel()
         self.lb_desc.setText("文件描述：")
         self.tx_desc = AutoResizingTextEdit()
         self.tx_desc.setReadOnly(True)
+        self.tx_desc.setMinimumLines(1)
 
         self.lb_dl_link = QLabel()
         self.lb_dl_link.setText("下载直链：")
@@ -163,6 +171,7 @@ class InfoDialog(QDialog):
         self.tx_dl_link.setPlaceholderText("单击获取")
         self.tx_dl_link.clicked.connect(self.call_get_dl_link)
         self.tx_dl_link.setReadOnly(True)
+        self.tx_dl_link.setMinimumLines(1)
 
         vbox = QVBoxLayout()
         vbox.addWidget(self.logo)
@@ -183,3 +192,4 @@ class InfoDialog(QDialog):
         vbox.addWidget(self.buttonBox)
 
         self.setLayout(vbox)
+        self.setMinimumWidth(500)

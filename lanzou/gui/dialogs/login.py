@@ -1,5 +1,5 @@
 import os
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, pyqtSignal, QPropertyAnimation, QRect
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtWidgets import (QDialog, QLabel, QLineEdit, QTextEdit, QPushButton, QFormLayout,
                              QHBoxLayout, QVBoxLayout, QMessageBox, QFileDialog)
@@ -33,7 +33,7 @@ class LoginDialog(QDialog):
         self._del_user = ""
         self.initUI()
         self.setStyleSheet(dialog_qss_style)
-        self.setMinimumWidth(350)
+        self.setMinimumWidth(380)
         # 信号
         self.name_ed.textChanged.connect(self.set_user)
         self.pwd_ed.textChanged.connect(self.set_pwd)
@@ -59,12 +59,6 @@ class LoginDialog(QDialog):
         logo.setPixmap(QPixmap("./src/logo3.gif"))
         logo.setStyleSheet("background-color:rgb(0,153,255);")
         logo.setAlignment(Qt.AlignCenter)
-        self.assister_lb = QLabel("登录辅助程序")
-        self.assister_lb.setAlignment(Qt.AlignCenter)
-        self.assister_ed = MyLineEdit(self)
-        self.assister_ed.setText(self._cookie_assister)
-        self.assister_ed.clicked.connect(self.set_assister_path)
-        self.assister_lb.setBuddy(self.assister_ed)
 
         self.name_lb = QLabel("&U 用户")
         self.name_lb.setAlignment(Qt.AlignCenter)
@@ -102,6 +96,24 @@ class LoginDialog(QDialog):
         self.form.addRow(self.name_lb, self.name_ed)
         self.form.addRow(self.pwd_lb, self.pwd_ed)
         if is_windows:
+            def set_assister_path(self):
+                """设置辅助登录程序路径"""
+                assister_path = QFileDialog.getOpenFileName(self, "选择辅助登录程序路径",
+                                                            self._cwd, "EXE Files (*.exe)")
+                if not assister_path[0]:
+                    return None
+                assister_path = os.path.normpath(assister_path[0])  # windows backslash
+                if assister_path == self._cookie_assister:
+                    return None
+                self.assister_ed.setText(assister_path)
+                self._cookie_assister = assister_path
+
+            self.assister_lb = QLabel("登录辅助程序")
+            self.assister_lb.setAlignment(Qt.AlignCenter)
+            self.assister_ed = MyLineEdit(self)
+            self.assister_ed.setText(self._cookie_assister)
+            self.assister_ed.clicked.connect(self.set_assister_path)
+            self.assister_lb.setBuddy(self.assister_ed)
             self.form.addRow(self.assister_lb, self.assister_ed)
 
         hbox = QHBoxLayout()
@@ -193,17 +205,32 @@ class LoginDialog(QDialog):
     def change_show_input_cookie(self):
         row_c = 4 if is_windows else 3
         if self.form.rowCount() < row_c:
+            self.org_height = self.height()
             self.form.addRow(self.cookie_lb, self.cookie_ed)
             self.show_input_cookie_btn.setText("隐藏Cookie输入框")
+            self.change_height = None
+            self.adjustSize()
         else:
+            if not self.change_height:
+                self.change_height = self.height()
             if self.cookie_ed.isVisible():
                 self.cookie_lb.setVisible(False)
                 self.cookie_ed.setVisible(False)
                 self.show_input_cookie_btn.setText("显示Cookie输入框")
+                start_height, end_height = self.change_height, self.org_height
             else:
                 self.cookie_lb.setVisible(True)
                 self.cookie_ed.setVisible(True)
                 self.show_input_cookie_btn.setText("隐藏Cookie输入框")
+                start_height, end_height = self.org_height, self.change_height
+            gm = self.geometry()
+            x, y = gm.x(), gm.y()
+            wd = self.width()
+            self.animation = QPropertyAnimation(self, b'geometry')
+            self.animation.setDuration(400)
+            self.animation.setStartValue(QRect(x, y, wd, start_height))
+            self.animation.setEndValue(QRect(x, y, wd, end_height))
+            self.animation.start()
 
     def set_user(self, user):
         self._user = user
@@ -231,17 +258,6 @@ class LoginDialog(QDialog):
                 except: text = ''
                 self.cookie_ed.setPlainText(text)
         self._pwd = pwd
-
-    def set_assister_path(self):
-        """设置辅助登录程序路径"""
-        assister_path = QFileDialog.getOpenFileName(self, "选择辅助登录程序路径", self._cwd, "EXE Files (*.exe)")
-        if not assister_path[0]:
-            return None
-        assister_path = os.path.normpath(assister_path[0])  # windows backslash
-        if assister_path == self._cookie_assister:
-            return None
-        self.assister_ed.setText(assister_path)
-        self._cookie_assister = assister_path
 
     def set_cookie(self):
         cookies = self.cookie_ed.toPlainText()

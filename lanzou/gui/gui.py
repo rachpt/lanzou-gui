@@ -117,6 +117,7 @@ class MainWindow(Ui_MainWindow):
         self._up_jobs_lists = {}
         self._captcha_code = None
         self._to_tray = False
+        self.watch_clipboard = None  # 登录失败设置默认值
 
     def set_disk(self):
         """方便切换用户更新信息"""
@@ -198,7 +199,7 @@ class MainWindow(Ui_MainWindow):
         self.more_info_worker.infos.connect(lambda: self.pause_extract_clipboard(True))  # 禁用剪切板监听
         self.more_info_worker.infos.connect(self.info_dialog.set_values)
         self.more_info_worker.share_url.connect(self.call_copy_share_url)
-        self.more_info_worker.dl_link.connect(self.info_dialog.tx_dl_link.setText)
+        self.more_info_worker.dl_link.connect(self.info_dialog.set_dl_link_tx)
         self.info_dialog.get_dl_link.connect(self.more_info_worker.get_dl_link)
         self.info_dialog.closed.connect(lambda: self.pause_extract_clipboard(False))  # 恢复剪切板监听
         # 登录文件列表更新器
