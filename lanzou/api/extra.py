@@ -33,7 +33,7 @@ def get_short_url(url: str):
         }
         for api in apis:
             resp = requests.post(api, data=post_data, verify=False, headers=headers)
-            if 'http' in resp.text:
+            if resp.text.startswith('http'):
                 short_url = resp.text
                 break
     except: pass
