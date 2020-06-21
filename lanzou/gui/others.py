@@ -92,7 +92,7 @@ class AutoResizingTextEdit(QTextEdit):
     clicked = pyqtSignal()
     editingFinished = pyqtSignal()
 
-    def __init__(self, parent = None):
+    def __init__(self, parent=None):
         super(AutoResizingTextEdit, self).__init__(parent)
 
         # This seems to have no effect. I have expected that it will cause self.hasHeightForWidth()
@@ -154,16 +154,16 @@ class AutoResizingTextEdit(QTextEdit):
 
         assert num_lines >= 0
 
-        widget_margins  = self.contentsMargins()
+        widget_margins = self.contentsMargins()
         document_margin = self.document().documentMargin()
-        font_metrics    = QFontMetrics(self.document().defaultFont())
+        font_metrics = QFontMetrics(self.document().defaultFont())
 
         # font_metrics.lineSpacing() is ignored because it seems to be already included in font_metrics.height()
         return (
-            widget_margins.top()                      +
-            document_margin                           +
+            widget_margins.top() +
+            document_margin +
             max(num_lines, 1) * font_metrics.height() +
-            self.document().documentMargin()          +
+            self.document().documentMargin() +
             widget_margins.bottom()
         )
 

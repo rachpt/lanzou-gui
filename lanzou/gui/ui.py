@@ -254,7 +254,6 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         new_top = int((screen.height() - size.height()) / 2)
         self.move(new_left, new_top)
 
-    
     def create_left_menus(self):
         self.left_menus = QtWidgets.QMenu()
         self.left_menu_share_url = self.left_menus.addAction("外链分享地址等")
