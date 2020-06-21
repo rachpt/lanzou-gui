@@ -19,6 +19,7 @@ class RenameDialog(QDialog):
     def set_values(self, infos=None):
         self.infos = infos or []
         self.update_text()  # 更新界面
+        self.tx_desc.setFocus()
 
     def initUI(self):
         self.setWindowIcon(QIcon("./src/desc.ico"))
