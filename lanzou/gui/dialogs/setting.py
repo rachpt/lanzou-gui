@@ -66,6 +66,8 @@ class SettingDialog(QDialog):
 
     def set_values(self, reset=False):
         """设置控件对应变量初始值"""
+        if reset:
+            self._config.default_settngs()
         settings = self._config.settings
         self.download_threads = settings["download_threads"]
         self.max_size = settings["max_size"]

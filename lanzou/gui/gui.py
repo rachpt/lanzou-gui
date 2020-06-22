@@ -16,7 +16,7 @@ from lanzou.api.types import RecFolder, FolderDetail
 from lanzou.gui.models import DlJob, FileInfos, FolderInfos, ShareFileInfos
 from lanzou.gui.ui import Ui_MainWindow
 from lanzou.gui.others import set_file_icon, TableDelegate
-from lanzou.gui.config import config
+from lanzou.gui.config import config, ROOT_DIR
 from lanzou.gui.workers import *
 from lanzou.gui.dialogs import *
 from lanzou.gui.qss import *
@@ -28,10 +28,11 @@ __ALL__ = ['MainWindow']
 
 
 class MainWindow(Ui_MainWindow):
-    if not os.path.isdir("./src") or not os.path.isfile("./src/file.ico"):
+    SRC_DIR = ROOT_DIR + os.sep + "src"
+    if not os.path.isdir(SRC_DIR) or not os.path.isfile(SRC_DIR + os.sep + "file.ico"):
         from lanzou.gui.src import release_src
 
-        os.makedirs("./src", exist_ok=True)
+        os.makedirs(SRC_DIR, exist_ok=True)
         release_src()
 
     def __init__(self):

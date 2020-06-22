@@ -4,8 +4,9 @@ from pickle import load, dump
 
 __all__ = ['config']
 
-KEY = 152
-config_file = os.path.dirname(sys.argv[0]) + os.sep + '.config'
+KEY = 152  # 加密
+ROOT_DIR = os.path.dirname(sys.argv[0])
+config_file =  ROOT_DIR + os.sep + '.config'
 
 
 def default_settings():
@@ -18,7 +19,7 @@ def default_settings():
     watch_clipboard = False        # 监听系统剪切板
     debug = False                  # 调试
     upload_delay = 20              # 上传大文件延时 0 - 20s
-    dl_path = os.path.dirname(os.path.abspath(__file__)) + os.sep + "downloads"
+    dl_path = ROOT_DIR + os.sep + "downloads"
     return {
         "download_threads": download_threads,
         "timeout": timeout,
@@ -157,7 +158,7 @@ class Config:
         save_config(self)
 
     def default_settngs(self):
-        self._settngs = default_settings()
+        self._settings = default_settings()
         save_config(self)
 
     @property
