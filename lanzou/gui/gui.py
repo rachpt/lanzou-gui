@@ -119,6 +119,7 @@ class MainWindow(Ui_MainWindow):
         self._captcha_code = None
         self._to_tray = False
         self.watch_clipboard = None  # 登录失败设置默认值
+        self.time_fmt = False  # 登录失败设置默认值
 
     def set_disk(self):
         """方便切换用户更新信息"""

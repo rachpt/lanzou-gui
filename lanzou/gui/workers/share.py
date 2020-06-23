@@ -29,7 +29,7 @@ class GetSharedInfo(QThread):
     def set_values(self, text):
         '''获取分享链接信息'''
         if not text:
-            return
+            return None
         for share_url, _, pwd in re.findall(self._pat, text):
             if is_file_url(share_url):  # 文件链接
                 is_file = True
@@ -41,7 +41,8 @@ class GetSharedInfo(QThread):
                 self.msg.emit("正在获取文件夹链接信息，可能需要几秒钟，请稍后……", 30000)
             else:
                 self.msg.emit(f"{share_url} 为非法链接！", 0)
-                return
+                self.finished.emit()
+                return None
             self.update.emit()  # 清理旧的显示信息
             self.share_url = share_url
             self.pwd = pwd
