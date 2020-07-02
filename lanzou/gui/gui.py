@@ -341,7 +341,7 @@ class MainWindow(Ui_MainWindow):
             listview = self.table_rec
             model = self.model_rec
         else:
-            return
+            return None
         infos = []
         _indexes = listview.selectionModel().selection().indexes()
         for i in _indexes:  # 获取所选行号
@@ -351,20 +351,24 @@ class MainWindow(Ui_MainWindow):
 
         if tab_page == self.tabWidget.indexOf(self.share_tab):  # 提取界面下载
             if not infos:
-                return
+                return None
             tasks = {}
-            for info in infos:
-                info = info[0]  # 单文件信息
-                tasks[info.url] = DlJob(name=info.name, url=info.url, pwd=info.pwd, path=self._config.path)
 
-            if len(tasks) != 1 and len(tasks) == infos[0][2]:
+            if infos[0][1] is None:  # 单文件信息链接 (info, None, 1)
+                info = info[0][0]
+                tasks[info.url] = DlJob(name=info.name, url=info.url, pwd=info.pwd, path=self._config.path)
+            elif len(infos) != 1 and len(infos) == infos[0][2]:  # 下载整个文件夹文件 (info, folder_info, count)
                 info = infos[0][1]  # 文件夹信息
                 tasks[info.url] = DlJob(name=info.name, url=info.url, pwd=info.pwd, path=self._config.path)
+            else:  # 下载文件夹中部分文件
+                for info in infos:
+                    info = info[0]  # 文件夹中单文件信息
+                    tasks[info.url] = DlJob(name=info.name, url=info.url, pwd=info.pwd, path=self._config.path)
             logger.debug(f"manipulator, share tab {tasks=}")
             self.call_download_manager_thread(tasks)
         elif tab_page == self.tabWidget.indexOf(self.disk_tab):  # 登录文件界面下载
             if not infos:
-                return
+                return None
             logger.debug(f"manipulator, disk tab {infos=}")
             self.desc_pwd_fetcher.set_values(infos, download=True, dl_path=self._config.path)
         elif tab_page == self.tabWidget.indexOf(self.rec_tab):  # 回收站
@@ -382,7 +386,7 @@ class MainWindow(Ui_MainWindow):
             if action == "recovery" or action == "delete":
                 if not infos:
                     self.show_status("请先选中需要操作的文件！", 2999)
-                    return
+                    return None
                 msg = "\t\t列表：\n"
                 for i in infos:
                     msg += f"{i.time}\t{i.name}\t{i.size}\n"

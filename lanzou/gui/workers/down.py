@@ -21,8 +21,8 @@ def show_progress(file_name, total_size, now_size, symbol="█"):
     else:
         unit = "KB"
         piece = 1024
-    bar_str = ("<font color='#00CC00'>" + symbol * round(bar_len * percent) +
-               "</font><font color='#000080'>" + symbol * round(bar_len * (1 - percent)) + "</font>")
+    bar_str = ("<font color='#00CC00'>" + symbol * round(bar_len * percent)
+               + "</font><font color='#000080'>" + symbol * round(bar_len * (1 - percent)) + "</font>")
     msg = "\r{:>5.1f}%\t[{}] {:.1f}/{:.1f}{} | {} ".format(
         percent * 100,
         bar_str,
@@ -38,23 +38,22 @@ def show_progress(file_name, total_size, now_size, symbol="█"):
 
 class Downloader(QThread):
     '''单个文件下载线程'''
+    download_finished = pyqtSignal(str)
     download_proc = pyqtSignal(str)
     download_failed = pyqtSignal(object, object)
     folder_file_failed = pyqtSignal(object, object)
     download_rate = pyqtSignal(object, object)
 
-    def __init__(self, parent=None):
+    def __init__(self, disk, parent=None):
         super(Downloader, self).__init__(parent)
-        self._disk = None
+        self._disk = disk
         self._stopped = True
         self._mutex = QMutex()
         self.name = ""
         self.url = ""
         self.pwd = ""
         self.save_path = ""
-
-    def set_disk(self, disk):
-        self._disk = disk
+        self._dl_rate = 0
 
     def stop(self):
         self._mutex.lock()
@@ -64,9 +63,12 @@ class Downloader(QThread):
 
     def _show_progress(self, file_name, total_size, now_size):
         """显示进度条的回调函数"""
-        msg = show_progress(file_name, total_size, now_size)
-        self.download_rate.emit(self.url, int(1000 * now_size/total_size))
-        self.download_proc.emit(msg)
+        dl_rate = int(1000 * now_size / total_size)
+        if dl_rate != self._dl_rate:
+            self.download_rate.emit(self.url, dl_rate)
+            self._dl_rate = dl_rate
+            msg = show_progress(file_name, total_size, now_size)
+            self.download_proc.emit(msg)
 
     def _down_failed(self, code, file):
         """显示下载失败的回调函数"""
@@ -94,14 +96,15 @@ class Downloader(QThread):
             if res == 0:
                 self.download_rate.emit(self.url, 1000)
             else:
+                logger.debug(f"Download : {res=}")
                 self.download_failed.emit(self.url, res)
-            logger.debug(f"Download res: {res}")
         except TimeoutError:
             logger.error("Download TimeOut")
             self.download_failed.emit(self.url, "网络连接错误！")
         except Exception as e:
             logger.error(f"Download error: {e=}")
             self.download_failed.emit(self.url, f"未知错误！{e}")
+        self.download_finished.emit(self.url)
 
 
 class DownloadManager(QThread):
@@ -150,7 +153,7 @@ class DownloadManager(QThread):
         self.start()
 
     def add_tasks(self, tasks: dict):
-        logger.debug(f"DownloadMgr add: {tasks=}")
+        # logger.debug(f"DownloadMgr add: {tasks=}")
         self._tasks.update(tasks)
         self.start()
 
@@ -209,11 +212,10 @@ class DownloadManager(QThread):
                 url = list(self._tasks.keys())[0]
                 task = self._tasks[url]
                 logger.debug(f"DownloadMgr run: {task=}")
-                self.downloaders[url] = Downloader()
-                self.downloaders[url].set_disk(self._disk)
+                self.downloaders[url] = Downloader(self._disk)
                 self.downloaders_msg.emit("准备下载：<font color='#FFA500'>{}</font>".format(task.name), 8000)
                 try:
-                    self.downloaders[url].finished.connect(lambda: self._add_thread(url))
+                    self.downloaders[url].download_finished.connect(self._add_thread)
                     self.downloaders[url].download_proc.connect(self._ahead_msg)
                     self.downloaders[url].download_rate.connect(self._ahead_rate)
                     self.downloaders[url].folder_file_failed.connect(self._ahead_folder_error)

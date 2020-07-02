@@ -912,8 +912,8 @@ class LanZouCloud(object):
             os.makedirs(save_path)
 
         info = self.get_durl_by_url(share_url, pwd)
-        logger.debug(f'File direct url info: {info}')
         if info.code != LanZouCloud.SUCCESS:
+            logger.error(f'File direct url info: {info}')
             return info.code
 
         resp = self._get(info.durl, stream=True)
@@ -927,7 +927,7 @@ class LanZouCloud(object):
             now_size = os.path.getsize(file_path)  # 本地已经下载的文件大小
         else:
             now_size = 0
-        chunk_size = 4096
+        chunk_size = 1024 * 64  # 4096
         last_512_bytes = b''  # 用于识别文件是否携带真实文件名信息
         headers = {**self._headers, 'Range': 'bytes=%d-' % now_size}
         resp = self._get(info.durl, stream=True, headers=headers, timeout=None)
@@ -1055,7 +1055,7 @@ class LanZouCloud(object):
             except AttributeError:
                 info = self.get_durl_by_id(txt_files[0].id)
             if info.code != LanZouCloud.SUCCESS:
-                logger.debug(f"Big file checking: Failed")
+                logger.debug("Big file checking: Failed")
                 return None
             resp = self._get(info.durl)
             info = un_serialize(resp.content) if resp else None
@@ -1065,8 +1065,8 @@ class LanZouCloud(object):
                 if all(file_list):  # 分段数据完整
                     logger.debug(f"Big file checking: PASS , {name=}, {size=}")
                     return name, size, file_list
-                logger.debug(f"Big file checking: Failed, Missing some data")
-        logger.debug(f"Big file checking: Failed")
+                logger.debug("Big file checking: Failed, Missing some data")
+        logger.debug("Big file checking: Failed")
         return None
 
     def _down_big_file(self, name, total_size, file_list, save_path, *, callback=None):
@@ -1151,8 +1151,8 @@ class LanZouCloud(object):
         # 不是大文件分段数据,直接下载
         for file in folder_detail.files:
             code = self.down_file_by_url(file.url, dir_pwd, save_path, callback)
-            logger.debug(f'Download file result: Code:{code}, File: {file}')
             if code != LanZouCloud.SUCCESS:
+                logger.error(f'Download file result: Code:{code}, File: {file}')
                 if failed_callback is not None:
                     failed_callback(code, file)
 
