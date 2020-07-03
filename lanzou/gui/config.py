@@ -6,42 +6,32 @@ __all__ = ['config']
 
 KEY = 152  # 加密
 ROOT_DIR = os.path.dirname(sys.argv[0])
-config_file =  ROOT_DIR + os.sep + '.config'
+config_file = ROOT_DIR + os.sep + '.config'
 
 
-def default_settings():
-    """初始化默认设置"""
-    download_threads = 3           # 同时三个下载任务
-    max_size = 100                 # 单个文件大小上限 MB
-    timeout = 5                    # 每个请求的超时 s(不包含下载响应体的用时)
-    time_fmt = False               # 是否使用年月日时间格式
-    to_tray = False                # 关闭到系统托盘
-    watch_clipboard = False        # 监听系统剪切板
-    debug = False                  # 调试
-    upload_delay = 20              # 上传大文件延时 0 - 20s
-    dl_path = ROOT_DIR + os.sep + "downloads"
-    return {
-        "download_threads": download_threads,
-        "timeout": timeout,
-        "max_size": max_size,
-        "dl_path": dl_path,
-        "time_fmt": time_fmt,
-        "to_tray": to_tray,
-        "watch_clipboard": watch_clipboard,
-        "debug": debug,
-        "set_pwd": False,
-        "pwd": "",
-        "set_desc": False,
-        "desc": "",
-        "upload_delay": upload_delay,
-        "allow_big_file": False
-    }
+default_settings = {
+    "download_threads": 3,     # 同时三个下载任务
+    "timeout": 5,              # 每个请求的超时 s(不包含下载响应体的用时)
+    "max_size": 100,           # 单个文件大小上限 MB
+    "dl_path": ROOT_DIR + os.sep + "downloads",
+    "time_fmt": False,         # 是否使用年月日时间格式
+    "to_tray": False,          # 关闭到系统托盘
+    "watch_clipboard": False,  # 监听系统剪切板
+    "debug": False,            # 调试
+    "set_pwd": False,
+    "pwd": "",
+    "set_desc": False,
+    "desc": "",
+    "upload_delay": 20,        # 上传大文件延时 0 - 20s
+    "allow_big_file": False,
+    "upgrade": True
+}
 
 
 def encrypt(key, s):
     b = bytearray(str(s).encode("utf-8"))
     n = len(b)
-    c = bytearray(n*2)
+    c = bytearray(n * 2)
     j = 0
     for i in range(0, n):
         b1 = b[i]
@@ -51,8 +41,8 @@ def encrypt(key, s):
         c1 = c1 + 46
         c2 = c2 + 46
         c[j] = c1
-        c[j+1] = c2
-        j = j+2
+        c[j + 1] = c2
+        j = j + 2
     return c.decode("utf-8")
 
 
@@ -89,7 +79,7 @@ class Config:
         self._name = ''
         self._pwd = ''
         self._work_id = -1
-        self._settings = default_settings()
+        self._settings = default_settings
 
     def encode(self, var):
         if isinstance(var, dict):
@@ -109,8 +99,7 @@ class Config:
                 dvar = decrypt(KEY, var)
             else:
                 dvar = None
-        except Exception as e:
-            # print(e)
+        except Exception:
             dvar = None
         return dvar
 
@@ -153,13 +142,13 @@ class Config:
             return (name, self.decode(user_info[2]), self.decode(user_info[0]))
 
     def default_path(self):
-        path = default_settings()['dl_path']
+        path = default_settings['dl_path']
         self._settings.update({'dl_path': path})
         save_config(self)
 
+    @property
     def default_settngs(self):
-        self._settings = default_settings()
-        save_config(self)
+        return default_settings
 
     @property
     def name(self):

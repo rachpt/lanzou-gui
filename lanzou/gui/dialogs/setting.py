@@ -1,12 +1,11 @@
 import os
 from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QIcon, QPixmap
+from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import (QDialog, QLabel, QDialogButtonBox, QLineEdit, QCheckBox,
                              QHBoxLayout, QVBoxLayout, QFormLayout, QFileDialog)
 
 from lanzou.gui.qss import dialog_qss_style
 from lanzou.gui.others import MyLineEdit, AutoResizingTextEdit
-
 
 
 class SettingDialog(QDialog):
@@ -28,6 +27,7 @@ class SettingDialog(QDialog):
         self.set_desc = False
         self.upload_delay = 0
         self.allow_big_file = False
+        self.upgrade = True
         self.pwd = ""
         self.desc = ""
         self.initUI()
@@ -62,13 +62,12 @@ class SettingDialog(QDialog):
         self.upload_delay_var.setText(str(self.upload_delay))
         self.big_file_box.setChecked(self.allow_big_file)
         self.big_file_box.setText(f"允许上传超过 {self.max_size}MB 的大文件")
-        self.big_file_box.setDisabled(True)
+        self.big_file_box.setDisabled(True)  # 关闭允许上传大文件设置入口
+        self.upgrade_box.setChecked(self.upgrade)
 
     def set_values(self, reset=False):
         """设置控件对应变量初始值"""
-        if reset:
-            self._config.default_settngs()
-        settings = self._config.settings
+        settings = self._config.default_settngs if reset else self._config.settings
         self.download_threads = settings["download_threads"]
         self.max_size = settings["max_size"]
         self.timeout = settings["timeout"]
@@ -82,6 +81,8 @@ class SettingDialog(QDialog):
         self.set_desc = settings["set_desc"]
         self.desc = settings["desc"]
         self.upload_delay = settings["upload_delay"]
+        if 'upgrade' in settings:
+            self.upgrade = settings["upgrade"]
         self.show_values()
 
     def get_values(self) -> dict:
@@ -110,15 +111,16 @@ class SettingDialog(QDialog):
                 "set_desc": self.set_desc,
                 "desc": self.desc,
                 "upload_delay": self.upload_delay,
-                "allow_big_file": self.allow_big_file}
+                "allow_big_file": self.allow_big_file,
+                "upgrade": self.upgrade}
 
     def initUI(self):
         self.setWindowTitle("设置")
-        logo = QLabel()  # logo
+        logo = QLabel()
         logo.setPixmap(QPixmap("./src/logo2.gif"))
         logo.setStyleSheet("background-color:rgb(255,255,255);")
         logo.setAlignment(Qt.AlignCenter)
-        self.download_threads_lb = QLabel("同时下载文件数")  # about
+        self.download_threads_lb = QLabel("同时下载文件数")
         self.download_threads_var = QLineEdit()
         self.download_threads_var.setPlaceholderText("范围：1-9")
         self.download_threads_var.setToolTip("范围：1-9")
@@ -142,9 +144,13 @@ class SettingDialog(QDialog):
         self.dl_path_var = MyLineEdit(self)
         self.dl_path_var.clicked.connect(self.set_download_path)
         self.time_fmt_box = QCheckBox("使用[年-月-日]时间格式")
+        self.time_fmt_box.setToolTip("文件上传日期显示格式")
         self.to_tray_box = QCheckBox("关闭到系统托盘")
+        self.to_tray_box.setToolTip("点击关闭软件按钮是最小化软件至系统托盘")
         self.watch_clipboard_box = QCheckBox("监听系统剪切板")
+        self.watch_clipboard_box.setToolTip("检测到系统剪切板中有符合规范的蓝奏链接时自动唤起软件，并提取")
         self.debug_box = QCheckBox("开启调试日志")
+        self.debug_box.setToolTip("记录软件 debug 信息至 debug-lanzou-gui.log 文件")
         self.set_pwd_box = QCheckBox("上传文件自动设置密码")
         self.set_pwd_var = AutoResizingTextEdit()
         self.set_pwd_var.setPlaceholderText(" 2-8 位数字或字母")
@@ -152,6 +158,9 @@ class SettingDialog(QDialog):
         self.set_desc_box = QCheckBox("上传文件自动设置描述")
         self.set_desc_var = AutoResizingTextEdit()
         self.big_file_box = QCheckBox(f"允许上传超过 {self.max_size}MB 的大文件")
+        self.big_file_box.setToolTip("开启大文件上传支持 (功能下线)")
+        self.upgrade_box = QCheckBox("自动检测新版本")
+        self.upgrade_box.setToolTip("在软件打开时自动检测是否有新的版本发布，如有则弹出更新信息")
 
         self.time_fmt_box.toggle()
         self.time_fmt_box.stateChanged.connect(self.change_time_fmt)
@@ -162,6 +171,7 @@ class SettingDialog(QDialog):
         self.set_pwd_var.editingFinished.connect(self.check_pwd)
         self.set_desc_box.stateChanged.connect(self.change_set_desc)
         self.big_file_box.stateChanged.connect(self.change_big_file)
+        self.upgrade_box.stateChanged.connect(self.change_upgrade)
 
         buttonBox = QDialogButtonBox()
         buttonBox.setOrientation(Qt.Horizontal)
@@ -203,7 +213,11 @@ class SettingDialog(QDialog):
         hbox_3.addWidget(self.set_desc_box)
         hbox_3.addWidget(self.set_desc_var)
         vbox.addLayout(hbox_3)
-        vbox.addWidget(self.big_file_box)
+        hbox_4 = QHBoxLayout()
+        hbox_4.addWidget(self.big_file_box)
+        hbox_4.addWidget(self.upgrade_box)
+        vbox.addStretch(1)
+        vbox.addLayout(hbox_4)
         vbox.addStretch(2)
         vbox.addWidget(buttonBox)
         self.setLayout(vbox)
@@ -238,6 +252,12 @@ class SettingDialog(QDialog):
             self.allow_big_file = True
         else:
             self.allow_big_file = False
+
+    def change_upgrade(self, state):
+        if state == Qt.Checked:
+            self.upgrade = True
+        else:
+            self.upgrade = False
 
     def change_set_pwd(self, state):
         if state == Qt.Checked:

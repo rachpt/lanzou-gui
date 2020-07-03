@@ -40,6 +40,7 @@ class MainWindow(Ui_MainWindow):
         self.setupUi(self)
         self.init_variables()
         self.init_workers()
+        self.update_lanzoucloud_settings()
 
         self.main_menu_add_slot()
         self.init_extract_share_ui()
@@ -51,7 +52,8 @@ class MainWindow(Ui_MainWindow):
 
         self.setWindowTitle("蓝奏云客户端 - {}".format(version))
         self.setStyleSheet(qssStyle)
-        self.check_update_worker.set_values(version, False)  # 检测新版
+        if self.upgrade:  # 检测新版
+            self.check_update_worker.set_values(version, False)
         self.clipboard_monitor()  # 系统粘贴板
 
     def create_tray(self):
@@ -118,8 +120,6 @@ class MainWindow(Ui_MainWindow):
         self._up_jobs_lists = {}
         self._captcha_code = None
         self._to_tray = False
-        self.watch_clipboard = None  # 登录失败设置默认值
-        self.time_fmt = False  # 登录失败设置默认值
 
     def set_disk(self):
         """方便切换用户更新信息"""
@@ -150,6 +150,7 @@ class MainWindow(Ui_MainWindow):
         self.time_fmt = settings["time_fmt"]  # 时间显示格式
         self._to_tray = settings["to_tray"]
         self.watch_clipboard = settings["watch_clipboard"]
+        self.upgrade = settings["upgrade"] if 'upgrade' in settings else True   # 自动检测更新
         set_pwd = settings["set_pwd"]
         set_desc = settings["set_desc"]
         pwd = settings["pwd"]
