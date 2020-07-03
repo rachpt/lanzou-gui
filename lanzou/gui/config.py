@@ -147,7 +147,7 @@ class Config:
         save_config(self)
 
     @property
-    def default_settngs(self):
+    def default_settings(self):
         return default_settings
 
     @property
