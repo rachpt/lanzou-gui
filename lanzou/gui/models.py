@@ -1,10 +1,150 @@
-from collections import namedtuple
+"""
+容器类，用于储存 上传、下载 任务，文件、文件夹信息
+"""
 
-# PyQt5 信号传递数据
-DlJob = namedtuple('DlJob', ['name', 'url', 'pwd', 'path', 'info', 'run', 'rate'],
-                   defaults=('', '', '', '', None, False, 0))
-UpJob = namedtuple('UpJob', ['furl', 'id', 'folder', 'info', 'run', 'rate', 'set_pwd', 'pwd', 'set_desc', 'desc'],
-                   defaults=('', -1, '', None, False, 0, False, '', False, ''))
+
+class Job():
+    def __init__(self, url, tp):
+        self._url = url
+        self._type = tp
+        self._info = None
+        self._run = False
+        self._rate = 0
+
+    @property
+    def url(self):
+        return self._url
+
+    @property
+    def info(self):
+        return self._info
+
+    @info.setter
+    def info(self, info):
+        self._info = info
+
+    @property
+    def run(self):
+        return self._run
+
+    @run.setter
+    def run(self, run):
+        self._run = run
+
+    @property
+    def rate(self):
+        return self._rate
+
+    @rate.setter
+    def rate(self, rate):
+        self._rate = rate
+
+    @property
+    def type(self):
+        return self._type
+
+
+class DlJob(Job):
+    def __init__(self, name, url, pwd, path):
+        super(DlJob, self).__init__(url, 'dl')
+        self._name = name
+        self._pwd = pwd
+        self._path = path
+        self._pause = False
+        self._added = False
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def pwd(self):
+        return self._pwd
+
+    @property
+    def path(self):
+        return self._path
+
+    @property
+    def pause(self):
+        return self._pause
+
+    @pause.setter
+    def pause(self, pause):
+        self._pause = pause
+
+    @property
+    def added(self):
+        return self._added
+
+    @added.setter
+    def added(self, added):
+        self._added = added
+
+
+class UpJob(Job):
+    def __init__(self, url, fid, folder, pwd=None, desc=None):
+        super(UpJob, self).__init__(url, 'up')
+        self._fid = fid
+        self._folder = folder
+        self._pwd = pwd
+        self._desc = desc
+
+    @property
+    def fid(self):
+        return self._fid
+
+    @property
+    def folder(self):
+        return self._folder
+
+    @property
+    def pwd(self):
+        return self._pwd
+
+    @property
+    def desc(self):
+        return self._desc
+
+
+class Tasks(object):
+    def __init__(self):
+        self._items = {}
+        self._dones = {}
+        self._all = {}
+
+    def __len__(self):
+        return len(self._all)
+
+    def __getitem__(self, index):
+        return self._all[index]
+
+    def __iter__(self):
+        return iter(self._items)
+
+    def update(self, tasks):
+        """更新元素"""
+        for key, value in tasks.items():
+            if value.rate >= 1000:
+                self._dones.update({key: value})
+                if key in self._items:
+                    del self._items[key]
+            else:
+                self._items.update({key: value})
+                if key in self._dones:
+                    del self._dones[key]
+        self._all = {**self._items, **self._dones}
+
+    def items(self):
+        return self._all.items()
+
+    def values(self):
+        return self._all.values()
+
+    def clear(self):
+        """清空元素"""
+        self._dones.clear()
+
 
 class Infos:
     def __init__(self, name='', is_file=True, fid='', time='', size='', downs=0, desc='', pwd='', url='', durl=''):
@@ -136,6 +276,7 @@ class FileInfos(Infos):
     def has_des(self):
         return self._has_des
 
+
 class FolderInfos(Infos):
     def __init__(self, folder):
         super(FolderInfos, self).__init__(is_file=False)
@@ -143,6 +284,7 @@ class FolderInfos(Infos):
         self._fid = folder.id
         self._desc = folder.desc
         self._has_pwd = folder.has_pwd
+
 
 class ShareFileInfos(Infos):
     def __init__(self, file):

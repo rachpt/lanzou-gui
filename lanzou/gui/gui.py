@@ -13,27 +13,37 @@ from lanzou.api.utils import time_format
 from lanzou.api.models import FolderList
 from lanzou.api.types import RecFolder, FolderDetail
 
-from lanzou.gui.models import DlJob, FileInfos, FolderInfos, ShareFileInfos
+from lanzou.gui.models import DlJob, Tasks, FileInfos, FolderInfos, ShareFileInfos
 from lanzou.gui.ui import Ui_MainWindow
 from lanzou.gui.others import set_file_icon, TableDelegate
-from lanzou.gui.config import config, ROOT_DIR
+from lanzou.gui.config import config
 from lanzou.gui.workers import *
 from lanzou.gui.dialogs import *
 from lanzou.gui.qss import *
 from lanzou.gui import version
-from lanzou.debug import logger
+from lanzou.debug import logger, ROOT_DIR
 
 
 __ALL__ = ['MainWindow']
 
 
-class MainWindow(Ui_MainWindow):
-    SRC_DIR = ROOT_DIR + os.sep + "src"
-    if not os.path.isdir(SRC_DIR) or not os.path.isfile(SRC_DIR + os.sep + "file.ico"):
+def get_logo_path():
+    """释放图片，并返回 logo 路径"""
+    src_dir = ROOT_DIR + os.sep + "src" + os.sep
+    if not os.path.isdir(src_dir) or not os.path.isfile(src_dir + "file.ico"):
         from lanzou.gui.src import release_src
 
-        os.makedirs(SRC_DIR, exist_ok=True)
-        release_src()
+        os.makedirs(src_dir, exist_ok=True)
+        release_src(src_dir)
+
+    return src_dir + 'lanzou_logo2.png'
+
+
+def get_lanzou_logo():
+    return QIcon(get_logo_path())
+
+
+class MainWindow(Ui_MainWindow):
 
     def __init__(self):
         super(MainWindow, self).__init__()
@@ -59,7 +69,7 @@ class MainWindow(Ui_MainWindow):
     def create_tray(self):
         """创建 系统托盘"""
         if not self._created_tray:
-            self.tray = QSystemTrayIcon(QIcon('src/lanzou_logo2.png'), parent=self)
+            self.tray = QSystemTrayIcon(get_lanzou_logo(), parent=self)
             show_action = QAction("显示窗口", self)
             hide_action = QAction("最小化到托盘", self)
             quit_action = QAction("退出程序", self)
@@ -116,6 +126,7 @@ class MainWindow(Ui_MainWindow):
         self._old_work_id = self._work_id  # 用于上传完成后判断是否需要更新disk界面
         self._show_to_tray_msg = True
         self._created_tray = False
+        self._tasks = Tasks()
         self._dl_jobs_lists = {}
         self._up_jobs_lists = {}
         self._captcha_code = None
@@ -193,8 +204,8 @@ class MainWindow(Ui_MainWindow):
         # 下载器
         self.download_manager = DownloadManager()
         self.download_manager.downloaders_msg.connect(self.show_status)
-        self.download_manager.update.connect(self.update_dl_jobs_info)
-        self.download_manager.finished.connect(lambda: self.show_status("所有下载任务已完成！", 2999))
+        self.download_manager.update.connect(self.update_jobs_info)
+        self.download_manager.mgr_finished.connect(lambda: self.show_status("所有下载任务已完成！", 2999))
         # 获取更多信息，直链、下载次数等
         self.info_dialog = InfoDialog()  # 对话框
         self.info_dialog.setWindowModality(Qt.ApplicationModal)  # 窗口前置
@@ -275,7 +286,7 @@ class MainWindow(Ui_MainWindow):
         # 上传器
         self.upload_worker = UploadWorker()
         self.upload_worker.finished.connect(self.finished_upload)
-        self.upload_worker.update.connect(self.update_up_jobs_info)
+        self.upload_worker.update.connect(self.update_jobs_info)
         self.upload_worker.code.connect(self.show_status)
         # 验证码对话框
         self.captcha_dialog = CaptchaDialog()
@@ -326,7 +337,8 @@ class MainWindow(Ui_MainWindow):
         self.download_manager.add_tasks(tasks)
         self.tabWidget.insertTab(3, self.jobs_tab, "任务管理")
         self.jobs_tab.setEnabled(True)
-        self._dl_jobs_lists.update(tasks)
+        # self._dl_jobs_lists.update(tasks)
+        self._tasks.update(tasks)
         self.show_jobs_lists()
 
     def call_multi_manipulator(self, action):
@@ -356,7 +368,7 @@ class MainWindow(Ui_MainWindow):
             tasks = {}
 
             if infos[0][1] is None:  # 单文件信息链接 (info, None, 1)
-                info = info[0][0]
+                info = info[0]
                 tasks[info.url] = DlJob(name=info.name, url=info.url, pwd=info.pwd, path=self._config.path)
             elif len(infos) != 1 and len(infos) == infos[0][2]:  # 下载整个文件夹文件 (info, folder_info, count)
                 info = infos[0][1]  # 文件夹信息
@@ -723,7 +735,8 @@ class MainWindow(Ui_MainWindow):
         self.upload_worker.add_tasks(tasks)
         self.tabWidget.insertTab(3, self.jobs_tab, "任务管理")
         self.jobs_tab.setEnabled(True)
-        self._up_jobs_lists.update(tasks)
+        # self._up_jobs_lists.update(tasks)
+        self._tasks.update(tasks)
 
     def show_full_path(self):
         """路径框显示当前路径"""
@@ -955,23 +968,10 @@ class MainWindow(Ui_MainWindow):
 
     # jobs tab
     def call_jobs_clean_all(self):
-        try:
-            for k, v in self._dl_jobs_lists.items():
-                if v.rate >= 1000:
-                    self.download_manager.del_task(k)
-                    del self._dl_jobs_lists[k]
-            for k, v in self._up_jobs_lists.items():
-                if v.rate >= 1000:
-                    del self._up_jobs_lists[k]
-        except: pass
+        self._tasks.clear()
         self.show_jobs_lists()
 
-    def update_dl_jobs_info(self, tasks):
-        self._dl_jobs_lists.update(tasks)
-        self.show_jobs_lists()
-
-    def update_up_jobs_info(self, tasks):
-        self._up_jobs_lists.update(tasks)
+    def update_jobs_info(self):
         self.show_jobs_lists()
 
     def redo_upload(self, task):
@@ -1002,87 +1002,63 @@ class MainWindow(Ui_MainWindow):
         path_style = ' <span style="font-size:14px;color:blue;text-align:right">'
         error_style = ' <span style="font-size:14px;color:red;text-align:right">'
         _index = 0
-        for dl_job in self._dl_jobs_lists.values():  # 下载
+        for task in self._tasks.values():
             name = QStandardItem()
-            name.setIcon(download_ico)
-            txt = dl_job.name + path_style + '➩ ' + dl_job.path + "</span>"
-            if dl_job.info:
-                txt = txt + error_style + str(dl_job.info) + "</span>"
+            if task.type == 'dl':
+                name.setIcon(download_ico)
+                txt = task.name + path_style + '➩ ' + task.path + "</span>"
+            else:
+                name.setIcon(upload_ico)
+                txt = str(task.furl[-100:]) + path_style + '➩ ' + str(task.folder) + "</span>"
+            if task.info:
+                txt = txt + error_style + str(task.info) + "</span>"
             name.setText(txt)
-            name.setData(dl_job)
-            rate = "{:5.1f}".format(dl_job.rate / 10)
+            name.setData(task)
+            rate = "{:5.1f}".format(task.rate / 10)
             precent = QStandardItem(rate)  # precent
             self.model_jobs.appendRow([name, precent, QStandardItem(""), QStandardItem("")])
 
             _action = QPushButton()
             _action.resize(_action.sizeHint())
-            if dl_job.run:
+            if task.run:
                 _action.setText("暂停")
                 _action.setStyleSheet(jobs_btn_completed_style)
-                _action.clicked.connect(lambda: self.stop_download_job(dl_job))
+                _action.clicked.connect(lambda: self.stop_download_job(task))
             else:
-                _action.setText("开始")
+                if task.rate >= 1000:
+                    _action.setText("删除")
+                    # _action.clicked.connect(lambda: self.start_download_job(task))
+                elif task.info:
+                    _action.setText("重试")
+                    if task.type == 'dl':
+                        _action.clicked.connect(lambda: self.redo_download(task))
+                    else:
+                        _action.clicked.connect(lambda: self.redo_download(task))
+                else:
+                    _action.setText("开始")
+                    _action.clicked.connect(lambda: self.start_download_job(task))
                 _action.setStyleSheet(jobs_btn_completed_style)
-                _action.clicked.connect(lambda: self.start_download_job(dl_job))
             self.table_jobs.setIndexWidget(self.model_jobs.index(_index, 3), _action)
 
             _status = QPushButton()
             _status.resize(_status.sizeHint())
-            if dl_job.rate >= 1000:
+            if task.rate >= 1000:
                 _status.setDisabled(True)
                 _status.setText("已完成")
                 _status.setStyleSheet(jobs_btn_completed_style)
-            elif dl_job.info:
-                _status.setText("重试")
-                _status.clicked.connect(lambda: self.redo_download(dl_job))
+            elif task.info:
+                _status.setText("出错了")
                 _status.setStyleSheet(jobs_btn_redo_style)
             else:
-                if dl_job.run:
-                    _status.setText("下载中")
+                if task.run:
+                    if task.type == 'dl':
+                        _status.setText("下载中")
+                    else:
+                        _status.setText("上传中")
                 else:
                     _status.setText("暂停中")
                 _status.setStyleSheet(jobs_btn_processing_style)
 
-            self.table_jobs.setIndexWidget(self.model_jobs.index(_index, 2), _status)
-            _index += 1
-
-        for up_job in self._up_jobs_lists.values():  # 上传
-            name = QStandardItem()
-            name.setIcon(upload_ico)
-            txt = str(up_job.furl[-100:]) + path_style + '➩ ' + str(up_job.folder) + "</span>"
-            if up_job.info:
-                txt = txt + error_style + str(up_job.info) + "</span>"
-            name.setText(txt)
-            name.setData(up_job)
-            rate = "{:5.1f}".format(up_job.rate / 10)
-            precent = QStandardItem(rate)  # precent
-            self.model_jobs.appendRow([name, precent, QStandardItem(""), QStandardItem("")])
-
-            _action = QPushButton()
-            _action.resize(_action.sizeHint())
-            if up_job.run:
-                _action.setText("开始")
-                _action.setStyleSheet(jobs_btn_completed_style)
-                _action.clicked.connect(lambda: self.start_upload_job(up_job))
-            else:
-                _action.setText("暂停")
-                _action.setStyleSheet(jobs_btn_completed_style)
-                _action.clicked.connect(lambda: self.stop_upload_job(up_job))
-            self.table_jobs.setIndexWidget(self.model_jobs.index(_index, 3), _action)
-
-            _status = QPushButton()
-            _status.resize(_status.sizeHint())
-            if up_job.rate >= 1000:
-                _status.setDisabled(True)
-                _status.setText("已完成")
-                _status.setStyleSheet(jobs_btn_completed_style)
-            elif up_job.info:
-                _status.setText("重试")
-                _status.clicked.connect(lambda: self.redo_upload(up_job))
-                _status.setStyleSheet(jobs_btn_redo_style)
-            else:
-                _status.setText("上传中")
-                _status.setStyleSheet(jobs_btn_processing_style)
             self.table_jobs.setIndexWidget(self.model_jobs.index(_index, 2), _status)
             _index += 1
 

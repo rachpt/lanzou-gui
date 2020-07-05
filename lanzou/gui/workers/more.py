@@ -18,7 +18,7 @@ class GetMoreInfoWorker(QThread):
         self._infos = None
         self._url = ''
         self._pwd = ''
-        self._emit_link= False
+        self._emit_link = False
         self._mutex = QMutex()
         self._is_work = False
 
@@ -27,9 +27,9 @@ class GetMoreInfoWorker(QThread):
 
     def set_values(self, infos, emit_link=False):
         self._infos = infos
-        self._emit_link= emit_link
+        self._emit_link = emit_link
         self.start()
-    
+
     def get_dl_link(self, url, pwd):
         self._url = url
         self._pwd = pwd

@@ -1,19 +1,18 @@
-import os
-import sys
+from os import sep
 from pickle import load, dump
+from lanzou.debug import ROOT_DIR
 
 __all__ = ['config']
 
 KEY = 152  # 加密
-ROOT_DIR = os.path.dirname(sys.argv[0])
-config_file = ROOT_DIR + os.sep + '.config'
+config_file = ROOT_DIR + sep + '.config'
 
 
 default_settings = {
     "download_threads": 3,     # 同时三个下载任务
     "timeout": 5,              # 每个请求的超时 s(不包含下载响应体的用时)
     "max_size": 100,           # 单个文件大小上限 MB
-    "dl_path": ROOT_DIR + os.sep + "downloads",
+    "dl_path": ROOT_DIR + sep + "downloads",
     "time_fmt": False,         # 是否使用年月日时间格式
     "to_tray": False,          # 关闭到系统托盘
     "watch_clipboard": False,  # 监听系统剪切板

@@ -3,14 +3,18 @@
 '''
 
 import os
-import sys
 import logging
 
 
 __all__ = ['logger']
 
+
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(ROOT_DIR)
+
+
+log_file = ROOT_DIR + os.sep + 'debug-lanzou-gui.log'
 logger = logging.getLogger('lanzou')
-log_file = os.path.dirname(sys.argv[0]) + os.sep + 'debug-lanzou-gui.log'
 fmt_str = "%(asctime)s [%(filename)s:%(lineno)d] %(funcName)s %(levelname)s - %(message)s"
 logging.basicConfig(level=logging.ERROR,
                     filename=log_file,

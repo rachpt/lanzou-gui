@@ -131,7 +131,7 @@ class UploadDialog(QDialog):
                     break
                 if i_len > w:
                     w = i_len
-            self.resize(120+w*7, h*30)
+            self.resize(120 + w * 7, h * 30)
         else:
             self.resize(400, 300)
 
@@ -153,14 +153,12 @@ class UploadDialog(QDialog):
         """Windows backslash"""
         tasks = {}
         for item in self.selected:
-            furl = os.path.normpath(item)
-            tasks[furl] = UpJob(furl=furl,
-                                id=self._folder_id,
-                                folder=self._folder_name,
-                                set_pwd=self.set_pwd,
-                                pwd=self.pwd,
-                                set_desc=self.set_desc,
-                                desc=self.desc)
+            url = os.path.normpath(item)
+            tasks[url] = UpJob(url=url,
+                               fid=self._folder_id,
+                               folder=self._folder_name,
+                               pwd=self.pwd if self.set_pwd else None,
+                               desc=self.desc if self.det_desc else None)
         return tasks
 
     def slot_btn_ok(self):

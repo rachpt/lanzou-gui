@@ -3,7 +3,7 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QDialog, QLabel, QGridLayout, QDialogButtonBox, QLineEdit
 
 from lanzou.gui.qss import dialog_qss_style
-from lanzou.gui.models import FileInfos, FolderInfos
+from lanzou.gui.models import FileInfos
 
 
 class SetPwdDialog(QDialog):

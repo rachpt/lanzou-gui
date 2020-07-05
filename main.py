@@ -2,14 +2,13 @@
 
 import sys
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtGui import QIcon
 
-from lanzou.gui.gui import MainWindow
+from lanzou.gui.gui import MainWindow, get_lanzou_logo
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    app.setWindowIcon(QIcon("./src/lanzou_logo2.png"))
+    app.setWindowIcon(get_lanzou_logo())
     form = MainWindow()
     form.show()
     sys.exit(app.exec())
