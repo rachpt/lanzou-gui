@@ -3,7 +3,7 @@ import os
 import re
 from logging import getLevelName, DEBUG, ERROR
 
-from PyQt5.QtCore import Qt, QCoreApplication, QTimer, QUrl
+from PyQt5.QtCore import Qt, QCoreApplication, QTimer, QUrl, QSize
 from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel, QDesktopServices
 from PyQt5.QtWidgets import (QApplication, QAbstractItemView, QHeaderView, QMenu, QAction, QStyle,
                              QPushButton, QFileDialog, QMessageBox, QSystemTrayIcon)
@@ -56,7 +56,6 @@ class MainWindow(Ui_MainWindow):
         self.init_disk_ui()
         self.init_rec_ui()
         self.init_jobs_ui()
-        self.call_login_luncher()
         self.create_left_menus()
 
         self.setWindowTitle("蓝奏云客户端 - {}".format(version))
@@ -64,6 +63,7 @@ class MainWindow(Ui_MainWindow):
         if self.upgrade:  # 检测新版
             self.check_update_worker.set_values(version, False)
         self.clipboard_monitor()  # 系统粘贴板
+        # self.call_login_luncher()
 
     def create_tray(self):
         """创建 系统托盘"""
@@ -336,8 +336,7 @@ class MainWindow(Ui_MainWindow):
         self.download_manager.add_tasks(tasks)
         self.tabWidget.insertTab(3, self.jobs_tab, "任务管理")
         self.jobs_tab.setEnabled(True)
-        # self._dl_jobs_lists.update(tasks)
-        self._tasks.update(tasks)
+        self._tasks.add(tasks)
         self.show_jobs_lists()
 
     def call_multi_manipulator(self, action):
@@ -734,8 +733,7 @@ class MainWindow(Ui_MainWindow):
         self.upload_worker.add_tasks(tasks)
         self.tabWidget.insertTab(3, self.jobs_tab, "任务管理")
         self.jobs_tab.setEnabled(True)
-        # self._up_jobs_lists.update(tasks)
-        self._tasks.update(tasks)
+        self._tasks.add(tasks)
 
     def show_full_path(self):
         """路径框显示当前路径"""
@@ -971,6 +969,7 @@ class MainWindow(Ui_MainWindow):
         self.show_jobs_lists()
 
     def update_jobs_info(self):
+        self._tasks.update()
         self.show_jobs_lists()
 
     def redo_upload(self, task):
@@ -1081,6 +1080,8 @@ class MainWindow(Ui_MainWindow):
     def show_status(self, msg, duration=0):
         self.statusbar_msg_label.setText(msg)
         if msg and duration >= 3000:
+            ht = self.statusbar_msg_label.size().height()
+            self.statusbar_load_movie.setScaledSize(QSize(ht, ht))
             self.statusbar_load_lb.setMovie(self.statusbar_load_movie)
             self.statusbar_load_movie.start()
         else:

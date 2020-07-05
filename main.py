@@ -11,4 +11,5 @@ if __name__ == "__main__":
     app.setWindowIcon(get_lanzou_logo())
     form = MainWindow()
     form.show()
+    form.call_login_luncher()
     sys.exit(app.exec())

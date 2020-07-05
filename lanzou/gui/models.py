@@ -122,8 +122,8 @@ class Tasks(object):
     def __iter__(self):
         return iter(self._items)
 
-    def update(self, tasks):
-        """更新元素"""
+    def add(self, tasks):
+        """添加任务"""
         for key, value in tasks.items():
             if value.rate >= 1000:
                 self._dones.update({key: value})
@@ -135,6 +135,17 @@ class Tasks(object):
                     del self._dones[key]
         self._all = {**self._items, **self._dones}
 
+    def update(self):
+        """更新元素"""
+        changed = False
+        for key, value in self._items.copy().items():
+            if value.rate >= 1000:
+                self._dones.update({key: value})
+                del self._items[key]
+                changed = True
+        if changed:
+            self._all = {**self._items, **self._dones}
+
     def items(self):
         return self._all.items()
 
@@ -144,6 +155,7 @@ class Tasks(object):
     def clear(self):
         """清空元素"""
         self._dones.clear()
+        self._all = {**self._items}
 
 
 class Infos:

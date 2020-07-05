@@ -1,6 +1,7 @@
 from PyQt5.QtCore import QThread, pyqtSignal, QMutex
 
 from lanzou.api.utils import is_folder_url, is_file_url
+from lanzou.api import why_error 
 from lanzou.debug import logger
 
 
@@ -40,7 +41,7 @@ class Downloader(QThread):
     '''单个文件下载线程'''
     download_finished = pyqtSignal(object)
     download_proc = pyqtSignal(str)
-    download_failed = pyqtSignal(object, object)
+    download_failed = pyqtSignal()
     folder_file_failed = pyqtSignal(object, object)
     update = pyqtSignal()
 
@@ -89,14 +90,17 @@ class Downloader(QThread):
                 self._task.rate = 1000
                 self.update.emit()
             else:
+                self._task.info = why_error(res)
                 logger.debug(f"Download : {res=}")
-                self.download_failed.emit(self._task.url, res)
+                self.download_failed.emit()
         except TimeoutError:
+            self._task.info = "网络连接错误！"
             logger.error("Download TimeOut")
-            self.download_failed.emit(self._task.url, "网络连接错误！")
-        except Exception as e:
-            logger.error(f"Download error: {e=}")
-            self.download_failed.emit(self._task.url, f"未知错误！{e}")
+            self.download_failed.emit()
+        except Exception as err:
+            self._task.info = f"未知错误！{err=}"
+            logger.error(f"Download error: {err=}")
+            self.download_failed.emit()
         self.download_finished.emit(self._task)
 
 
@@ -169,7 +173,7 @@ class DownloadManager(QThread):
 
     def _task_to_queue(self):
         for task in self._tasks.values():
-            if not task.added and not task.pause:
+            if not task.added and not task.pause and task not in self._queues:
                 self._queues.append(task)
 
     def __del__(self):
@@ -183,8 +187,7 @@ class DownloadManager(QThread):
                 self.downloaders_msg.emit(f"有{self._count}个下载任务正在运行", 0)
             self._old_msg = msg
 
-    def _ahead_error(self, task, error):
-        self._tasks[task.url].info = error
+    def _ahead_error(self):
         self.update.emit()
 
     def _ahead_folder_error(self, code, file):

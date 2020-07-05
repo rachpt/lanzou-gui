@@ -187,7 +187,6 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.statusbar_msg_label = QtWidgets.QLabel()
         self.statusbar_load_lb = QtWidgets.QLabel()
         self.statusbar_load_movie = QtGui.QMovie(SRC_DIR + "loading_more.gif")
-        self.statusbar_load_movie.setScaledSize(QtCore.QSize(24, 24))
         self.statusbar_load_lb.setMovie(self.statusbar_load_movie)
         self.statusbar_msg_label.setObjectName("msg_label")
         self.statusbar_load_lb.setObjectName("msg_movie_lb")

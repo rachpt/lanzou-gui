@@ -2,4 +2,27 @@ from lanzou.api.core import LanZouCloud
 
 version = '2.5.1'
 
+
+def why_error(code):
+    """错误原因"""
+    if code == LanZouCloud.URL_INVALID:
+        return '分享链接无效'
+    elif code == LanZouCloud.LACK_PASSWORD:
+        return '缺少提取码'
+    elif code == LanZouCloud.PASSWORD_ERROR:
+        return '提取码错误'
+    elif code == LanZouCloud.FILE_CANCELLED:
+        return '分享链接已失效'
+    elif code == LanZouCloud.ZIP_ERROR:
+        return '解压过程异常'
+    elif code == LanZouCloud.NETWORK_ERROR:
+        return '网络连接异常'
+    elif code == LanZouCloud.CAPTCHA_ERROR:
+        return '验证码错误'
+    elif code == LanZouCloud.OFFICIAL_LIMITED:
+        return '操作被官方限制'
+    else:
+        return '未知错误'
+
+
 __all__ = ['utils', 'types', 'models', 'LanZouCloud', 'version']

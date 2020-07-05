@@ -97,15 +97,6 @@ QTabBar::tab:hover {
 #tabWidget QTabBar{
     background-color: #AEEEEE;
 }
-#statusbar {
-    font: 14px;
-    color: white;
-}
-#msg_label, #msg_movie_lb {
-    font: 14px;
-    color: white;
-    background:transparent;
-}
 /*提取界面文字颜色*/
 #label_share_url {
     color: rgb(255,255,60);
@@ -120,6 +111,19 @@ QTabBar::tab:hover {
 }
 #disk_tab {
     background-color: rgba(255, 255, 255, 120);
+}
+/*状态栏隐藏控件分隔符*/
+#statusbar {
+    font-size: 14px;
+    color: white;
+}
+#msg_label, #msg_movie_lb {
+    font-size: 14px;
+    color: white;
+    background:transparent;
+}
+QStatusBar::item {
+    border: None;
 }
 '''
 
