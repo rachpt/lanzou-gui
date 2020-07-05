@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import QDialog, QLabel, QGridLayout, QDialogButtonBox, QCom
 
 from lanzou.gui.qss import dialog_qss_style
 from lanzou.gui.others import AutoResizingTextEdit
+from lanzou.debug import SRC_DIR
 
 
 class MoveFileDialog(QDialog):
@@ -24,7 +25,7 @@ class MoveFileDialog(QDialog):
         self.tx_name.setToolTip(names_tip)
 
         self.tx_new_path.clear()
-        f_icon = QIcon("./src/folder.gif")
+        f_icon = QIcon(SRC_DIR + "folder.gif")
         for f_name, fid in self.dirs.items():
             if len(f_name) > 50:  # 防止文件夹名字过长？
                 f_name = f_name[:47] + "..."
@@ -38,7 +39,7 @@ class MoveFileDialog(QDialog):
 
     def initUI(self):
         self.setWindowTitle("移动文件(夹)")
-        self.setWindowIcon(QIcon("./src/move.ico"))
+        self.setWindowIcon(QIcon(SRC_DIR + "move.ico"))
         self.lb_name = QLabel()
         self.lb_name.setText("文件(夹)名：")
         self.lb_name.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)

@@ -1,5 +1,6 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 from lanzou.gui.others import MyLineEdit, MyTableView
+from lanzou.debug import SRC_DIR
 
 
 class Ui_MainWindow(QtWidgets.QMainWindow):
@@ -185,7 +186,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         # 状态栏
         self.statusbar_msg_label = QtWidgets.QLabel()
         self.statusbar_load_lb = QtWidgets.QLabel()
-        self.statusbar_load_movie = QtGui.QMovie("src/loading_more.gif")
+        self.statusbar_load_movie = QtGui.QMovie(SRC_DIR + "loading_more.gif")
         self.statusbar_load_movie.setScaledSize(QtCore.QSize(24, 24))
         self.statusbar_load_lb.setMovie(self.statusbar_load_movie)
         self.statusbar_msg_label.setObjectName("msg_label")
@@ -257,36 +258,36 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
     def create_left_menus(self):
         self.left_menus = QtWidgets.QMenu()
         self.left_menu_share_url = self.left_menus.addAction("外链分享地址等")
-        self.left_menu_share_url.setIcon(QtGui.QIcon("./src/share.ico"))
+        self.left_menu_share_url.setIcon(QtGui.QIcon(SRC_DIR + "share.ico"))
         self.left_menu_rename_set_desc = self.left_menus.addAction("修改文件描述（支持批量）")
-        self.left_menu_rename_set_desc.setIcon(QtGui.QIcon("./src/desc.ico"))
+        self.left_menu_rename_set_desc.setIcon(QtGui.QIcon(SRC_DIR + "desc.ico"))
         self.left_menu_set_pwd = self.left_menus.addAction("设置提取码（支持批量）")
-        self.left_menu_set_pwd.setIcon(QtGui.QIcon("./src/password.ico"))
+        self.left_menu_set_pwd.setIcon(QtGui.QIcon(SRC_DIR + "password.ico"))
         self.left_menu_move = self.left_menus.addAction("移动（支持批量）")
-        self.left_menu_move.setIcon(QtGui.QIcon("./src/move.ico"))
+        self.left_menu_move.setIcon(QtGui.QIcon(SRC_DIR + "move.ico"))
         self.left_menu_copy = self.left_menus.addAction("复制分享链接")
-        self.left_menu_copy.setIcon(QtGui.QIcon("./src/count.ico"))
+        self.left_menu_copy.setIcon(QtGui.QIcon(SRC_DIR + "count.ico"))
 
     def init_main_menu(self):
-        self.login.setIcon(QtGui.QIcon("./src/login.ico"))
+        self.login.setIcon(QtGui.QIcon(SRC_DIR + "login.ico"))
         self.login.setShortcut("Ctrl+L")
-        self.logout.setIcon(QtGui.QIcon("./src/logout.ico"))
+        self.logout.setIcon(QtGui.QIcon(SRC_DIR + "logout.ico"))
         self.logout.setShortcut("Ctrl+Q")    # 登出快捷键
         self.download.setShortcut("Ctrl+J")
-        self.download.setIcon(QtGui.QIcon("./src/download.ico"))
+        self.download.setIcon(QtGui.QIcon(SRC_DIR + "download.ico"))
         self.download.setEnabled(False)  # 暂时不用
         self.delete.setShortcut("Ctrl+D")
-        self.delete.setIcon(QtGui.QIcon("./src/delete.ico"))
+        self.delete.setIcon(QtGui.QIcon(SRC_DIR + "delete.ico"))
         self.delete.setEnabled(False)  # 暂时不用
         self.how.setShortcut("F1")
-        self.how.setIcon(QtGui.QIcon("./src/help.ico"))
+        self.how.setIcon(QtGui.QIcon(SRC_DIR + "help.ico"))
         self.about.setShortcut("Ctrl+B")
-        self.about.setIcon(QtGui.QIcon("./src/about.ico"))
-        self.upload.setIcon(QtGui.QIcon("./src/upload.ico"))
+        self.about.setIcon(QtGui.QIcon(SRC_DIR + "about.ico"))
+        self.upload.setIcon(QtGui.QIcon(SRC_DIR + "upload.ico"))
         self.upload.setShortcut("Ctrl+U")  # 上传快捷键
         # 添加设置菜单，暂时放这里
         self.setting_menu = QtWidgets.QAction(self)  # 设置菜单
         self.setting_menu.setObjectName("setting_menu")
         self.setting_menu.setText("设置")
-        self.setting_menu.setIcon(QtGui.QIcon("./src/settings.ico"))
+        self.setting_menu.setIcon(QtGui.QIcon(SRC_DIR + "settings.ico"))
         self.setting_menu.setShortcut("Ctrl+P")  # 设置快捷键

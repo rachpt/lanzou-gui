@@ -2,6 +2,9 @@
 QSS 样式
 '''
 
+from lanzou.debug import BG_IMG
+
+
 jobs_btn_redo_style = '''
 QPushButton {
     color: white;
@@ -91,9 +94,6 @@ QTabBar::tab:hover {
     color: rgb(0, 0, 205);
     background:transparent;
 }
-#MainWindow {
-    border-image:url(./src/default_background_img.jpg);
-}
 #tabWidget QTabBar{
     background-color: #AEEEEE;
 }
@@ -122,6 +122,11 @@ QTabBar::tab:hover {
     background-color: rgba(255, 255, 255, 120);
 }
 '''
+
+qssStyle = qssStyle + f"""\n#MainWindow {{
+    border-image:url({BG_IMG});
+}}"""
+
 
 btn_style = """
 QPushButton {

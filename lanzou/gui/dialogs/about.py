@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import (QPushButton, QDialog, QLabel, QFormLayout,
                              QDialogButtonBox, QVBoxLayout, QHBoxLayout)
 
 from lanzou.gui.qss import others_style, btn_style
+from lanzou.debug import SRC_DIR
 
 
 class AboutDialog(QDialog):
@@ -44,7 +45,7 @@ Python 依赖见<a href="{self._github }/blob/master/requirements.txt">requireme
         project_url = f'<a href="{self._home_page}">主页</a> | <a href="{self._github}">repo</a> | \
                         <a href="{self._gitee}">mirror repo</a>'
         self.logo = QLabel()  # logo
-        self.logo.setPixmap(QPixmap("./src/logo2.gif"))
+        self.logo.setPixmap(QPixmap(SRC_DIR + "logo2.gif"))
         self.logo.setStyleSheet("background-color:rgb(255,255,255);")
         self.logo.setAlignment(Qt.AlignCenter)
         self.lb_name = QLabel("版本")  # 版本
@@ -99,7 +100,7 @@ Python 依赖见<a href="{self._github }/blob/master/requirements.txt">requireme
         hbox.addStretch(2)
         for it in ["wechat", "alipay", "qqpay"]:
             lb = QLabel()
-            lb.setPixmap(QPixmap(f"./src/{it}.jpg"))
+            lb.setPixmap(QPixmap(SRC_DIR + f"{it}.jpg"))
             hbox.addWidget(lb)
         hbox.addStretch(1)
         hbox.addWidget(self.buttonBox)

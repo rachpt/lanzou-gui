@@ -3,6 +3,7 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QDialog, QLabel, QGridLayout, QDialogButtonBox, QLineEdit, QTextEdit
 
 from lanzou.gui.qss import dialog_qss_style
+from lanzou.debug import SRC_DIR
 
 
 class RenameDialog(QDialog):
@@ -22,7 +23,7 @@ class RenameDialog(QDialog):
         self.tx_desc.setFocus()
 
     def initUI(self):
-        self.setWindowIcon(QIcon("./src/desc.ico"))
+        self.setWindowIcon(QIcon(SRC_DIR + "desc.ico"))
         self.lb_name = QLabel()
         self.lb_name.setText("文件夹名：")
         self.lb_name.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)

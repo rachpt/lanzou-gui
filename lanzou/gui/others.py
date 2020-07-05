@@ -8,14 +8,16 @@ from PyQt5.QtGui import QTextDocument, QAbstractTextDocumentLayout, QPalette, QF
 from PyQt5.QtWidgets import (QApplication, QAbstractItemView, QStyle, QListView, QLineEdit, QTableView,
                              QPushButton, QStyledItemDelegate, QStyleOptionViewItem, QTextEdit, QSizePolicy)
 
+from lanzou.debug import SRC_DIR
+
 
 def set_file_icon(name):
     suffix = name.split(".")[-1]
-    ico_path = "./src/{}.gif".format(suffix)
+    ico_path = SRC_DIR + f"{suffix}.gif"
     if os.path.isfile(ico_path):
         return QIcon(ico_path)
     else:
-        return QIcon("./src/file.ico")
+        return QIcon(SRC_DIR + "file.ico")
 
 
 class QDoublePushButton(QPushButton):

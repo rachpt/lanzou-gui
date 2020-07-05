@@ -9,8 +9,11 @@ import logging
 __all__ = ['logger']
 
 
+# 全局常量
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(ROOT_DIR)
+SRC_DIR = ROOT_DIR + os.sep + "src" + os.sep
+BG_IMG = (SRC_DIR + "default_background_img.jpg").replace('\\', '/')
 
 
 log_file = ROOT_DIR + os.sep + 'debug-lanzou-gui.log'

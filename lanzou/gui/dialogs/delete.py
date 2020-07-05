@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import  QDialog, QLabel, QListView, QDialogButtonBox, QVBox
 
 from lanzou.gui.others import set_file_icon
 from lanzou.gui.qss import dialog_qss_style
+from lanzou.debug import SRC_DIR
 
 
 class DeleteDialog(QDialog):
@@ -19,7 +20,7 @@ class DeleteDialog(QDialog):
 
     def initUI(self):
         self.setWindowTitle("确认删除")
-        self.setWindowIcon(QIcon("./src/delete.ico"))
+        self.setWindowIcon(QIcon(SRC_DIR + "delete.ico"))
         self.layout = QVBoxLayout()
         self.list_view = QListView()
         self.list_view.setViewMode(QListView.ListMode)
@@ -32,7 +33,7 @@ class DeleteDialog(QDialog):
             if info.is_file:  # 文件
                 self.model.appendRow(QStandardItem(set_file_icon(info.name), info.name))
             else:
-                self.model.appendRow(QStandardItem(QIcon("./src/folder.gif"), info.name))
+                self.model.appendRow(QStandardItem(QIcon(SRC_DIR + "folder.gif"), info.name))
             self.out.append({'fid': info.id, 'is_file': info.is_file, 'name': info.name})  # id，文件标示, 文件名
             count += 1
             if max_len < len(info.name):  # 使用最大文件名长度

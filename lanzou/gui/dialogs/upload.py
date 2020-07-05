@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import (QDialog, QLabel, QDialogButtonBox, QPushButton, QLi
 from lanzou.gui.qss import dialog_qss_style
 from lanzou.gui.others import MyListView
 from lanzou.gui.models import UpJob
+from lanzou.debug import SRC_DIR
 
 
 class UploadDialog(QDialog):
@@ -52,9 +53,9 @@ class UploadDialog(QDialog):
 
     def initUI(self):
         self.setWindowTitle("上传文件")
-        self.setWindowIcon(QIcon("./src/upload.ico"))
+        self.setWindowIcon(QIcon(SRC_DIR + "upload.ico"))
         self.logo = QLabel()
-        self.logo.setPixmap(QPixmap("./src/logo3.gif"))
+        self.logo.setPixmap(QPixmap(SRC_DIR + "logo3.gif"))
         self.logo.setStyleSheet("background-color:rgb(0,153,255);")
         self.logo.setAlignment(Qt.AlignCenter)
 
@@ -62,18 +63,18 @@ class UploadDialog(QDialog):
         self.btn_chooseDir = QPushButton("选择文件夹", self)
         self.btn_chooseDir.setObjectName("btn_chooseDir")
         self.btn_chooseDir.setObjectName("btn_chooseDir")
-        self.btn_chooseDir.setIcon(QIcon("./src/folder.gif"))
+        self.btn_chooseDir.setIcon(QIcon(SRC_DIR + "folder.gif"))
 
         # btn 2
         self.btn_chooseMultiFile = QPushButton("选择多文件", self)
         self.btn_chooseDir.setObjectName("btn_chooseMultiFile")
         self.btn_chooseMultiFile.setObjectName("btn_chooseMultiFile")
-        self.btn_chooseMultiFile.setIcon(QIcon("./src/file.ico"))
+        self.btn_chooseMultiFile.setIcon(QIcon(SRC_DIR + "file.ico"))
 
         # btn 3
         self.btn_deleteSelect = QPushButton("移除", self)
         self.btn_deleteSelect.setObjectName("btn_deleteSelect")
-        self.btn_deleteSelect.setIcon(QIcon("./src/delete.ico"))
+        self.btn_deleteSelect.setIcon(QIcon(SRC_DIR + "delete.ico"))
         self.btn_deleteSelect.setToolTip("按 Delete 移除选中文件")
 
         # 列表
@@ -144,9 +145,9 @@ class UploadDialog(QDialog):
         self.model.removeRows(0, self.model.rowCount())
         for item in self.selected:
             if os.path.isfile(item):
-                self.model.appendRow(QStandardItem(QIcon("./src/file.ico"), item))
+                self.model.appendRow(QStandardItem(QIcon(SRC_DIR + "file.ico"), item))
             else:
-                self.model.appendRow(QStandardItem(QIcon("./src/folder.gif"), item))
+                self.model.appendRow(QStandardItem(QIcon(SRC_DIR + "folder.gif"), item))
             self.set_size()
 
     def backslash(self):

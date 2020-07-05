@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (QDialog, QLabel, QDialogButtonBox, QLineEdit, QChec
 
 from lanzou.gui.qss import dialog_qss_style
 from lanzou.gui.others import MyLineEdit, AutoResizingTextEdit
+from lanzou.debug import SRC_DIR
 
 
 class SettingDialog(QDialog):
@@ -117,7 +118,7 @@ class SettingDialog(QDialog):
     def initUI(self):
         self.setWindowTitle("设置")
         logo = QLabel()
-        logo.setPixmap(QPixmap("./src/logo2.gif"))
+        logo.setPixmap(QPixmap(SRC_DIR + "logo2.gif"))
         logo.setStyleSheet("background-color:rgb(255,255,255);")
         logo.setAlignment(Qt.AlignCenter)
         self.download_threads_lb = QLabel("同时下载文件数")

@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import QDialog, QLabel, QGridLayout, QDialogButtonBox, QLin
 
 from lanzou.gui.qss import dialog_qss_style
 from lanzou.gui.models import FileInfos
+from lanzou.debug import SRC_DIR
 
 
 class SetPwdDialog(QDialog):
@@ -25,7 +26,7 @@ class SetPwdDialog(QDialog):
 
     def initUI(self):
         self.setWindowTitle("请稍等……")
-        self.setWindowIcon(QIcon("./src/password.ico"))
+        self.setWindowIcon(QIcon(SRC_DIR + "password.ico"))
         self.lb_oldpwd = QLabel()
         self.lb_oldpwd.setText("当前提取码：")
         self.lb_oldpwd.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)

@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (QLineEdit, QDialog, QLabel, QFormLayout,
 
 from lanzou.gui.qss import dialog_qss_style
 from lanzou.gui.others import AutoResizingTextEdit
+from lanzou.debug import SRC_DIR
 
 
 class InfoDialog(QDialog):
@@ -108,7 +109,7 @@ class InfoDialog(QDialog):
         self.tx_short.setPlaceholderText("单击获取")
 
     def initUI(self):
-        self.setWindowIcon(QIcon("./src/share.ico"))
+        self.setWindowIcon(QIcon(SRC_DIR + "share.ico"))
         self.setWindowTitle("文件信息")
         self.buttonBox = QDialogButtonBox()
         self.buttonBox.setOrientation(Qt.Horizontal)
@@ -119,7 +120,7 @@ class InfoDialog(QDialog):
         self.buttonBox.rejected.connect(self.closed.emit)
 
         self.logo = QLabel()
-        self.logo.setPixmap(QPixmap("./src/q9.gif"))
+        self.logo.setPixmap(QPixmap(SRC_DIR + "q9.gif"))
         self.logo.setAlignment(Qt.AlignCenter)
         self.logo.setStyleSheet("background-color:rgb(255,204,51);")
 

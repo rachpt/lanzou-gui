@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import (QDialog, QLabel, QLineEdit, QTextEdit, QPushButton,
 from lanzou.gui.others import QDoublePushButton, MyLineEdit
 from lanzou.gui.qss import dialog_qss_style, btn_style
 from lanzou.gui import USE_WEB_ENG
+from lanzou.debug import SRC_DIR
 
 if USE_WEB_ENG:  # 是否使用 PyQtWebEngine 辅助登录
     from lanzou.gui.login_assister import LoginWindow
@@ -53,9 +54,9 @@ class LoginDialog(QDialog):
 
     def initUI(self):
         self.setWindowTitle("登录蓝奏云")
-        self.setWindowIcon(QIcon("./src/login.ico"))
+        self.setWindowIcon(QIcon(SRC_DIR + "login.ico"))
         logo = QLabel()
-        logo.setPixmap(QPixmap("./src/logo3.gif"))
+        logo.setPixmap(QPixmap(SRC_DIR + "logo3.gif"))
         logo.setStyleSheet("background-color:rgb(0,153,255);")
         logo.setAlignment(Qt.AlignCenter)
 
@@ -145,7 +146,7 @@ class LoginDialog(QDialog):
             vbox.addWidget(lb_line_2)
             if self.user_num > 1:
                 self.del_user_btn = QPushButton("删除账户")
-                self.del_user_btn.setIcon(QIcon("src/delete.ico"))
+                self.del_user_btn.setIcon(QIcon(SRC_DIR + "delete.ico"))
                 self.del_user_btn.setStyleSheet("QPushButton {max-width: 180px;}")
                 self.del_user_btn.clicked.connect(self.call_del_chose_user)
                 vbox.addWidget(self.del_user_btn)
