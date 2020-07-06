@@ -13,7 +13,8 @@ from lanzou.debug import logger
 
 
 __all__ = ['remove_notes', 'name_format', 'time_format', 'is_name_valid', 'is_file_url',
-           'is_folder_url', 'big_file_split', 'un_serialize', 'let_me_upload', 'USER_AGENT']
+           'is_folder_url', 'big_file_split', 'un_serialize', 'let_me_upload', 'USER_AGENT',
+           'sum_files_size']
 
 
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0'
@@ -39,6 +40,31 @@ def name_format(name: str) -> str:
     """去除非法字符"""
     name = name.replace(u'\xa0', ' ').replace(u'\u3000', ' ').replace('  ', ' ')  # 去除其它字符集的空白符,去除重复空白字符
     return re.sub(r'[$%^!*<>)(+=`\'\"/:;,?]', '', name)
+
+
+def sum_files_size(files):
+    """计算文件夹中所有文件的大小， [files,]: FileInFolder"""
+    total = 0.0
+    for file_ in files:
+        if 'M' in file_.size:
+            total += float(file_.size.replace('M', '')) * (1 << 20)
+        elif 'K' in file_.size:
+            total += float(file_.size.replace('K', '')) * (1 << 10)
+        elif 'B' in file_.size:
+            total += float(file_.size.replace('B', ''))
+        else:
+            logger.debug(f"Unknow size: {file_.size}")
+
+    if total < 1 << 10:
+        size = "{:.2f} B".format(total)
+    elif total < 1 << 20:
+        size = "{:.2f} KB".format(total / (1 << 10))
+    elif total < 1 << 30:
+        size = "{:.2f} MB".format(total / (1 << 20))
+    else:
+        size = "{:.2f} GB".format(total / (1 << 30))
+
+    return size, int(total)
 
 
 def time_format(time_str: str) -> str:

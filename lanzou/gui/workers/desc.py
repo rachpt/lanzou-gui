@@ -59,8 +59,8 @@ class DescPwdFetcher(QThread):
                         elif res.code == LanZouCloud.NETWORK_ERROR:
                             self.msg.emit("网络错误，请稍后重试！", 6000)
                             continue
-                    _infos.append(info)
-                    _tasks[info.url] = DlJob(name=info.name, url=info.url, pwd=info.pwd, path=self.dl_path)
+                    _infos.append(info)  # info -> lanzou.gui.models.FileInfos
+                    _tasks[info.url] = DlJob(infos=info, path=self.dl_path, total_file=1)
                 if self.download:
                     self.tasks.emit(_tasks)
                 else:  # 激发简介更新

@@ -11,6 +11,7 @@ class GetSharedInfo(QThread):
     infos = pyqtSignal(object)
     msg = pyqtSignal(str, int)
     update = pyqtSignal()
+    clean = pyqtSignal()
 
     def __init__(self, parent=None):
         super(GetSharedInfo, self).__init__(parent)
@@ -41,9 +42,9 @@ class GetSharedInfo(QThread):
                 self.msg.emit("正在获取文件夹链接信息，可能需要几秒钟，请稍后……", 30000)
             else:
                 self.msg.emit(f"{share_url} 为非法链接！", 0)
-                self.finished.emit()
+                self.update.emit()
                 return None
-            self.update.emit()  # 清理旧的显示信息
+            self.clean.emit()  # 清理旧的显示信息
             self.share_url = share_url
             self.pwd = pwd
             self.is_file = is_file
@@ -67,13 +68,15 @@ class GetSharedInfo(QThread):
         elif infos.code == LanZouCloud.URL_INVALID:
             self.msg.emit("<font color='red'>链接非法！</font>", show_time)
         elif infos.code == LanZouCloud.PASSWORD_ERROR:
-            self.msg.emit("<font color='red'>提取码 [<b><font color='magenta'>{}</font></b>] 错误！</font>".format(self.pwd), show_time)
+            self.msg.emit(f"<font color='red'>提取码 [<b><font color='magenta'>{self.pwd}</font></b>] 错误！</font>", show_time)
         elif infos.code == LanZouCloud.LACK_PASSWORD:
             self.msg.emit("<font color='red'>请在链接后面跟上提取码，空格分割！</font>", show_time)
         elif infos.code == LanZouCloud.NETWORK_ERROR:
-            self.msg.emit("<font color='red'>网络错误！{}</font>".format(infos["info"]), show_time)
+            self.msg.emit("<font color='red'>网络错误！</font>", show_time)
         elif infos.code == LanZouCloud.SUCCESS:
             self.msg.emit("<font color='#00CC00'>提取成功！</font>", show_time)
+        else:
+            self.msg.emit(f"<font color='red'>未知错误 code={infos.code}！</font>", show_time * 4)
 
     def run(self):
         if not self._is_work:
@@ -92,6 +95,7 @@ class GetSharedInfo(QThread):
             except Exception as e:
                 logger.error(f"GetShareInfo error: {e=}")
             self._is_work = False
+            self.update.emit()
             self._mutex.unlock()
         else:
             self.msg.emit("<font color='blue'>后台正在运行，稍后重试！</font>", 4000)

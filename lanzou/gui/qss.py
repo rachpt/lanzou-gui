@@ -42,10 +42,29 @@ QPushButton {
     max-height: 14px;
 }
 '''
+
 jobs_btn_processing_style = '''
 QPushButton {
     color: white;
     background-color: QLinearGradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(9, 41, 4, 255), stop:0.085 rgba(2, 79, 0, 255), stop:0.19 rgba(50, 147, 22, 255), stop:0.275 rgba(236, 191, 49, 255), stop:0.39 rgba(243, 61, 34, 255), stop:0.555 rgba(135, 81, 60, 255), stop:0.667 rgba(121, 75, 255, 255), stop:0.825 rgba(164, 255, 244, 255), stop:0.885 rgba(104, 222, 71, 255), stop:1 rgba(93, 128, 0, 255));
+    border-width: 1px;
+    border-color: #339;
+    border-style: solid;
+    border-radius: 7;
+    padding: 3px;
+    font-size: 13px;
+    padding-left: 5px;
+    padding-right: 5px;
+    min-width: 20px;
+    min-height: 14px;
+    max-height: 14px;
+}
+'''
+
+jobs_btn_queue_style = '''
+QPushButton {
+    color: white;
+    background-color: QLinearGradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(124, 252, 0, 255), stop:0.085 rgba(186, 85, 211, 255), stop:0.19 rgba(148, 0, 211, 255), stop:0.275 rgba(255,20,147, 255), stop:0.39 rgba(112,128,144, 255), stop:0.555 rgba(112,128,144, 255), stop:0.667 rgba(255,20,147, 255), stop:0.825 rgba(148, 0, 211, 255), stop:0.885 rgba(186, 85, 211, 255), stop:1 rgba(124, 252, 0, 255));
     border-width: 1px;
     border-color: #339;
     border-style: solid;

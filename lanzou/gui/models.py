@@ -2,14 +2,23 @@
 容器类，用于储存 上传、下载 任务，文件、文件夹信息
 """
 
+import os
+
 
 class Job():
-    def __init__(self, url, tp):
+    def __init__(self, url, tp, total_file=1):
         self._url = url
         self._type = tp
-        self._info = None
+        self._total_file = total_file
+        self._err_info = None
         self._run = False
         self._rate = 0
+        self._current = 1
+        self._speed = ''
+        self._pause = False
+        self._added = False
+        self._now_size = 0
+        self._total_size = 0
 
     @property
     def url(self):
@@ -17,11 +26,11 @@ class Job():
 
     @property
     def info(self):
-        return self._info
+        return self._err_info
 
     @info.setter
     def info(self, info):
-        self._info = info
+        self._err_info = info
 
     @property
     def run(self):
@@ -40,30 +49,52 @@ class Job():
         self._rate = rate
 
     @property
+    def total_file(self):
+        return self._total_file
+
+    @total_file.setter
+    def total_file(self, total_file):
+        self._total_file = total_file
+
+    @property
+    def current(self):
+        return self._current
+
+    @current.setter
+    def current(self, current):
+        self._current = current
+
+    @property
+    def speed(self):
+        return self._speed
+
+    @speed.setter
+    def speed(self, speed):
+        self._speed = speed
+
+    @property
+    def prog(self):
+        return f"({self._current}/{self._total_file})" if self._total_file > 1 else ''
+
+    @property
     def type(self):
         return self._type
 
+    @property
+    def now_size(self):
+        return self._now_size
 
-class DlJob(Job):
-    def __init__(self, name, url, pwd, path):
-        super(DlJob, self).__init__(url, 'dl')
-        self._name = name
-        self._pwd = pwd
-        self._path = path
-        self._pause = False
-        self._added = False
+    @now_size.setter
+    def now_size(self, now_size):
+        self._now_size = now_size
 
     @property
-    def name(self):
-        return self._name
+    def total_size(self):
+        return self._total_size
 
-    @property
-    def pwd(self):
-        return self._pwd
-
-    @property
-    def path(self):
-        return self._path
+    @total_size.setter
+    def total_size(self, total_size):
+        self._total_size = total_size
 
     @property
     def pause(self):
@@ -82,17 +113,50 @@ class DlJob(Job):
         self._added = added
 
 
+class DlJob(Job):
+    def __init__(self, infos, path, total_file=1):
+        """info: lanzou.gui.models.FileInfos | ShareInfo
+        ShareInfo(code=0, name, url, pwd, desc, time, size)
+        """
+        super(DlJob, self).__init__(infos.url, 'dl', total_file)
+        self._infos = infos
+        self._path = path
+        self.size = infos.size
+
+    @property
+    def name(self):
+        return self._infos.name
+
+    @property
+    def pwd(self):
+        return self._infos.pwd
+
+    @property
+    def path(self):
+        return self._path
+
+    @path.setter
+    def path(self, path):
+        self._path = path
+
+
 class UpJob(Job):
-    def __init__(self, url, fid, folder, pwd=None, desc=None):
+    def __init__(self, url, fid, folder, pwd=None, desc=None, total_size=0, total_file=1):
         super(UpJob, self).__init__(url, 'up')
         self._fid = fid
         self._folder = folder
         self._pwd = pwd
         self._desc = desc
+        self._total_size = total_size
+        self._total_file = total_file
 
     @property
     def fid(self):
         return self._fid
+
+    @property
+    def name(self):
+        return os.path.basename(self._url)
 
     @property
     def folder(self):
@@ -152,10 +216,16 @@ class Tasks(object):
     def values(self):
         return self._all.values()
 
-    def clear(self):
+    def clear(self, task=None):
         """清空元素"""
-        self._dones.clear()
-        self._all = {**self._items}
+        if task:
+            if task.url in self._dones:
+                del self._dones[task.url]
+            elif task.url in self._items:
+                del self._items[task.url]
+        else:
+            self._dones.clear()
+        self._all = {**self._items, **self._dones}
 
 
 class Infos:

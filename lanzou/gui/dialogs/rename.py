@@ -52,7 +52,7 @@ class RenameDialog(QDialog):
         self.buttonBox.rejected.connect(self.reject)
 
     def update_text(self):
-        num= len(self.infos)
+        num = len(self.infos)
         if num == 1:
             self.lb_name.setVisible(True)
             self.tx_name.setVisible(True)
@@ -65,7 +65,7 @@ class RenameDialog(QDialog):
                 self.tx_desc.setText(str(infos.desc))
                 self.tx_desc.setToolTip('原描述：' + str(infos.desc))
             else:
-                self.tx_desc.setText("无")
+                self.tx_desc.setText("")
                 self.tx_desc.setToolTip('')
             self.tx_desc.setPlaceholderText("无")
             self.min_width = len(str(infos.name)) * 8

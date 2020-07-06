@@ -738,7 +738,7 @@ class LanZouCloud(object):
         self.delete_rec(folder_id, False)
         return LanZouCloud.SUCCESS
 
-    def _upload_small_file(self, file_path, folder_id=-1, callback=None) -> (int, int, bool):
+    def _upload_small_file(self, task, file_path, folder_id=-1, callback=None) -> (int, int, bool):
         """绕过格式限制上传不超过 max_size 的文件"""
         if not os.path.isfile(file_path):
             return LanZouCloud.PATH_ERROR, 0, True
@@ -755,13 +755,13 @@ class LanZouCloud(object):
             self.delete(file_list.find_by_name(filename).id)
         logger.debug(f'Upload file {file_path=} to {folder_id=}')
 
-        file = open(file_path, 'rb')
+        file_ = open(file_path, 'rb')
         post_data = {
             "task": "1",
             "folder_id": str(folder_id),
             "id": "WU_FILE_0",
             "name": filename,
-            "upload_file": (filename, file, 'application/octet-stream')
+            "upload_file": (filename, file_, 'application/octet-stream')
         }
 
         post_data = MultipartEncoder(post_data)
@@ -772,11 +772,14 @@ class LanZouCloud(object):
         # issue : https://github.com/requests/toolbelt/issues/75
         # 上传完成后，回调函数会被错误的多调用一次(强迫症受不了)。因此，下面重新封装了回调函数，修改了接受的参数，并阻断了多余的一次调用
         self._upload_finished_flag = False  # 上传完成的标志
+        start_size = task.now_size
+        logger.debug(f"upload small file: {start_size=}")
 
         def _call_back(read_monitor):
             if callback is not None:
                 if not self._upload_finished_flag:
-                    callback(filename, read_monitor.len, read_monitor.bytes_read)
+                    task.now_size = start_size + read_monitor.bytes_read
+                    callback()
                 if read_monitor.len == read_monitor.bytes_read:
                     self._upload_finished_flag = True
 
@@ -794,11 +797,11 @@ class LanZouCloud(object):
         file_id = result["text"][0]["id"]
         self.set_passwd(file_id)  # 文件上传后默认关闭提取码
         if need_delete:
-            file.close()
+            file_.close()
             os.remove(file_path)
         return LanZouCloud.SUCCESS, int(file_id), True
 
-    def _upload_big_file(self, file_path, dir_id, callback=None):
+    def _upload_big_file(self, task: object, file_path, dir_id, callback=None):
         """上传大文件, 且使得回调函数只显示一个文件"""
         file_size = os.path.getsize(file_path)  # 原始文件的字节大小
         file_name = os.path.basename(file_path)
@@ -860,14 +863,14 @@ class LanZouCloud(object):
         logger.debug(f"Upload finished, Delete tmp folder:{tmp_dir}")
         return LanZouCloud.SUCCESS, int(dir_id), False  # 大文件返回文件夹id
 
-    def upload_file(self, file_path, folder_id=-1, callback=None, allow_big_file=False) -> (int, int, bool):
+    def upload_file(self, task: object, file_path, folder_id=-1, callback=None, allow_big_file=False) -> (int, int, bool):
         """解除限制上传文件"""
         if not os.path.isfile(file_path):
             return LanZouCloud.PATH_ERROR, 0, True
 
         # 单个文件不超过 max_size 直接上传
         if os.path.getsize(file_path) <= self._max_size * 1048576:
-            return self._upload_small_file(file_path, folder_id, callback)
+            return self._upload_small_file(task, file_path, folder_id, callback)
         elif not allow_big_file:
             logger.debug(f'Forbid upload big file！{file_path=}, {self._max_size=}')
             return LanZouCloud.FAILED, 0, False  # 不允许上传超过 max_size 的文件
@@ -877,81 +880,101 @@ class LanZouCloud(object):
         dir_id = self.mkdir(folder_id, folder_name, 'Big File')
         if dir_id == LanZouCloud.MKDIR_ERROR:
             return LanZouCloud.MKDIR_ERROR, 0, False  # 创建文件夹失败就退出
-        return self._upload_big_file(file_path, dir_id, callback)
+        return self._upload_big_file(task, file_path, dir_id, callback)
 
-    def upload_dir(self, dir_path, folder_id=-1, callback=None, failed_callback=None, allow_big_file=False):
+    def upload_dir(self, task: object, callback, allow_big_file=False):
+        #  dir_path, folder_id=-1, callback=None, failed_callback=None, allow_big_file=False):
         """批量上传文件夹中的文件(不会递归上传子文件夹)
         :param folder_id: 网盘文件夹 id
         :param dir_path: 文件夹路径
         :param callback (filename, total_size, now_size) 用于显示进度
         :param failed_callback (code, file) 用于处理上传失败的文件
         """
-        if not os.path.isdir(dir_path):
-            return LanZouCloud.PATH_ERROR
+        if not os.path.isdir(task.url):
+            task.info = LanZouCloud.PATH_ERROR
+            return LanZouCloud.PATH_ERROR, None, False
 
-        dir_name = dir_path.split(os.sep)[-1]
-        dir_id = self.mkdir(folder_id, dir_name, '批量上传')
+        dir_name = os.path.basename(task.url)
+        dir_id = self.mkdir(task.fid, dir_name, '批量上传')
         if dir_id == LanZouCloud.MKDIR_ERROR:
-            return LanZouCloud.MKDIR_ERROR
+            task.info = LanZouCloud.MKDIR_ERROR
+            return LanZouCloud.MKDIR_ERROR, None, False
 
-        for filename in os.listdir(dir_path):
-            file_path = dir_path + os.sep + filename
+        # the default value of task.current is 1
+        task.current = 0
+        for filename in os.listdir(task.url):
+            file_path = task.url + os.sep + filename
             if not os.path.isfile(file_path):
                 continue  # 跳过子文件夹
-            code, _, _ = self.upload_file(file_path, dir_id, callback=callback, allow_big_file=allow_big_file)
-            if code != LanZouCloud.SUCCESS:
-                if failed_callback is not None:
-                    failed_callback(code, filename)
-        return LanZouCloud.SUCCESS
+            task.current += 1
+            code, _, _ = self.upload_file(task, file_path, dir_id, callback=callback,
+                                          allow_big_file=allow_big_file)
+            # if code != LanZouCloud.SUCCESS:
+            #     if failed_callback is not None:
+            #         failed_callback(code, filename)
+        return LanZouCloud.SUCCESS, dir_id, False
 
-    def down_file_by_url(self, share_url, pwd='', save_path='./Download', callback=None) -> int:
+    def down_file_by_url(self, share_url, task: object, callback) -> int:
         """通过分享链接下载文件(需提取码)"""
         if not is_file_url(share_url):
+            task.info = LanZouCloud.URL_INVALID
             return LanZouCloud.URL_INVALID
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
+        if not os.path.exists(task.path):
+            os.makedirs(task.path)
 
-        info = self.get_durl_by_url(share_url, pwd)
+        info = self.get_durl_by_url(share_url, task.pwd)
         if info.code != LanZouCloud.SUCCESS:
+            task.info = info.code
             logger.error(f'File direct url info: {info}')
             return info.code
 
         resp = self._get(info.durl, stream=True)
         if not resp:
-            return LanZouCloud.FAILED
+            task.info = LanZouCloud.NETWORK_ERROR
+            return LanZouCloud.NETWORK_ERROR
         total_size = int(resp.headers['Content-Length'])
 
-        file_path = save_path + os.sep + info.name
+        if share_url == task.url:  # 下载单文件
+            task.total_size = total_size
+        file_path = task.path + os.sep + info.name
         logger.debug(f'Save file to {file_path=}')
+        now_size = 0
         if os.path.exists(file_path):
             now_size = os.path.getsize(file_path)  # 本地已经下载的文件大小
-        else:
-            now_size = 0
+            task.now_size += now_size
+            callback()
+            if now_size >= total_size:
+                logger.debug(f'File {info.name=} local aleardy exist!')
+                return LanZouCloud.SUCCESS
+
         chunk_size = 1024 * 64  # 4096
         last_512_bytes = b''  # 用于识别文件是否携带真实文件名信息
         headers = {**self._headers, 'Range': 'bytes=%d-' % now_size}
         resp = self._get(info.durl, stream=True, headers=headers, timeout=None)
 
         if resp is None:  # 网络异常
+            task.info = LanZouCloud.NETWORK_ERROR
             return LanZouCloud.FAILED
         if resp.status_code == 416:  # 已经下载完成
+            logger.debug('File download finished!')
             return LanZouCloud.SUCCESS
 
+        logger.debug(f'File downloading {file_path=} ...')
         with open(file_path, "ab") as f:
             for chunk in resp.iter_content(chunk_size):
                 if chunk:
                     f.write(chunk)
                     f.flush()
                     now_size += len(chunk)
+                    task.now_size += len(chunk)
+                    callback()
                     if total_size - now_size < 512:
                         last_512_bytes += chunk
-                    if callback is not None:
-                        callback(info.name, total_size, now_size)
         # 尝试解析文件报尾
         file_info = un_serialize(last_512_bytes[-512:])
         if file_info is not None and 'padding' in file_info:  # 大文件的记录文件也可以反序列化出 name,但是没有 padding
             real_name = file_info['name']
-            new_file_path = save_path + os.sep + real_name
+            new_file_path = task.path + os.sep + real_name
             logger.debug(f"Find meta info: {real_name=}")
             if os.path.exists(new_file_path):
                 os.remove(new_file_path)  # 存在同名文件则删除
@@ -960,13 +983,6 @@ class LanZouCloud(object):
                 f.seek(-512, 2)  # 截断最后 512 字节数据
                 f.truncate()
         return LanZouCloud.SUCCESS
-
-    def down_file_by_id(self, fid, save_path='./Download', callback=None) -> int:
-        """登录用户通过id下载文件(无需提取码)"""
-        info = self.get_share_info(fid, is_file=True)
-        if info.code != LanZouCloud.SUCCESS:
-            return info.code
-        return self.down_file_by_url(info.url, info.pwd, save_path, callback)
 
     def get_folder_info_by_url(self, share_url, dir_pwd=''):
         """获取文件夹里所有文件的信息"""
@@ -1033,10 +1049,13 @@ class LanZouCloud(object):
         # 通过文件的时间信息补全文件夹的年份(如果有文件的话)
         if files:  # 最后一个文件上传时间最早，文件夹的创建年份与其相同
             folder_time = files[-1].time.split('-')[0] + '-' + folder_time
+            folder_size, size_int = sum_files_size(files)
         else:  # 可恶，没有文件，日期就设置为今年吧
             folder_time = datetime.today().strftime('%Y-%m-%d')
+            folder_size, size_int = '0 B', 0
         return FolderDetail(LanZouCloud.SUCCESS,
-                            FolderInfo(folder_name, folder_id, dir_pwd, folder_time, folder_desc, share_url),
+                            FolderInfo(folder_name, folder_id, dir_pwd, folder_time,
+                                       folder_desc, share_url, folder_size, size_int),
                             files)
 
     def get_folder_info_by_id(self, folder_id):
@@ -1069,15 +1088,15 @@ class LanZouCloud(object):
         logger.debug("Big file checking: Failed")
         return None
 
-    def _down_big_file(self, name, total_size, file_list, save_path, *, callback=None):
+    def _down_big_file(self, name, total_size, file_list, task: object, callback):
         """下载分段数据到一个文件，回调函数只显示一个文件
         支持大文件下载续传，下载完成后重复下载不会执行覆盖操作，直接返回状态码 SUCCESS
         """
-        big_file = save_path + os.sep + name
+        big_file = task.path + os.sep + name
         record_file = big_file + '.record'
 
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
+        if not os.path.exists(task.path):
+            os.makedirs(task.path)
 
         if not os.path.exists(record_file):  # 初始化记录文件
             info = {'last_ending': 0, 'finished': []}  # 记录上一个数据块结尾地址和已经下载的数据块
@@ -1089,6 +1108,7 @@ class LanZouCloud(object):
                 file_list = [f for f in file_list if f.name not in info['finished']]  # 排除已下载的数据块
                 logger.debug(f"Find download record file: {info}")
 
+        task.total_size = total_size
         with open(big_file, 'ab') as bf:
             for file in file_list:
                 try:
@@ -1098,7 +1118,7 @@ class LanZouCloud(object):
                 if durl_info.code != LanZouCloud.SUCCESS:
                     logger.debug(f"Can't get direct url: {file}")
                     return durl_info.code
-                 # 准备向大文件写入数据
+                # 准备向大文件写入数据
                 file_size_now = os.path.getsize(big_file)
                 down_start_byte = file_size_now - info['last_ending']  # 当前数据块上次下载中断的位置
                 headers = {**self._headers, 'Range': 'bytes=%d-' % down_start_byte}
@@ -1117,8 +1137,8 @@ class LanZouCloud(object):
                         file_size_now += len(chunk)
                         bf.write(chunk)
                         bf.flush()  # 确保缓冲区立即写入文件，否则下一次写入时获取的文件大小会有偏差
-                        if callback:
-                            callback(name, total_size, file_size_now)
+                        task.now_size = file_size_now
+                        callback()
 
                 # 一块数据写入完成，更新记录文件
                 info['finished'].append(file.name)
@@ -1131,64 +1151,38 @@ class LanZouCloud(object):
             os.remove(record_file)
         return LanZouCloud.SUCCESS
 
-    def down_dir_by_url(self, share_url, dir_pwd='', save_path='./Download', callback=None, mkdir=True,
-                        failed_callback=None) -> int:
+    def down_dir_by_url(self, task: object, callback) -> int:
         """通过分享链接下载文件夹"""
-        folder_detail = self.get_folder_info_by_url(share_url, dir_pwd)
+        folder_detail = self.get_folder_info_by_url(task.url, task.pwd)
         if folder_detail.code != LanZouCloud.SUCCESS:  # 获取文件信息失败
+            task.info = folder_detail.code
             return folder_detail.code
 
         # 检查是否大文件分段数据
         info = self._check_big_file(folder_detail.files)
         if info is not None:
-            return self._down_big_file(*info, save_path, callback=callback)
+            return self._down_big_file(*info, task, callback)
 
-        if mkdir:  # 自动创建子文件夹
-            save_path = save_path + os.sep + folder_detail.folder.name
-            if not os.path.exists(save_path):
-                os.makedirs(save_path)
+        # 自动创建子文件夹
+        task.path = task.path + os.sep + folder_detail.folder.name
+        if not os.path.exists(task.path):
+            os.makedirs(task.path)
 
         # 不是大文件分段数据,直接下载
-        for file in folder_detail.files:
-            code = self.down_file_by_url(file.url, dir_pwd, save_path, callback)
+        task.total_file = len(folder_detail.files)
+        task.total_size = folder_detail.folder.size_int
+        task.size = folder_detail.folder.size
+        for index, file in enumerate(folder_detail.files, start=1):
+            task.current = index
+            code = self.down_file_by_url(file.url, task, callback)
             if code != LanZouCloud.SUCCESS:
                 logger.error(f'Download file result: Code:{code}, File: {file}')
-                if failed_callback is not None:
-                    failed_callback(code, file)
-
+                # if failed_callback is not None:
+                #     failed_callback(code, file)
+        task.rate = 1000
         return LanZouCloud.SUCCESS
 
-    def down_dir_by_id(self, folder_id, save_path='./Download', *, callback=None, mkdir=True,
-                       failed_callback=None) -> int:
-        """登录用户通过id下载文件夹"""
-        file_list = self.get_file_list(folder_id)
-        if len(file_list) == 0:
-            return LanZouCloud.FAILED
-
-        # 检查是否大文件分段数据
-        info = self._check_big_file(file_list)
-        if info is not None:
-            return self._down_big_file(*info, save_path, callback=callback)
-
-        if mkdir:  # 自动创建子目录
-            share_info = self.get_share_info(folder_id, False)
-            if share_info.code != LanZouCloud.SUCCESS:
-                return share_info.code
-            save_path = save_path + os.sep + share_info.name
-            if not os.path.exists(save_path):
-                logger.debug(f"Mkdir {save_path}")
-                os.makedirs(save_path)
-
-        for file in file_list:
-            code = self.down_file_by_id(file.id, save_path, callback)
-            logger.debug(f'Download file result: Code:{code}, File: {file}')
-            if code != LanZouCloud.SUCCESS:
-                if failed_callback is not None:
-                    failed_callback(code, file)
-
-        return LanZouCloud.SUCCESS
-
-    #-------------------------------------------------------------------------#
+    # ------------------------------------------------------------------------- #
     def set_timeout(self, timeout):
         self._timeout = timeout
 

@@ -19,8 +19,6 @@ def why_error(code):
         return '网络连接异常'
     elif code == LanZouCloud.CAPTCHA_ERROR:
         return '验证码错误'
-    elif code == LanZouCloud.OFFICIAL_LIMITED:
-        return '操作被官方限制'
     else:
         return '未知错误'
 

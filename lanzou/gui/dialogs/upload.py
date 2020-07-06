@@ -155,11 +155,25 @@ class UploadDialog(QDialog):
         tasks = {}
         for item in self.selected:
             url = os.path.normpath(item)
+            total_size = 0
+            total_file = 0
+            if os.path.isfile(url):
+                total_size = os.path.getsize(url)
+                total_file += 1
+            else:
+                for filename in os.listdir(url):
+                    file_path = os.path.join(url, filename)
+                    if not os.path.isfile(file_path):
+                        continue  # 跳过子文件夹
+                    total_size += os.path.getsize(file_path)
+                    total_file += 1
             tasks[url] = UpJob(url=url,
                                fid=self._folder_id,
                                folder=self._folder_name,
                                pwd=self.pwd if self.set_pwd else None,
-                               desc=self.desc if self.det_desc else None)
+                               desc=self.desc if self.set_desc else None,
+                               total_size=total_size,
+                               total_file=total_file)
         return tasks
 
     def slot_btn_ok(self):
