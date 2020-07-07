@@ -79,7 +79,7 @@ class GetAllFoldersWorker(QThread):
                     self.moved.emit(r_files, r_folders, False)
             else:  # 获取所有文件夹
                 try:
-                    self.msg.emit("网络请求中，请稍后……", 0)
+                    self.msg.emit("网络请求中，请稍候……", 0)
                     all_dirs_dict = self._disk.get_move_folders().name_id
                     self.infos.emit(self.org_infos, all_dirs_dict)
                     self.msg.emit("", 0)  # 删除提示信息

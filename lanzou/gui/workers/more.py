@@ -52,7 +52,7 @@ class GetMoreInfoWorker(QThread):
                 if not self._url:  # 获取普通信息
                     if isinstance(self._infos, Infos):
                         if self._infos.id:  # 从 disk 运行
-                            self.msg.emit("网络请求中，请稍后……", 0)
+                            self.msg.emit("网络请求中，请稍候……", 0)
                             _info = self._disk.get_share_info(self._infos.id, is_file=self._infos.is_file)
                             self._infos.desc = _info.desc
                             self._infos.pwd = _info.pwd
