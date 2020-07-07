@@ -20,7 +20,7 @@ def why_error(code):
     elif code == LanZouCloud.CAPTCHA_ERROR:
         return '验证码错误'
     else:
-        return '未知错误'
+        return f'未知错误 {code}'
 
 
 __all__ = ['utils', 'types', 'models', 'LanZouCloud', 'version']

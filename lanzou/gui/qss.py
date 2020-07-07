@@ -43,6 +43,25 @@ QPushButton {
 }
 '''
 
+jobs_btn_delete_style = '''
+QPushButton {
+    color: white;
+    background-color: QLinearGradient(x1: 0, y1: 0, x2: 0, y2: 1,stop: 0 #f00,
+        stop: 0.25 #008080, stop: 0.49 #97c, stop: 0.5 #16b, stop: 1 #f00);
+    border-width: 1px;
+    border-color: #339;
+    border-style: solid;
+    border-radius: 7;
+    padding: 3px;
+    font-size: 13px;
+    padding-left: 5px;
+    padding-right: 5px;
+    min-width: 20px;
+    min-height: 14px;
+    max-height: 14px;
+}
+'''
+
 jobs_btn_processing_style = '''
 QPushButton {
     color: white;

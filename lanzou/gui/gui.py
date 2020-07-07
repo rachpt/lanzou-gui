@@ -18,7 +18,7 @@ from lanzou.gui.ui import Ui_MainWindow
 from lanzou.gui.others import set_file_icon, TableDelegate
 from lanzou.gui.config import config
 from lanzou.gui.workers import *
-from lanzou.gui.workers.down import change_size_unit
+from lanzou.gui.workers.manager import change_size_unit
 from lanzou.gui.dialogs import *
 from lanzou.gui.qss import *
 from lanzou.gui import version
@@ -134,7 +134,7 @@ class MainWindow(Ui_MainWindow):
 
     def set_disk(self):
         """方便切换用户更新信息"""
-        self.download_manager.set_disk(self._disk)
+        self.task_manager.set_disk(self._disk)
         self.get_shared_info_thread.set_disk(self._disk)
         self.login_luncher.set_disk(self._disk)
         self.list_refresher.set_disk(self._disk)
@@ -147,7 +147,6 @@ class MainWindow(Ui_MainWindow):
         self.set_pwd_worker.set_disk(self._disk)
         self.more_info_worker.set_disk(self._disk)
         self.all_folders_worker.set_disk(self._disk)
-        self.upload_worker.set_disk(self._disk)
 
     def update_lanzoucloud_settings(self):
         """更新LanzouCloud实例设置"""
@@ -156,7 +155,7 @@ class MainWindow(Ui_MainWindow):
         self._disk.set_captcha_handler(self.captcha_handler)
         self._disk.set_timeout(settings["timeout"])
         self._disk.set_max_size(settings["max_size"])
-        self.download_manager.set_thread(settings["download_threads"])  # 同时下载任务数量
+        self.task_manager.set_thread(settings["download_threads"])  # 同时下载任务数量
         self.share_set_dl_path.setText(self._config.path)  # 提取界面下载路径
         self.time_fmt = settings["time_fmt"]  # 时间显示格式
         self._to_tray = settings["to_tray"]
@@ -168,7 +167,7 @@ class MainWindow(Ui_MainWindow):
         desc = settings["desc"]
         allow_big_file = settings["allow_big_file"]
         self.upload_dialog.set_pwd_desc_bigfile(set_pwd, pwd, set_desc, desc, allow_big_file, settings["max_size"])
-        self.upload_worker.set_allow_big_file(allow_big_file)
+        self.task_manager.set_allow_big_file(allow_big_file)
         if 'upload_delay' in settings:
             delay = int(settings["upload_delay"])
             if delay > 0:
@@ -201,11 +200,11 @@ class MainWindow(Ui_MainWindow):
         # 登出器
         self.logout_worker = LogoutWorker()
         self.logout_worker.succeeded.connect(self.call_logout_update_ui)
-        # 下载器
-        self.download_manager = DownloadManager()
-        self.download_manager.downloaders_msg.connect(self.show_status)
-        self.download_manager.update.connect(self.update_jobs_info)
-        self.download_manager.mgr_finished.connect(self.call_show_mgr_finished)
+        # 任务管理器
+        self.task_manager = TaskManager()
+        self.task_manager.mgr_msg.connect(self.show_status)
+        self.task_manager.update.connect(self.update_jobs_info)
+        self.task_manager.mgr_finished.connect(self.call_show_mgr_finished)
         # 获取更多信息，直链、下载次数等
         self.info_dialog = InfoDialog()  # 对话框
         self.info_dialog.setWindowModality(Qt.ApplicationModal)  # 窗口前置
@@ -250,7 +249,7 @@ class MainWindow(Ui_MainWindow):
         # 文件描述与提取码更新器
         self.desc_pwd_fetcher = DescPwdFetcher()
         self.desc_pwd_fetcher.desc.connect(self.call_update_desc_pwd)
-        self.desc_pwd_fetcher.tasks.connect(self.call_download_manager_thread)  # 连接下载管理器线程
+        self.desc_pwd_fetcher.tasks.connect(self.call_task_manager_thread)  # 连接下载管理器线程
 
         # 重命名、修改简介与新建文件夹对话框
         self.rename_dialog = RenameDialog()
@@ -283,11 +282,6 @@ class MainWindow(Ui_MainWindow):
         self.check_update_worker.bg_update_infos.connect(self.show_new_version_msg)
         # 获取分享链接信息线程
         self.get_shared_info_thread = GetSharedInfo()
-        # 上传器
-        self.upload_worker = UploadWorker()
-        self.upload_worker.upload_finished.connect(self.finished_upload)
-        self.upload_worker.upload_msg.connect(self.show_status)
-        self.upload_worker.update.connect(self.update_jobs_info)
         # 验证码对话框
         self.captcha_dialog = CaptchaDialog()
         self.captcha_dialog.captcha.connect(self.set_captcha)
@@ -333,8 +327,8 @@ class MainWindow(Ui_MainWindow):
         if self.tabWidget.currentIndex() == self.tabWidget.indexOf(self.disk_tab):
             self.show_file_and_folder_lists()
 
-    def call_download_manager_thread(self, tasks: dict):
-        self.download_manager.add_tasks(tasks)
+    def call_task_manager_thread(self, tasks: dict):
+        self.task_manager.add_tasks(tasks)
         self._tasks.add(tasks)
         self.tabWidget.insertTab(3, self.jobs_tab, "任务管理")
         self.jobs_tab.setEnabled(True)
@@ -377,7 +371,7 @@ class MainWindow(Ui_MainWindow):
                     info = info[0]  # 文件夹中单文件信息
                     tasks[info.url] = DlJob(infos=info, path=self._config.path, total_file=1)
             logger.debug(f"manipulator, share tab {tasks=}")
-            self.call_download_manager_thread(tasks)
+            self.call_task_manager_thread(tasks)
         elif tab_page == self.tabWidget.indexOf(self.disk_tab):  # 登录文件界面下载
             if not infos:
                 return None
@@ -734,7 +728,7 @@ class MainWindow(Ui_MainWindow):
     def call_upload(self, tasks: dict):
         """上传文件(夹)"""
         self._old_work_id = self._work_id  # 记录上传文件夹id
-        self.upload_worker.add_tasks(tasks)
+        self.task_manager.add_tasks(tasks)
         self.tabWidget.insertTab(3, self.jobs_tab, "任务管理")
         self.jobs_tab.setEnabled(True)
         self._tasks.add(tasks)
@@ -793,15 +787,6 @@ class MainWindow(Ui_MainWindow):
                 table.selectAll()
                 btn.setText("取消")
                 btn.setIcon(QIcon(SRC_DIR + "select_none.ico"))
-
-    def finished_upload(self):
-        """上传完成调用"""
-        if self._old_work_id == self._work_id:
-            self.list_refresher.set_values(self._work_id, True, True, False)
-        else:
-            self._old_work_id = self._work_id
-        self.show_status("上传完成！", 7000)
-        self.show_jobs_lists()
 
     # disk tab
     def init_disk_ui(self):
@@ -973,57 +958,46 @@ class MainWindow(Ui_MainWindow):
         self._tasks.clear()
         self.show_jobs_lists()
 
+    def call_jobs_start_all(self):
+        for task in self._tasks.values():
+            if task.pause:
+                task.pause = False
+        self.task_manager.start()
+        self.show_jobs_lists()
+
     def call_show_mgr_finished(self, num: int):
         if num:
-            self.show_status(f"所有下载任务已完成！ <font color='red'>{num} 个任务失败</font>", 2999)
+            self.show_status(f"所有任务已完成！ <font color='red'>{num} 个任务失败</font>", 2999)
         else:
-            self.show_status("所有下载任务已完成！", 2999)
+            self.show_status("所有任务已完成！", 2999)
+        # 上传完成调用
+        if self._old_work_id == self._work_id:
+            self.list_refresher.set_values(self._work_id, True, True, False)
+        else:
+            self._old_work_id = self._work_id
+        self.show_jobs_lists()
 
     def update_jobs_info(self):
         self._tasks.update()
         self.show_jobs_lists()
 
-    def redo_upload(self, task):
-        logger.debug(f"re upload {task=}")
-        self.upload_worker.add_task(task)
+    def redo_job(self, task):
+        logger.debug(f"re do job {task=}")
+        self.task_manager.add_task(task)
 
-    def redo_download(self, task):
-        logger.debug(f"re download {task=}")
-        self.download_manager.add_task(task)
+    def start_work_job(self, task):
+        self.task_manager.start_task(task)
 
-    def start_download_job(self, task):
-        if task.type == 'dl':
-            self.download_manager.start_task(task)
-        else:
-            self.upload_worker.start_task(task)
+    def stop_work_job(self, task):
+        self.task_manager.stop_task(task)
 
-    def stop_download_job(self, task):
-        if task.type == 'dl':
-            self.download_manager.stop_task(task)
-        else:
-            self.upload_worker.stop_task(task)
-
-    def del_download_job(self, task):
-        if task.type == 'dl':
-            self.download_manager.del_task(task)
-        else:
-            self.upload_worker.del_task(task)
-        self._tasks.clear(task)
-        self.show_jobs_lists()
-
-    def start_upload_job(self, task):
-        self.upload_worker.start_task(task)
-
-    def stop_upload_job(self, task):
-        self.upload_worker.stop_task(task)
-
-    def del_upload_job(self, task):
-        self.upload_worker.del_task(task)
+    def del_work_job(self, task):
+        self.task_manager.del_task(task)
         self._tasks.clear(task)
         self.show_jobs_lists()
 
     def show_jobs_lists(self):
-        """任务列表"""
+        """显示任务列表"""
         self.model_jobs.removeRows(0, self.model_jobs.rowCount())  # 清理旧的内容
         download_ico = QIcon(SRC_DIR + "download.ico")
         upload_ico = QIcon(SRC_DIR + "upload.ico")
@@ -1045,43 +1019,32 @@ class MainWindow(Ui_MainWindow):
             name.setText(txt)
             name.setToolTip(txt)
             name.setData(task)
-            rate = "{:5.1f}".format(task.rate / 10)
+            rate = "{:5.1f}%".format(task.rate / 10)
             precent = QStandardItem(rate)  # precent
             self.model_jobs.appendRow([name, precent, QStandardItem(""), QStandardItem("")])
 
-            _action = QPushButton()
-            _action.resize(_action.sizeHint())
-            if task.run:
-                _action.setText("暂停")
-                _action.setStyleSheet(jobs_btn_completed_style)
-                _action.clicked.connect(lambda: self.stop_download_job(task))
-            else:
-                if task.rate >= 1000:
-                    _action.setText("删除")
-                    _action.clicked.connect(lambda: self.del_download_job(task))
-                elif task.info:
-                    _action.setText("重试")
-                    if task.type == 'dl':
-                        _action.clicked.connect(lambda: self.redo_download(task))
-                    else:
-                        _action.clicked.connect(lambda: self.redo_download(task))
-                else:
-                    _action.setText("开始")
-                    _action.clicked.connect(lambda: self.start_download_job(task))
-                _action.setStyleSheet(jobs_btn_completed_style)
-            self.table_jobs.setIndexWidget(self.model_jobs.index(_index, 3), _action)
-
             _status = QPushButton()
             _status.resize(_status.sizeHint())
+            _action = QPushButton()
+            _action.resize(_action.sizeHint())
+
+            _status.setDisabled(True)
             if task.rate >= 1000 and task.current >= task.total_file:
-                _status.setDisabled(True)
                 _status.setText("已完成")
                 _status.setStyleSheet(jobs_btn_completed_style)
+                _action.setText("删除")
+                _action.clicked.connect(lambda: self.del_work_job(task))
+                _action.setStyleSheet(jobs_btn_delete_style)
             elif task.info:
                 _status.setText("出错了")
-                # logger.debug(f"Task meet err: {task.run=}, {task.added=}, {task.pause=}, "
-                #              + f"{task.total_file=}, {task.current=}, {task.info=}")
                 _status.setStyleSheet(jobs_btn_redo_style)
+                if task.run:
+                    _action.setText("暂停")
+                    _action.clicked.connect(lambda: self.stop_work_job(task))
+                else:
+                    _action.setText("重试")
+                    _action.clicked.connect(lambda: self.redo_job(task))
+                _action.setStyleSheet(jobs_btn_completed_style)
             else:
                 if task.run:
                     if task.type == 'dl':
@@ -1089,11 +1052,26 @@ class MainWindow(Ui_MainWindow):
                     else:
                         _status.setText("上传中")
                     _status.setStyleSheet(jobs_btn_processing_style)
+                    _action.setText("暂停")
+                    _action.clicked.connect(lambda: self.stop_work_job(task))
+                    _action.setStyleSheet(jobs_btn_completed_style)
                 else:
-                    _status.setText("排队中")
-                    _status.setStyleSheet(jobs_btn_queue_style)
+                    if task.added:
+                        _status.setText("排队中")
+                        _status.setStyleSheet(jobs_btn_queue_style)
+
+                        _action.setText("删除")
+                        _action.clicked.connect(lambda: self.del_work_job(task))
+                    else:
+                        _status.setText("暂停中")
+                        _status.setStyleSheet(jobs_btn_redo_style)
+
+                        _action.setText("开始")
+                        _action.clicked.connect(lambda: self.start_work_job(task))
+                _action.setStyleSheet(jobs_btn_completed_style)
 
             self.table_jobs.setIndexWidget(self.model_jobs.index(_index, 2), _status)
+            self.table_jobs.setIndexWidget(self.model_jobs.index(_index, 3), _action)
             _index += 1
 
         for row in range(self.model_jobs.rowCount()):  # 右对齐
@@ -1106,6 +1084,7 @@ class MainWindow(Ui_MainWindow):
         self.config_tableview("jobs")
         self.jobs_tab.setEnabled(True)
         self.btn_jobs_clean_all.clicked.connect(self.call_jobs_clean_all)  # 信号
+        self.btn_jobs_start_all.clicked.connect(self.call_jobs_start_all)  # 信号
 
     # others
     def clean_status(self):

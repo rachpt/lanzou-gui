@@ -222,7 +222,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.btn_recovery_all.setText(_translate("MainWindow", "全部还原"))
         self.btn_rec_expire_files.setText(_translate("MainWindow", "过期文件"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.rec_tab), _translate("MainWindow", "回收站"))
-        self.btn_jobs_start_all.setText(_translate("MainWindow", "开始所有任务"))
+        self.btn_jobs_start_all.setText(_translate("MainWindow", "开始所有暂停任务"))
         self.btn_jobs_clean_all.setText(_translate("MainWindow", "删除已完成任务"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.jobs_tab), _translate("MainWindow", "任务管理"))
         self.acount.setTitle(_translate("MainWindow", "登录"))
