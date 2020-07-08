@@ -89,10 +89,10 @@ class InfoDialog(QDialog):
         url = self.tx_share_url.text()
         pwd = self.tx_pwd.text()
         self.get_dl_link.emit(url, pwd)
-        self.tx_dl_link.setPlaceholderText("后台获取中，请稍后！")
+        self.tx_dl_link.setPlaceholderText("后台获取中，请稍候！")
 
     def call_get_short_url(self):
-        self.tx_short.setPlaceholderText("后台获取中，请稍后！")
+        self.tx_short.setPlaceholderText("后台获取中，请稍候！")
         url = self.tx_share_url.text()
         from lanzou.api.extra import get_short_url
 

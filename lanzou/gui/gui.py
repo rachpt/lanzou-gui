@@ -819,7 +819,7 @@ class MainWindow(Ui_MainWindow):
         # 显示弹出对话框
         dir_data = self.model_rec.item(dir_name.row(), 0).data()  # 文件夹信息
         if isinstance(dir_data, RecFolder):
-            self.show_status(f"正在获取文件夹 {dir_data.name} 信息，稍后", 10000)
+            self.show_status(f"正在获取文件夹 {dir_data.name} 信息，稍候", 10000)
             self.get_rec_lists_worker.set_values(dir_data.id)
 
     def update_rec_lists(self, dir_lists, file_lists):

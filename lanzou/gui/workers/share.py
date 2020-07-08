@@ -40,7 +40,7 @@ class GetSharedInfo(QThread):
             elif is_folder_url(share_url):  # 文件夹链接
                 is_folder = True
                 is_file = False
-                self.msg.emit("正在获取文件夹链接信息，可能需要几秒钟，请稍后……", 30000)
+                self.msg.emit("正在获取文件夹链接信息，可能需要几秒钟，请稍候……", 30000)
             else:
                 self.msg.emit(f"{share_url} 为非法链接！", 0)
                 self.update.emit()
