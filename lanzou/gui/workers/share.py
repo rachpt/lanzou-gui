@@ -30,6 +30,7 @@ class GetSharedInfo(QThread):
     def set_values(self, text):
         '''获取分享链接信息'''
         if not text:
+            self.update.emit()
             return None
         for share_url, _, pwd in re.findall(self._pat, text):
             if is_file_url(share_url):  # 文件链接
