@@ -198,6 +198,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.set_window_at_center()
         self.create_left_menus()
         self.init_main_menu()
+        self.text_add_shadow()
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
@@ -290,3 +291,22 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.setting_menu.setText("设置")
         self.setting_menu.setIcon(QtGui.QIcon(SRC_DIR + "settings.ico"))
         self.setting_menu.setShortcut("Ctrl+P")  # 设置快捷键
+
+    def text_add_shadow(self):
+        share_url_shadow = QtWidgets.QGraphicsDropShadowEffect()
+        share_url_shadow.setBlurRadius(4)
+        share_url_shadow.setColor(QtGui.QColor('red'))
+        share_url_shadow.setOffset(0)
+        self.label_share_url.setGraphicsEffect(share_url_shadow)
+
+        dl_path_shadow = QtWidgets.QGraphicsDropShadowEffect()
+        dl_path_shadow.setBlurRadius(4)
+        dl_path_shadow.setColor(QtGui.QColor('green'))
+        dl_path_shadow.setOffset(0)
+        self.label_dl_path.setGraphicsEffect(dl_path_shadow)
+
+        disk_loc_shadow = QtWidgets.QGraphicsDropShadowEffect()
+        disk_loc_shadow.setBlurRadius(5)
+        disk_loc_shadow.setColor(QtGui.QColor('white'))
+        disk_loc_shadow.setOffset(0)
+        self.label_disk_loc.setGraphicsEffect(disk_loc_shadow)

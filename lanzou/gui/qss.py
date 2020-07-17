@@ -163,6 +163,27 @@ QTabBar::tab:hover {
 QStatusBar::item {
     border: None;
 }
+/*菜单栏*/
+#menubar {
+    background-color: transparent;
+}
+QMenuBar::item {
+    color:pink;
+    margin-top:4px;
+    spacing: 3px;
+    padding: 1px 10px;
+    background: transparent;
+    border-radius: 4px;
+}
+/* when selected using mouse or keyboard */
+QMenuBar::item:selected {
+    color: white;
+    background: #a8a8a8;
+}
+QMenuBar::item:pressed {
+    color: lightgreen;
+    background: #888888;
+}
 '''
 
 qssStyle = qssStyle + f"""\n#MainWindow {{
