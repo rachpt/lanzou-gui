@@ -104,7 +104,7 @@ class MainWindow(Ui_MainWindow):
         """主菜单添加槽函数"""
         self.login.triggered.connect(self.show_login_dialog)  # 登录
         self.toolbar.addAction(self.login)
-        self.logout.triggered.connect(lambda: self.logout_worker.set_values(True))  # 登出
+        self.logout.triggered.connect(self.call_logout)  # 登出
         self.how.triggered.connect(self.open_wiki_url)
         self.about.triggered.connect(self.about_dialog.exec)
         self.files.addAction(self.setting_menu)
@@ -397,6 +397,7 @@ class MainWindow(Ui_MainWindow):
                 for i in infos:
                     msg += f"{i.time}\t{i.name}\t{i.size}\n"
             message_box = QMessageBox(self)
+            message_box.setIcon(QMessageBox.Warning)
             message_box.setStyleSheet(btn_style)
             message_box.setWindowTitle(title)
             message_box.setText(msg)
@@ -481,6 +482,21 @@ class MainWindow(Ui_MainWindow):
             self.login_luncher.set_values(username, password, cookie)
         except Exception as err:
             logger.error(f"Login: {err=}")
+
+    def call_logout(self):
+        """登出确认对话框"""
+        message_box = QMessageBox(self)
+        message_box.setStyleSheet(btn_style)
+        message_box.setIcon(QMessageBox.Question)
+        message_box.setWindowTitle("确认登出")
+        message_box.setText("提示：登出不会删除已经保存的用户信息！\n\n是否确认登出？")
+        message_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        buttonY = message_box.button(QMessageBox.Yes)
+        buttonY.setText('确定')
+        buttonN = message_box.button(QMessageBox.No)
+        buttonN.setText('取消')
+        message_box.accepted.connect(lambda: self.logout_worker.set_values(True))
+        message_box.exec()
 
     def show_file_and_folder_lists(self):
         """显示用户文件和文件夹列表"""
@@ -1134,6 +1150,7 @@ class MainWindow(Ui_MainWindow):
 
     def show_new_version_msg(self, ver, msg):
         message_box = QMessageBox(self)
+        message_box.setIcon(QMessageBox.Information)
         message_box.setStyleSheet(btn_style)
         message_box.setWindowTitle(f"检测到新版 {ver}")
         message_box.setText(msg)

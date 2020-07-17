@@ -177,6 +177,7 @@ class LoginDialog(QDialog):
             title = '请选择账户'
             msg = '请单击选择需要删除的账户\n\n注意不能删除当前账户(绿色)'
         message_box = QMessageBox(self)
+        message_box.setIcon(QMessageBox.Critical)
         message_box.setStyleSheet(btn_style)
         message_box.setWindowTitle(title)
         message_box.setText(msg)
@@ -307,6 +308,7 @@ class LoginDialog(QDialog):
                   '如果不嫌文件体积大，请下载登录辅助程序：\n' + \
                   'https://github.com/rachpt/lanzou-gui/releases'
             message_box = QMessageBox(self)
+            message_box.setIcon(QMessageBox.Critical)
             message_box.setStyleSheet(btn_style)
             message_box.setWindowTitle(title)
             message_box.setText(msg)
