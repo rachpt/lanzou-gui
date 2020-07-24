@@ -46,7 +46,7 @@ Arch Linux [AUR](https://aur.archlinux.org/packages/lanzou-gui/)，感谢 [@bruc
 yay -S lanzou-gui
 ```
 
-使用了 海象运算符 与 f-string，需要 python >= 3.8。
+python >= 3.6。
 
 [Gitee 镜像 repo](https://gitee.com/rachpt/lanzou-gui)，[命令行版本](https://github.com/zaxtyson/LanZouCloud-CMD)。
 
