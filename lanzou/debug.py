@@ -1,5 +1,5 @@
 '''
-调试日志设置
+调试日志设置，全局常量
 '''
 
 import os
@@ -9,14 +9,29 @@ import logging
 __all__ = ['logger']
 
 
-# 全局常量
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.dirname(ROOT_DIR)
-SRC_DIR = ROOT_DIR + os.sep + "src" + os.sep
+# 全局常量: DL_DIR, SRC_DIR, BG_IMG, CONFIG_FILE
+if os.name == 'posix':  # Linux and MacOS
+    root_dir = os.path.expanduser('~') + os.sep + '.config' + os.sep + 'lanzou-gui'
+    if not os.path.exists(root_dir):
+        os.makedirs(root_dir)
+    DL_DIR = os.path.expanduser('~') + os.sep + 'Downloads'
+else:  # Windows
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.dirname(root_dir)
+    import winreg
+
+    sub_key = r'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders'
+    downloads_guid = '{374DE290-123F-4565-9164-39C4925E467B}'
+    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, sub_key) as key:
+        DL_DIR = winreg.QueryValueEx(key, downloads_guid)[0]
+
+SRC_DIR = root_dir + os.sep + "src" + os.sep
 BG_IMG = (SRC_DIR + "default_background_img.jpg").replace('\\', '/')
+CONFIG_FILE = root_dir + os.sep + 'config.pkl'
 
 
-log_file = ROOT_DIR + os.sep + 'debug-lanzou-gui.log'
+# 日志设置
+log_file = root_dir + os.sep + 'debug-lanzou-gui.log'
 logger = logging.getLogger('lanzou')
 fmt_str = "%(asctime)s [%(filename)s:%(lineno)d] %(funcName)s %(levelname)s - %(message)s"
 logging.basicConfig(level=logging.ERROR,

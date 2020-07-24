@@ -1,18 +1,16 @@
-from os import sep
 from pickle import load, dump
-from lanzou.debug import ROOT_DIR
+from lanzou.debug import CONFIG_FILE, DL_DIR
 
 __all__ = ['config']
 
-KEY = 152  # 加密
-config_file = ROOT_DIR + sep + '.config'
+KEY = 152  # config 加密 key
 
 
 default_settings = {
     "download_threads": 3,     # 同时三个下载任务
     "timeout": 5,              # 每个请求的超时 s(不包含下载响应体的用时)
     "max_size": 100,           # 单个文件大小上限 MB
-    "dl_path": ROOT_DIR + sep + "downloads",
+    "dl_path": DL_DIR,
     "time_fmt": False,         # 是否使用年月日时间格式
     "to_tray": False,          # 关闭到系统托盘
     "watch_clipboard": False,  # 监听系统剪切板
@@ -66,7 +64,7 @@ def decrypt(ksa, s):
 
 
 def save_config(cf):
-    with open(config_file, 'wb') as f:
+    with open(CONFIG_FILE, 'wb') as f:
         dump(cf, f)
 
 
@@ -220,7 +218,7 @@ class Config:
 
 # 全局配置对象
 try:
-    with open(config_file, 'rb') as c:
+    with open(CONFIG_FILE, 'rb') as c:
         config = load(c)
 except:
     config = Config()
