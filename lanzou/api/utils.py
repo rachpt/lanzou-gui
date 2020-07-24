@@ -97,7 +97,7 @@ def is_name_valid(filename: str) -> bool:
 def is_file_url(share_url: str) -> bool:
     """判断是否为文件的分享链接"""
     base_pat = r'https?://(\w[-\w]*\.)?lanzou[six].com/.+'
-    user_pat = r'https?://(\w[-\w]*\.)?lanzou[six].com/i[\w]{5,}/?'  # 普通用户 URL 规则
+    user_pat = r'https?://(\w[-\w]*\.)?lanzou[six].com/i[a-zA-Z0-9]{5,}/?'  # 普通用户 URL 规则
     if not re.fullmatch(base_pat, share_url):
         return False
     elif re.fullmatch(user_pat, share_url):
@@ -115,7 +115,7 @@ def is_file_url(share_url: str) -> bool:
 def is_folder_url(share_url: str) -> bool:
     """判断是否为文件夹的分享链接"""
     base_pat = r'https?://(\w[-\w]*\.)?lanzou[six].com/.+'
-    user_pat = r'https?://(\w[-\w]*\.)?lanzou[six].com/b[\w]{7,}/?'
+    user_pat = r'https?://(\w[-\w]*\.)?lanzou[six].com/b[a-zA-Z0-9]{7,}/?'
     if not re.fullmatch(base_pat, share_url):
         return False
     elif re.fullmatch(user_pat, share_url):

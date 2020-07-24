@@ -22,7 +22,7 @@ class GetSharedInfo(QThread):
         self.is_folder = ""
         self._mutex = QMutex()
         self._is_work = False
-        self._pat = r"(https?://(\w[-\w]*\.)?lanzou[six].com/[bi]?[A-Za-z0-9]+)[^0-9a-z]*([a-z0-9]+)?"
+        self._pat = r"(https?://(\w[-\w]*\.)?lanzou[six].com/[bi]?[a-zA-Z0-9]+)[^a-zA-Z0-9]*([a-zA-Z0-9]+)?"
 
     def set_disk(self, disk):
         self._disk = disk

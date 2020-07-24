@@ -1193,7 +1193,7 @@ class MainWindow(Ui_MainWindow):
         if not self.watch_clipboard:
             return
         text = self.clipboard.text()
-        pat = r"(https?://(\w[-\w]*\.)?lanzou[six].com/[bi]?[a-z0-9]+)[^0-9a-z]*([a-z0-9]+)?"
+        pat = r"(https?://(\w[-\w]*\.)?lanzou[six].com/[bi]?[a-zA-Z0-9]+)[^a-zA-Z0-9]*([a-zA-Z0-9]+)?"
         for share_url, _, pwd in re.findall(pat, text):
             if share_url and not self.get_shared_info_thread.isRunning():
                 self.line_share_url.setEnabled(False)
