@@ -14,9 +14,9 @@ class UploadDialog(QDialog):
     """文件上传对话框"""
     new_infos = pyqtSignal(object)
 
-    def __init__(self):
+    def __init__(self, user_home):
         super().__init__()
-        self.cwd = os.getcwd()
+        self.cwd = user_home
         self._folder_id = -1
         self._folder_name = "LanZouCloud"
         self.set_pwd = False

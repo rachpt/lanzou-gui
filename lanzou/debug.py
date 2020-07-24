@@ -9,13 +9,9 @@ import logging
 __all__ = ['logger']
 
 
-# 全局常量: DL_DIR, SRC_DIR, BG_IMG, CONFIG_FILE
-if os.name == 'posix':  # Linux and MacOS
-    root_dir = os.path.expanduser('~') + os.sep + '.config' + os.sep + 'lanzou-gui'
-    if not os.path.exists(root_dir):
-        os.makedirs(root_dir)
-    DL_DIR = os.path.expanduser('~') + os.sep + 'Downloads'
-else:  # Windows
+# 全局常量: USER_HOME, DL_DIR, SRC_DIR, BG_IMG, CONFIG_FILE
+USER_HOME = os.path.expanduser('~')
+if os.name == 'nt':  # Windows
     root_dir = os.path.dirname(os.path.abspath(__file__))
     root_dir = os.path.dirname(root_dir)
     import winreg
@@ -24,6 +20,11 @@ else:  # Windows
     downloads_guid = '{374DE290-123F-4565-9164-39C4925E467B}'
     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, sub_key) as key:
         DL_DIR = winreg.QueryValueEx(key, downloads_guid)[0]
+else:  # Linux and MacOS ...
+    root_dir = USER_HOME + os.sep + '.config' + os.sep + 'lanzou-gui'
+    if not os.path.exists(root_dir):
+        os.makedirs(root_dir)
+    DL_DIR = USER_HOME + os.sep + 'Downloads'
 
 SRC_DIR = root_dir + os.sep + "src" + os.sep
 BG_IMG = (SRC_DIR + "default_background_img.jpg").replace('\\', '/')

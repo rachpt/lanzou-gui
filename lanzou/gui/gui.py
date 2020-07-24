@@ -22,7 +22,7 @@ from lanzou.gui.workers.manager import change_size_unit
 from lanzou.gui.dialogs import *
 from lanzou.gui.qss import *
 from lanzou.gui import version
-from lanzou.debug import logger, SRC_DIR
+from lanzou.debug import logger, USER_HOME, SRC_DIR
 
 
 __ALL__ = ['MainWindow']
@@ -244,7 +244,7 @@ class MainWindow(Ui_MainWindow):
         self.remove_files_worker.msg.connect(self.show_status)  # 显示错误提示
         self.remove_files_worker.finished.connect(lambda: self.list_refresher.set_values(self._work_id))  # 更新界面
         # 上传器，信号在登录更新界面设置
-        self.upload_dialog = UploadDialog()
+        self.upload_dialog = UploadDialog(USER_HOME)
         self.upload_dialog.new_infos.connect(self.call_upload)
         # 文件描述与提取码更新器
         self.desc_pwd_fetcher = DescPwdFetcher()
@@ -931,7 +931,7 @@ class MainWindow(Ui_MainWindow):
 
     def set_download_path(self):
         """设置下载路径"""
-        dl_path = QFileDialog.getExistingDirectory()
+        dl_path = QFileDialog.getExistingDirectory(self, "选择文件下载保存文件夹", self._config.path)
         dl_path = os.path.normpath(dl_path)  # windows backslash
         if dl_path == self._config.path or dl_path == ".":
             return None

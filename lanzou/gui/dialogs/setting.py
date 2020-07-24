@@ -14,7 +14,6 @@ class SettingDialog(QDialog):
 
     def __init__(self, parent=None):
         super(SettingDialog, self).__init__(parent)
-        self.cwd = os.getcwd()
         self._config = object
         self.download_threads = 3
         self.max_size = 100
@@ -41,6 +40,7 @@ class SettingDialog(QDialog):
             self.setWindowTitle(f"设置 <{self._config.name}>")
         else:
             self.setWindowTitle("设置")
+        self.cwd = self._config.path
         self.set_values()
         self.exec()
 
