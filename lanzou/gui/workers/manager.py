@@ -121,7 +121,7 @@ class TaskManager(QThread):
                 self._workers[task.url].stop()
                 self._tasks[task.url].run = False
             except Exception as err:
-                logger.error(f"Stop task: {err=}")
+                logger.error(f"Stop task: err={err}")
         else:
             logger.debug(f"Stop job: {task.url} is not running!")
         self.update.emit()
@@ -148,7 +148,7 @@ class TaskManager(QThread):
         self.start()
 
     def add_tasks(self, tasks: dict):
-        logger.debug(f"TaskMgr add: {tasks=}")
+        logger.debug(f"TaskMgr add: tasks={tasks}")
         self._tasks.update(tasks)
         self.start()
 
@@ -202,7 +202,7 @@ class TaskManager(QThread):
                     return None
             else:
                 failed_task_num += 1
-        logger.debug(f"TaskMgr all finished!: {failed_task_num=}")
+        logger.debug(f"TaskMgr all finished!: failed_task_num={failed_task_num}")
         self.mgr_finished.emit(failed_task_num)
 
     def stop(self):
@@ -237,6 +237,6 @@ class TaskManager(QThread):
                     self._workers[task.url].failed.connect(self._ahead_error)
                     self._workers[task.url].start()
                 except Exception as err:
-                    logger.error(f"TaskMgr Error: {err=}")
+                    logger.error(f"TaskMgr Error: err={err}")
             self._is_work = False
             self._mutex.unlock()

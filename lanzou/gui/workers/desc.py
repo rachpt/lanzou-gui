@@ -70,7 +70,7 @@ class DescPwdFetcher(QThread):
             except UserWarning:
                 pass
             except Exception as e:
-                logger.error(f"GetPwdFetcher error: {e=}")
+                logger.error(f"GetPwdFetcher error: e={e}")
             self._is_work = False
             self._mutex.unlock()
         else:

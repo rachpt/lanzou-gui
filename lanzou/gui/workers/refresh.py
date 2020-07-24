@@ -68,7 +68,7 @@ class ListRefresher(QThread):
                 self.err_msg.emit("网络超时，无法更新目录，稍后再试！", 7000)
             except Exception as e:
                 self.err_msg.emit("未知错误，无法更新目录，稍后再试！", 7000)
-                logger.error(f"ListRefresher error: {e=}")
+                logger.error(f"ListRefresher error: e={e}")
             else:
                 self.infos.emit(emit_infos)
             self._is_work = False

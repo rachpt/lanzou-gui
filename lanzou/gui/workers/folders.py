@@ -72,7 +72,7 @@ class GetAllFoldersWorker(QThread):
                     except TimeoutError:
                         self.msg.emit(f"移动文件(夹) {info.name} 失败，网络超时！请稍后重试", 5000)
                     except Exception as e:
-                        logger.error(f"GetAllFoldersWorker error: {e=}")
+                        logger.error(f"GetAllFoldersWorker error: e={e}")
                         self.msg.emit(f"移动文件(夹) {info.name} 失败，未知错误！", 5000)
                 if no_err:  # 没有错误就更新ui
                     sleep(2.1)  # 等一段时间后才更新文件列表
@@ -86,7 +86,7 @@ class GetAllFoldersWorker(QThread):
                 except TimeoutError:
                     self.msg.emit("网络超时！稍后重试", 6000)
                 except Exception as e:
-                    logger.error(f"GetAllFoldersWorker error: {e=}")
+                    logger.error(f"GetAllFoldersWorker error: e={e}")
             self._is_work = False
             self._mutex.unlock()
         else:

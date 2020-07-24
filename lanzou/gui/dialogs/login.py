@@ -41,7 +41,8 @@ class LoginDialog(QDialog):
 
     def update_selection(self, user):
         """显示已经保存的登录用户信息"""
-        if user_info := self._config.get_user_info(user):
+        user_info = self._config.get_user_info(user)
+        if user_info:
             self._user = user_info[0]
             self._pwd = user_info[1]
             self._cookie = user_info[2]

@@ -97,7 +97,7 @@ def is_name_valid(filename: str) -> bool:
 def is_file_url(share_url: str) -> bool:
     """判断是否为文件的分享链接"""
     base_pat = r'https?://(\w[-\w]*\.)?lanzou[six].com/.+'
-    user_pat = r'https?://(\w[-\w]*\.)?lanzou[six].com/i[a-z0-9]{5,}/?'  # 普通用户 URL 规则
+    user_pat = r'https?://(\w[-\w]*\.)?lanzou[six].com/i[\w]{5,}/?'  # 普通用户 URL 规则
     if not re.fullmatch(base_pat, share_url):
         return False
     elif re.fullmatch(user_pat, share_url):
@@ -108,14 +108,14 @@ def is_file_url(share_url: str) -> bool:
             html = remove_notes(html)
             return True if re.search(r'class="fileinfo"|id="file"|文件描述', html) else False
         except (requests.RequestException, Exception) as e:
-            logger.error(f"Unexpected error: {e=}")
+            logger.error(f"Unexpected error: e={e}")
             return False
 
 
 def is_folder_url(share_url: str) -> bool:
     """判断是否为文件夹的分享链接"""
     base_pat = r'https?://(\w[-\w]*\.)?lanzou[six].com/.+'
-    user_pat = r'https?://(\w[-\w]*\.)?lanzou[six].com/b[a-z0-9]{7,}/?'
+    user_pat = r'https?://(\w[-\w]*\.)?lanzou[six].com/b[\w]{7,}/?'
     if not re.fullmatch(base_pat, share_url):
         return False
     elif re.fullmatch(user_pat, share_url):
@@ -126,7 +126,7 @@ def is_folder_url(share_url: str) -> bool:
             html = remove_notes(html)
             return True if re.search(r'id="infos"', html) else False
         except (requests.RequestException, Exception) as e:
-            logger.error(f"Unexpected error: {e=}")
+            logger.error(f"Unexpected error: e={e}")
             return False
 
 
@@ -138,7 +138,7 @@ def un_serialize(data: bytes):
             return None
         return ret
     except Exception as e:  # 这里可能会丢奇怪的异常
-        logger.debug(f"Pickle {e=}")
+        logger.debug(f"Pickle e={e}")
         return None
 
 

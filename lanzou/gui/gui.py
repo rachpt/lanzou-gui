@@ -152,7 +152,7 @@ class MainWindow(Ui_MainWindow):
         """更新LanzouCloud实例设置"""
         self._user = self._config.name
         settings = self._config.settings
-        self._disk.set_captcha_handler(self.captcha_handler)
+        # self._disk.set_captcha_handler(self.captcha_handler)
         self._disk.set_timeout(settings["timeout"])
         self._disk.set_max_size(settings["max_size"])
         self.task_manager.set_thread(settings["download_threads"])  # 同时下载任务数量
@@ -293,7 +293,7 @@ class MainWindow(Ui_MainWindow):
         self._captcha_code = code
 
     def captcha_handler(self, img_data):
-        """处理下载时出现的验证码"""
+        """处理下载时出现的验证码(暂时不需要了)"""
         self.captcha_dialog.handle(img_data)
         self._captcha_code = None
         self.captcha_dialog.exec()
@@ -370,15 +370,15 @@ class MainWindow(Ui_MainWindow):
                 for info in infos:
                     info = info[0]  # 文件夹中单文件信息
                     tasks[info.url] = DlJob(infos=info, path=self._config.path, total_file=1)
-            logger.debug(f"manipulator, share tab {tasks=}")
+            logger.debug(f"manipulator, share tab tasks={tasks}")
             self.call_task_manager_thread(tasks)
         elif tab_page == self.tabWidget.indexOf(self.disk_tab):  # 登录文件界面下载
             if not infos:
                 return None
-            logger.debug(f"manipulator, disk tab {infos=}")
+            logger.debug(f"manipulator, disk tab infos={infos}")
             self.desc_pwd_fetcher.set_values(infos, download=True, dl_path=self._config.path)
         elif tab_page == self.tabWidget.indexOf(self.rec_tab):  # 回收站
-            logger.debug(f"manipulator, rec tab {action=}")
+            logger.debug(f"manipulator, rec tab action={action}")
             if action == "recovery":
                 title = "确定恢复选定文件(夹)？"
             elif action == "delete":
@@ -481,7 +481,7 @@ class MainWindow(Ui_MainWindow):
             self.show_status("正在登陆，稍候……", 25000)
             self.login_luncher.set_values(username, password, cookie)
         except Exception as err:
-            logger.error(f"Login: {err=}")
+            logger.error(f"Login: err={err}")
 
     def call_logout(self):
         """登出确认对话框"""
@@ -998,7 +998,7 @@ class MainWindow(Ui_MainWindow):
         self.show_jobs_lists()
 
     def redo_job(self, task):
-        logger.debug(f"re do job {task=}")
+        logger.debug(f"re do job task={task}")
         self.task_manager.add_task(task)
 
     def start_work_job(self, task):

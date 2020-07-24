@@ -47,7 +47,7 @@ class CheckUpdateWorker(QThread):
                 except:
                     logger.debug("chcek update from gitee error")
             except Exception as e:
-                logger.error(f"CheckUpdateWorker error: {e=}")
+                logger.error(f"CheckUpdateWorker error: e={e}")
             if resp:
                 try:
                     tag_name, msg = resp['tag_name'], resp['body']
@@ -70,7 +70,7 @@ class CheckUpdateWorker(QThread):
                     if self._manual:
                         self.infos.emit("v0.0.0", "检查更新时发生异常，请重试！")
                 except Exception as e:
-                    logger.error(f"Check Update Version error: {e=}")
+                    logger.error(f"Check Update Version error: e={e}")
             else:
                 if self._manual:
                     self.infos.emit("v0.0.0", f"检查更新时 <a href='{self._api}'>api.github.com</a>、<a href='{self._api_mirror}'>gitee.com</a> 拒绝连接，请稍后重试！")

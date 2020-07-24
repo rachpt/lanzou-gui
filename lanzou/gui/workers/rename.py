@@ -82,7 +82,7 @@ class RenameMkdirWorker(QThread):
             except TimeoutError:
                 self.msg.emit("网络超时，请稍后重试！", 6000)
             except Exception as e:
-                logger.error(f"RenameMikdirWorker error: {e=}")
+                logger.error(f"RenameMikdirWorker error: e={e}")
 
             self._is_work = False
             self._mutex.unlock()

@@ -34,10 +34,10 @@ class LoginLuncher(QThread):
                         username = self._disk.get_user_name()
                         if isinstance(username, str):
                             self.update_username.emit(username)
-                        logger.debug(f"login by Cookie: {username=}")
+                        logger.debug(f"login by Cookie: username={username}")
                     self.code.emit(True, "<font color='#00CC00'>通过<b>Cookie</b>登录<b>成功</b>！ ≧◉◡◉≦</font>", 5000)
                     return None
-                logger.debug(f"login by Cookie err: {res=}")
+                logger.debug(f"login by Cookie err: res={res}")
             if (not self.username or not self.password) and not self.cookie:
                 logger.debug("login err: No UserName、No cookie")
                 self.code.emit(False, "<font color='red'>登录失败: 没有用户或密码</font>", 3000)
@@ -48,13 +48,13 @@ class LoginLuncher(QThread):
                     _cookie = self._disk.get_cookie()
                     self.update_cookie.emit(_cookie)
                 else:
-                    logger.debug(f"login err: {res=}")
+                    logger.debug(f"login err: res={res}")
                     self.code.emit(False, "<font color='red'>登录失败，可能是用户名或密码错误！</font>", 8000)
                     self.update_cookie.emit(None)
         except TimeoutError:
             self.code.emit(False, "<font color='red'>网络超时！</font>", 3000)
         except Exception as e:
-            logger.error(f"LoginLuncher error: {e=}")
+            logger.error(f"LoginLuncher error: e={e}")
 
 
 class LogoutWorker(QThread):
@@ -99,7 +99,7 @@ class LogoutWorker(QThread):
             except TimeoutError:
                 self.msg.emit("网络超时，请稍后重试！", 6000)
             except Exception as e:
-                logger.error(f"LogoutWorker error: {e=}")
+                logger.error(f"LogoutWorker error: e={e}")
             self._is_work = False
             self._mutex.unlock()
         else:

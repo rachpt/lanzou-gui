@@ -67,7 +67,7 @@ class SetPwdWorker(QThread):
             except UserWarning:
                 pass
             except Exception as e:
-                logger.error(f"SetPwdWorker error: {e=}")
+                logger.error(f"SetPwdWorker error: e={e}")
             self._is_work = False
             self._mutex.unlock()
         else:

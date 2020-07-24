@@ -73,7 +73,7 @@ class GetMoreInfoWorker(QThread):
             except TimeoutError:
                 self.msg.emit("网络超时！稍后重试", 6000)
             except Exception as e:
-                logger.error(f"GetMoreInfoWorker error: {e=}")
+                logger.error(f"GetMoreInfoWorker error: e={e}")
             self._is_work = False
             self._url = ''
             self._pwd = ''

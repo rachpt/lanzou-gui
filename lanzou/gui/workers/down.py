@@ -53,15 +53,15 @@ class Downloader(QThread):
                 self.update.emit()
             else:
                 self._task.info = why_error(res)
-                logger.debug(f"Download : {res=}")
+                logger.debug(f"Download : res={res}")
                 self.failed.emit()
         except TimeoutError:
             self._task.info = "网络连接错误！"
             logger.error("Download TimeOut")
             self.failed.emit()
         except Exception as err:
-            self._task.info = f"未知错误！{err=}"
-            logger.error(f"Download error: {err=}")
+            self._task.info = f"未知错误！err={err}"
+            logger.error(f"Download error: err={err}")
             self.failed.emit()
         except UserWarning: pass
         self._task.run = False

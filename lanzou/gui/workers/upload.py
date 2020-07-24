@@ -51,7 +51,7 @@ class Uploader(QThread):
             self._task.info = LanZouCloud.NETWORK_ERROR
             self.update.emit()
         except Exception as err:
-            logger.error(f"Upload error: {err=}")
+            logger.error(f"Upload error: err={err}")
             self._task.info = err
             self.update.emit()
         else:

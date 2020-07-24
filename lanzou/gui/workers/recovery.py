@@ -54,7 +54,7 @@ class GetRecListsWorker(QThread):
             except UserWarning:
                 pass
             except Exception as e:
-                logger.error(f"GetRecListsWorker error: {e=}")
+                logger.error(f"GetRecListsWorker error: e={e}")
             self._is_work = False
             self._mutex.unlock()
         else:
@@ -134,7 +134,7 @@ class RecManipulator(QThread):
             except TimeoutError:
                 self.msg.emit("网络超时，请稍后重试！", 6000)
             except Exception as e:
-                logger.error(f"RecManipulator error: {e=}")
+                logger.error(f"RecManipulator error: e={e}")
             self._is_work = False
             self._action = None
             self._folders = []

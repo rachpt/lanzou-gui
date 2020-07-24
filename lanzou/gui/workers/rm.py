@@ -43,7 +43,7 @@ class RemoveFilesWorker(QThread):
                 except TimeoutError:
                     self.msg.emit(f"删除 {i['name']} 因网络超时失败！", 3000)
                 except Exception as e:
-                    logger.error(f"RemoveFileWorker error: {e=}")
+                    logger.error(f"RemoveFileWorker error: e={e}")
             self.finished.emit()
             self._is_work = False
             self._mutex.unlock()
