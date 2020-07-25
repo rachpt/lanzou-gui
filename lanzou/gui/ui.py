@@ -167,6 +167,10 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.download.setObjectName("download")
         self.delete = QtWidgets.QAction(MainWindow)
         self.delete.setObjectName("delete")
+        self.show_toolbar = QtWidgets.QAction(MainWindow)
+        self.show_toolbar.setObjectName("show_toolbar")
+        self.setting_menu = QtWidgets.QAction(MainWindow)
+        self.setting_menu.setObjectName("setting_menu")
         self.how = QtWidgets.QAction(MainWindow)
         self.how.setObjectName("how")
         self.about = QtWidgets.QAction(MainWindow)
@@ -177,12 +181,15 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.files.addAction(self.upload)
         self.files.addAction(self.download)
         self.files.addAction(self.delete)
+        self.files.addAction(self.show_toolbar)
+        self.files.addAction(self.setting_menu)
         self.help.addAction(self.how)
         self.help.addAction(self.about)
         self.menubar.addAction(self.acount.menuAction())
         self.menubar.addAction(self.files.menuAction())
         self.menubar.addAction(self.help.menuAction())
-
+        # 工具栏
+        self.toolbar.addAction(self.login)
         # 状态栏
         self.statusbar_msg_label = QtWidgets.QLabel()
         self.statusbar_load_lb = QtWidgets.QLabel()
@@ -229,12 +236,14 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.acount.setTitle(_translate("MainWindow", "登录"))
         self.files.setTitle(_translate("MainWindow", "文件"))
         self.help.setTitle(_translate("MainWindow", "帮助"))
-        self.toolbar.setWindowTitle(_translate("MainWindow", "toolBar"))
+        self.toolbar.setWindowTitle(_translate("MainWindow", "工具栏"))
         self.login.setText(_translate("MainWindow", "登录"))
         self.logout.setText(_translate("MainWindow", "登出"))
         self.upload.setText(_translate("MainWindow", "上传"))
         self.download.setText(_translate("MainWindow", "下载"))
         self.delete.setText(_translate("MainWindow", "删除"))
+        self.show_toolbar.setText(_translate("MainWindow", "显示工具栏"))
+        self.setting_menu.setText(_translate("MainWindow", "设置"))
         self.how.setText(_translate("MainWindow", "使用说明"))
         self.about.setText(_translate("MainWindow", "关于"))
 
@@ -273,24 +282,25 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.login.setShortcut("Ctrl+L")
         self.logout.setIcon(QtGui.QIcon(SRC_DIR + "logout.ico"))
         self.logout.setShortcut("Ctrl+Q")    # 登出快捷键
-        self.download.setShortcut("Ctrl+J")
+        self.logout.setEnabled(False)  # 初始状态
         self.download.setIcon(QtGui.QIcon(SRC_DIR + "download.ico"))
-        self.download.setEnabled(False)  # 暂时不用
-        self.delete.setShortcut("Ctrl+D")
+        self.download.setShortcut("Ctrl+J")
+        self.download.setEnabled(False)  # 初始状态
         self.delete.setIcon(QtGui.QIcon(SRC_DIR + "delete.ico"))
-        self.delete.setEnabled(False)  # 暂时不用
-        self.how.setShortcut("F1")
+        self.delete.setShortcut("Ctrl+D")
+        self.delete.setEnabled(False)  # 初始状态
+        self.show_toolbar.setIcon(QtGui.QIcon(SRC_DIR + "password.ico"))
+        self.show_toolbar.setShortcut("Ctrl+T")
+        self.toolbar.close()  # 工具栏初始状态
+        self.setting_menu.setIcon(QtGui.QIcon(SRC_DIR + "settings.ico"))
+        self.setting_menu.setShortcut("Ctrl+P")
         self.how.setIcon(QtGui.QIcon(SRC_DIR + "help.ico"))
-        self.about.setShortcut("Ctrl+B")
+        self.how.setShortcut("F1")
         self.about.setIcon(QtGui.QIcon(SRC_DIR + "about.ico"))
+        self.about.setShortcut("Ctrl+B")
         self.upload.setIcon(QtGui.QIcon(SRC_DIR + "upload.ico"))
         self.upload.setShortcut("Ctrl+U")  # 上传快捷键
-        # 添加设置菜单，暂时放这里
-        self.setting_menu = QtWidgets.QAction(self)  # 设置菜单
-        self.setting_menu.setObjectName("setting_menu")
-        self.setting_menu.setText("设置")
-        self.setting_menu.setIcon(QtGui.QIcon(SRC_DIR + "settings.ico"))
-        self.setting_menu.setShortcut("Ctrl+P")  # 设置快捷键
+        self.upload.setEnabled(False)  # 初始状态
 
     def text_add_shadow(self):
         share_url_shadow = QtWidgets.QGraphicsDropShadowEffect()

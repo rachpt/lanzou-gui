@@ -30,13 +30,13 @@ class UploadDialog(QDialog):
         self.set_size()
         self.setStyleSheet(dialog_qss_style)
 
-    def set_pwd_desc_bigfile(self, set_pwd, pwd, set_desc, desc, allow_big_file, max_size):
-        self.set_pwd = set_pwd
-        self.set_desc = set_desc
-        self.pwd = pwd
-        self.desc = desc
-        self.allow_big_file = allow_big_file
-        self.max_size = max_size
+    def set_pwd_desc_bigfile(self, settings):
+        self.set_pwd = settings["set_pwd"]
+        self.set_desc = settings["set_desc"]
+        self.pwd = settings["pwd"]
+        self.desc = settings["desc"]
+        self.allow_big_file = settings["allow_big_file"]
+        self.max_size = settings["max_size"]
         if self.allow_big_file:
             self.btn_chooseMultiFile.setToolTip("")
         else:

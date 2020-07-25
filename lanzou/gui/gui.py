@@ -103,12 +103,12 @@ class MainWindow(Ui_MainWindow):
     def main_menu_add_slot(self):
         """主菜单添加槽函数"""
         self.login.triggered.connect(self.show_login_dialog)  # 登录
-        self.toolbar.addAction(self.login)
         self.logout.triggered.connect(self.call_logout)  # 登出
+        self.upload.triggered.connect(self.show_upload_dialog_menus)
+        self.setting_menu.triggered.connect(lambda: self.setting_dialog.open_dialog(self._config))
+        self.show_toolbar.triggered.connect(self.show_toolbar_slot)
         self.how.triggered.connect(self.open_wiki_url)
         self.about.triggered.connect(self.about_dialog.exec)
-        self.files.addAction(self.setting_menu)
-        self.setting_menu.triggered.connect(lambda: self.setting_dialog.open_dialog(self._config))
         self.tabWidget.currentChanged.connect(self.call_change_tab)  # tab 切换时更新
 
     def init_variables(self):
@@ -129,7 +129,6 @@ class MainWindow(Ui_MainWindow):
         self._tasks = Tasks()
         self._dl_jobs_lists = {}
         self._up_jobs_lists = {}
-        self._captcha_code = None
         self._to_tray = False
 
     def set_disk(self):
@@ -152,7 +151,6 @@ class MainWindow(Ui_MainWindow):
         """更新LanzouCloud实例设置"""
         self._user = self._config.name
         settings = self._config.settings
-        # self._disk.set_captcha_handler(self.captcha_handler)
         self._disk.set_timeout(settings["timeout"])
         self._disk.set_max_size(settings["max_size"])
         self.task_manager.set_thread(settings["download_threads"])  # 同时下载任务数量
@@ -160,14 +158,9 @@ class MainWindow(Ui_MainWindow):
         self.time_fmt = settings["time_fmt"]  # 时间显示格式
         self._to_tray = settings["to_tray"]
         self.watch_clipboard = settings["watch_clipboard"]
-        self.upgrade = settings["upgrade"] if 'upgrade' in settings else True   # 自动检测更新
-        set_pwd = settings["set_pwd"]
-        set_desc = settings["set_desc"]
-        pwd = settings["pwd"]
-        desc = settings["desc"]
-        allow_big_file = settings["allow_big_file"]
-        self.upload_dialog.set_pwd_desc_bigfile(set_pwd, pwd, set_desc, desc, allow_big_file, settings["max_size"])
-        self.task_manager.set_allow_big_file(allow_big_file)
+        self.upgrade = settings["upgrade"] if 'upgrade' in settings else True  # 自动检测更新
+        self.upload_dialog.set_pwd_desc_bigfile(settings)
+        self.task_manager.set_allow_big_file(settings["allow_big_file"])
         if 'upload_delay' in settings:
             delay = int(settings["upload_delay"])
             if delay > 0:
@@ -283,26 +276,34 @@ class MainWindow(Ui_MainWindow):
         # 获取分享链接信息线程
         self.get_shared_info_thread = GetSharedInfo()
         # 验证码对话框
-        self.captcha_dialog = CaptchaDialog()
-        self.captcha_dialog.captcha.connect(self.set_captcha)
-        self.captcha_dialog.setWindowModality(Qt.ApplicationModal)
+        # self.captcha_dialog = CaptchaDialog()
+        # self.captcha_dialog.captcha.connect(self.set_captcha)
+        # self.captcha_dialog.setWindowModality(Qt.ApplicationModal)
 
         self.set_disk()
 
-    def set_captcha(self, code):
-        self._captcha_code = code
+    # def set_captcha(self, code):
+    #     self._captcha_code = code
 
-    def captcha_handler(self, img_data):
-        """处理下载时出现的验证码(暂时不需要了)"""
-        self.captcha_dialog.handle(img_data)
-        self._captcha_code = None
-        self.captcha_dialog.exec()
-        from time import sleep
-        while True:
-            sleep(1)
-            if self._captcha_code:
-                break
-        return self._captcha_code
+    # def captcha_handler(self, img_data):
+    #     """处理下载时出现的验证码(暂时不需要了)"""
+    #     self.captcha_dialog.handle(img_data)
+    #     self._captcha_code = None
+    #     self.captcha_dialog.exec()
+    #     from time import sleep
+    #     while True:
+    #         sleep(1)
+    #         if self._captcha_code:
+    #             break
+    #     return self._captcha_code
+
+    def show_toolbar_slot(self):
+        if self.toolbar.isVisible():
+            self.toolbar.close()
+            self.show_toolbar.setText("显示工具栏")
+        else:
+            self.toolbar.show()
+            self.show_toolbar.setText("关闭工具栏")
 
     def show_login_dialog(self):
         """显示登录对话框"""
@@ -422,7 +423,6 @@ class MainWindow(Ui_MainWindow):
         self.logout.setEnabled(False)
         self.toolbar.removeAction(self.upload)  # 上传文件工具栏
         self.upload.setEnabled(False)
-        self.upload.triggered.disconnect(self.show_upload_dialog_menus)
         self._user = None
 
     def login_update_ui(self, success, msg, duration):
@@ -448,7 +448,6 @@ class MainWindow(Ui_MainWindow):
             # 菜单栏槽
             self.logout.setEnabled(True)
             self.upload.setEnabled(True)
-            self.upload.triggered.connect(self.show_upload_dialog_menus)
             # 设置当前显示 tab
             self.tabWidget.setCurrentIndex(self.tabWidget.indexOf(self.disk_tab))
             QCoreApplication.processEvents()  # 重绘界面
