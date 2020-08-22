@@ -22,13 +22,14 @@ class GetSharedInfo(QThread):
         self.is_folder = ""
         self._mutex = QMutex()
         self._is_work = False
-        self._pat = r"(https?://(\w[-\w]*\.)?lanzou[six].com/[bi]?[a-zA-Z0-9]+)[^a-zA-Z0-9]*([a-zA-Z0-9]+)?"
+        self._pat = r"(https?://(\w[-\w]*\.)?lanzou[six].com/[bi]?[a-zA-Z0-9]+)[^a-zA-Z0-9]*([a-zA-Z0-9]+\w+)?"
 
     def set_disk(self, disk):
         self._disk = disk
 
     def set_values(self, text):
         '''获取分享链接信息'''
+        text = text.strip()
         if not text:
             self.update.emit()
             return None
@@ -47,7 +48,11 @@ class GetSharedInfo(QThread):
                 return None
             self.clean.emit()  # 清理旧的显示信息
             self.share_url = share_url
-            self.pwd = pwd
+            if pwd:
+                self.pwd = pwd
+            else:  # 一个或两个汉字的提取码
+                pwd_ = text.split(' ')[-1].split('：')[-1].split(':')[-1]
+                self.pwd = pwd_ if 1<= len(pwd_) <= 2  else ''
             self.is_file = is_file
             self.is_folder = is_folder
             self.start()

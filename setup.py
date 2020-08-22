@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='lanzou-gui',
-    version='0.3.2',
+    version='0.3.4',
     description='Lanzou Cloud GUI',
     license="MIT",
     author='rachpt',
@@ -14,7 +14,7 @@ setup(
     package_data={
         '': []
     },
-    python_requires=">=3.8",
+    python_requires=">=3.6",
     url='https://github.com/rachpt/lanzou-gui',
     keywords=['lanzou', 'lanzoucloud', 'gui', 'application', 'PyQt5', 'Python 3'],
     classifiers=(

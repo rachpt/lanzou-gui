@@ -140,3 +140,6 @@ src/
 .config
 *.bak
 login_assister.exe
+
+# MacOS
+.DS_Store

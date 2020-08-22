@@ -3,7 +3,8 @@ QSS 样式
 '''
 
 from lanzou.debug import BG_IMG
-
+from platform import system as platform
+ 
 
 jobs_btn_redo_style = '''
 QPushButton {
@@ -186,9 +187,13 @@ QMenuBar::item:pressed {
 }
 '''
 
-qssStyle = qssStyle + f"""\n#MainWindow {{
-    border-image:url({BG_IMG});
-}}"""
+if platform() == 'Darwin':  # MacOS 不使用自定义样式
+    qssStyle = ''
+else:
+    qssStyle = qssStyle + f"""
+    #MainWindow {{
+        border-image:url({BG_IMG});
+    }}"""
 
 
 btn_style = """

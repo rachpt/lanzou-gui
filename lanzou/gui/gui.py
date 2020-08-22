@@ -507,7 +507,7 @@ class MainWindow(Ui_MainWindow):
             name_header.append(f"文件{file_count}个")
         self.model_disk.setHorizontalHeaderLabels(["/".join(name_header), "大小", "时间"])
         folder_ico = QIcon(SRC_DIR + "folder.gif")
-        desc_style = ' <span style="font-size:14px;color:blue;text-align:right">'
+        desc_style = ' <span style="font-size:14px;color:green;text-align:right">'
         pwd_ico = f' <img src="{SRC_DIR}keys.ico" width="14" height="14" />'
         dl_count_style = ' <span style="font-size:14px;color:red;text-align:right">'
         if self._work_id != -1:
@@ -1016,7 +1016,7 @@ class MainWindow(Ui_MainWindow):
         self.model_jobs.removeRows(0, self.model_jobs.rowCount())  # 清理旧的内容
         download_ico = QIcon(SRC_DIR + "download.ico")
         upload_ico = QIcon(SRC_DIR + "upload.ico")
-        path_style = ' <span style="font-size:14px;color:blue;text-align:right">'
+        path_style = ' <span style="font-size:14px;color:green;text-align:right">'
         error_style = ' <span style="font-size:14px;color:red;text-align:right">'
         _index = 0
         for task in self._tasks.values():
@@ -1175,7 +1175,7 @@ class MainWindow(Ui_MainWindow):
         # 点击关闭按钮或者点击退出事件会出现图标无法消失的bug，那就先隐藏吧(｡･ω･｡)
         self.tray.hide()
         del self.tray
-        sys.exit(self.exec_())
+        sys.exit(0)
 
     def pause_extract_clipboard(self, show=False):
         """登录文件界面屏蔽剪切板监听功能"""

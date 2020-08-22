@@ -355,9 +355,9 @@ class LanZouCloud(object):
             for file in resp["text"]:
                 file_list.append(File(
                     id=int(file['id']),
-                    name=file['name_all'],
+                    name=file['name_all'].replace("&amp;", "&"),
                     time=file['time'],  # 上传时间
-                    size=file['size'],  # 文件大小
+                    size=file['size'].replace(",", ""),  # 文件大小
                     type=file['name_all'].split('.')[-1],  # 文件类型
                     downs=int(file['downs']),  # 下载次数
                     has_pwd=True if int(file['onof']) == 1 else False,  # 是否存在提取码
@@ -446,8 +446,8 @@ class LanZouCloud(object):
             link_info = link_info.json()
             second_page = remove_notes(second_page.text)
             # 提取文件信息
-            f_name = link_info['inf']
-            f_size = re.search(r'大小.+?(\d[\d.]+\s?[BKM]?)<', second_page)
+            f_name = link_info['inf'].replace("*", "_")
+            f_size = re.search(r'大小.+?(\d[\d\.,]+\s?[BKM]?)<', second_page)
             f_size = f_size.group(1) if f_size else ''
             f_time = re.search(r'class="n_file_infos">(.+?)</span>', second_page)
             f_time = f_time.group(1) if f_time else ''
@@ -466,7 +466,7 @@ class LanZouCloud(object):
 
             f_time = re.search(r'>(\d+\s?[秒天分小][钟时]?前|[昨前]天\s?[\d:]+?|\d+\s?天前|\d{4}-\d\d-\d\d)<', first_page)
             f_time = f_time.group(1) if f_time else ''
-            f_size = re.search(r'大小.+?(\d[\d.]+\s?[BKM]?)<', first_page) or \
+            f_size = re.search(r'大小.+?(\d[\d\.,]+\s?[BKM]?)<', first_page) or \
                      re.search(r'大小：(.+?)</div>', first_page)  # VIP 分享页面
             f_size = f_size.group(1) if f_size else ''
             f_desc = re.search(r'文件描述.+?</span><br>\n?\s*(.*?)\s*</td>', first_page)
@@ -1009,9 +1009,9 @@ class LanZouCloud(object):
             if resp['zt'] == 1:  # 成功获取一页文件信息
                 for f in resp["text"]:
                     files.append(FileInFolder(
-                        name=f["name_all"],  # 文件名
+                        name=f['name_all'].replace("&amp;", "&"),  # 文件名
                         time=f["time"],  # 上传时间
-                        size=f["size"],  # 文件大小
+                        size=f["size"].replace(",", ""),  # 文件大小
                         type=f["name_all"].split('.')[-1],  # 文件格式
                         url=self._host_url + "/" + f["id"]  # 文件分享链接
                     ))
@@ -1110,21 +1110,22 @@ class LanZouCloud(object):
                     logger.debug(f"File {name} has already downloaded.")
                     os.remove(record_file)  # 删除记录文件
                     return LanZouCloud.SUCCESS
+                try:
+                    for chunk in resp.iter_content(4096):
+                        if chunk:
+                            file_size_now += len(chunk)
+                            bf.write(chunk)
+                            bf.flush()  # 确保缓冲区立即写入文件，否则下一次写入时获取的文件大小会有偏差
+                            task.now_size = file_size_now
+                            callback()
 
-                for chunk in resp.iter_content(4096):
-                    if chunk:
-                        file_size_now += len(chunk)
-                        bf.write(chunk)
-                        bf.flush()  # 确保缓冲区立即写入文件，否则下一次写入时获取的文件大小会有偏差
-                        task.now_size = file_size_now
-                        callback()
-
-                # 一块数据写入完成，更新记录文件
-                info['finished'].append(file.name)
-                info['last_ending'] = file_size_now
-                with open(record_file, 'wb') as rf:
-                    pickle.dump(info, rf)
-                logger.debug(f"Update download record info: {info}")
+                    # 一块数据写入完成，更新记录文件
+                    info['finished'].append(file.name)
+                finally:
+                    info['last_ending'] = file_size_now
+                    with open(record_file, 'wb') as rf:
+                        pickle.dump(info, rf)
+                    logger.debug(f"Update download record info: {info}")
             # 全部数据块下载完成, 记录文件可以删除
             logger.debug(f"Delete download record file: {record_file}")
             os.remove(record_file)
@@ -1192,6 +1193,7 @@ class LanZouCloud(object):
                 return ShareInfo(LanZouCloud.NETWORK_ERROR)
             link_info = link_info.json()
             if link_info["zt"] == 1:
+                f_name = link_info['inf'].replace("*", "_")
                 if not f_size:
                     f_size = re.search(r'大小：(.+?)</div>', second_page)
                     f_size = f_size.group(1) if f_size else ""
@@ -1199,7 +1201,7 @@ class LanZouCloud(object):
                     f_time = re.search(r'class="n_file_infos">(.+?)</span>', second_page)
                     f_time = f_time.group(1) if f_time else ""
 
-                return ShareInfo(LanZouCloud.SUCCESS, name=link_info["inf"], url=f_url, pwd=pwd, desc=f_desc, time=f_time, size=f_size)
+                return ShareInfo(LanZouCloud.SUCCESS, name=f_name, url=f_url, pwd=pwd, desc=f_desc, time=f_time, size=f_size)
             else:
                 return ShareInfo(LanZouCloud.PASSWORD_ERROR)
         else:
