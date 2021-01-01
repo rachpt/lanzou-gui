@@ -2,3 +2,4 @@ PyQt5
 PyQtWebEngine
 requests
 requests_toolbelt
+browser_cookie3
