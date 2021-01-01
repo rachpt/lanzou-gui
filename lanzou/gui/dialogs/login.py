@@ -87,9 +87,9 @@ class LoginDialog(QDialog):
         # Add tabs
         self.tabs.addTab(self.auto_tab,"自动获取Cookie")
         self.tabs.addTab(self.hand_tab,"手动输入Cookie")
-        self.auto_get_cookie_ok = QLabel("🔶点击👇自动获取浏览器登陆信息👇")
-        self.auto_get_cookie_btn = QPushButton("自动读取Firefox/Chrome登陆信息")
-        auto_cookie_notice = '优先读取Firefix登陆cookie，然后是Chrome'
+        self.auto_get_cookie_ok = QLabel("🔶点击👇自动获取浏览器登录信息👇")
+        self.auto_get_cookie_btn = QPushButton("自动读取Firefox/Chrome登录信息")
+        auto_cookie_notice = '优先读取Firefix登录cookie，然后是Chrome'
         self.auto_get_cookie_btn.setToolTip(auto_cookie_notice)
         self.auto_get_cookie_btn.clicked.connect(self.call_auto_get_cookie)
         self.auto_get_cookie_btn.setStyleSheet("QPushButton {min-width: 210px;max-width: 210px;}")
@@ -165,6 +165,7 @@ class LoginDialog(QDialog):
             self.user_btns[user].setStyleSheet("QPushButton {border:none;}")
             if user == self._config.name:
                 self.user_btns[user].setStyleSheet("QPushButton {background-color:rgb(0,153,2);}")
+                self.tabs.setCurrentIndex(1)
             self.user_btns[user].setToolTip(f"点击选中，双击切换至用户：{user}")
             self.user_btns[user].doubleClicked.connect(self.choose_user)
             self.user_btns[user].clicked.connect(self.delete_chose_user)
@@ -364,7 +365,7 @@ class LoginDialog(QDialog):
             message_box.exec()
 
     def get_cookie_by_web(self, cookie):
-        """使用辅助登陆程序槽函数"""
+        """使用辅助登录程序槽函数"""
         self._cookie = cookie
         self._close_dialog()
 
@@ -373,10 +374,10 @@ class LoginDialog(QDialog):
         self._cookie = get_cookie_from_browser()
         if self._cookie:
             self._user = self._pwd = ''
-            self.auto_get_cookie_ok.setText("✅获取成功即将登陆……")
+            self.auto_get_cookie_ok.setText("✅获取成功即将登录……")
             QTimer.singleShot(2000, self._close_dialog)
         else:
-            self.auto_get_cookie_ok.setText("❌获取失败，请提前使用 Firefox/Chrome 登陆蓝奏云！")
+            self.auto_get_cookie_ok.setText("❌获取失败，请提前使用 Firefox/Chrome 登录蓝奏云！")
 
     def _close_dialog(self):
         """关闭对话框"""
