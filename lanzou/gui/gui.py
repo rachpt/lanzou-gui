@@ -106,6 +106,8 @@ class MainWindow(Ui_MainWindow):
         """主菜单添加槽函数"""
         self.login.triggered.connect(self.show_login_dialog)  # 登录
         self.logout.triggered.connect(self.call_logout)  # 登出
+        self.download.triggered.connect(self.call_download_shortcut)  # 快捷键下载
+        self.delete.triggered.connect(self.call_delete_shortcut)  # 快捷键删除
         self.upload.triggered.connect(self.show_upload_dialog_menus)
         self.setting_menu.triggered.connect(lambda: self.setting_dialog.open_dialog(self._config))
         self.show_toolbar.triggered.connect(self.show_toolbar_slot)
@@ -460,6 +462,8 @@ class MainWindow(Ui_MainWindow):
             # 菜单栏槽
             self.logout.setEnabled(True)
             self.upload.setEnabled(True)
+            self.download.setEnabled(True)
+            self.delete.setEnabled(True)
             # 设置当前显示 tab
             self.tabWidget.setCurrentIndex(self.tabWidget.indexOf(self.disk_tab))
             QCoreApplication.processEvents()  # 重绘界面
@@ -478,6 +482,8 @@ class MainWindow(Ui_MainWindow):
             self.toolbar.removeAction(self.upload)  # 上传文件工具栏
             self.logout.setEnabled(False)
             self.upload.setEnabled(False)
+            self.download.setEnabled(False)
+            self.delete.setEnabled(False)
 
     def call_login_luncher(self):
         """登录网盘"""
@@ -820,12 +826,22 @@ class MainWindow(Ui_MainWindow):
                 btn.setText("取消")
                 btn.setIcon(QIcon(SRC_DIR + "select_none.ico"))
 
+    def call_delete_shortcut(self):
+        if self.tabWidget.currentIndex() == self.tabWidget.indexOf(self.disk_tab):
+            self.call_remove_files()
+
+    def call_download_shortcut(self):
+        if self.tabWidget.currentIndex() == self.tabWidget.indexOf(self.disk_tab):
+            self.call_multi_manipulator("download")
+
     # disk tab
     def init_disk_ui(self):
         self.model_disk = QStandardItemModel(1, 3)
         self.config_tableview("disk")
         self.btn_disk_delete.setIcon(QIcon(SRC_DIR + "delete.ico"))
+        self.btn_disk_delete.setToolTip("按下 Ctrl + D 删除选中文件")
         self.btn_disk_dl.setIcon(QIcon(SRC_DIR + "downloader.ico"))
+        self.btn_disk_dl.setToolTip("按下 Ctrl + J 下载选中文件")
         self.btn_disk_select_all.setIcon(QIcon(SRC_DIR + "select_all.ico"))
         self.btn_disk_select_all.setToolTip("按下 Ctrl/Alt + A 全选或则取消全选")
         self.btn_disk_select_all.clicked.connect(lambda: self.select_all_btn("reverse"))
