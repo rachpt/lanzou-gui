@@ -4,9 +4,9 @@ import re
 from logging import getLevelName, DEBUG, ERROR
 
 from PyQt5.QtCore import Qt, QCoreApplication, QTimer, QUrl, QSize
-from PyQt5.QtGui import QIcon, QStandardItemModel, QDesktopServices
+from PyQt5.QtGui import QIcon, QStandardItemModel, QDesktopServices, QKeySequence
 from PyQt5.QtWidgets import (QApplication, QAbstractItemView, QHeaderView, QMenu, QAction, QStyle,
-                             QPushButton, QFileDialog, QMessageBox, QSystemTrayIcon)
+                             QPushButton, QFileDialog, QMessageBox, QSystemTrayIcon, QShortcut)
 
 from lanzou.api import LanZouCloud
 from lanzou.api.utils import time_format
@@ -1100,9 +1100,18 @@ class MainWindow(Ui_MainWindow):
         self.btn_share_select_all.clicked.connect(lambda: self.select_all_btn("reverse"))
         self.table_share.clicked.connect(lambda: self.select_all_btn("cancel"))  # 全选按钮
 
+        self.extract_input_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
+        self.extract_input_shortcut.activated.connect(self.call_extract_input_shortcut)
+
         # 添加文件下载路径选择器
         self.share_set_dl_path.setText(self._config.path)
         self.share_set_dl_path.clicked.connect(self.set_download_path)
+
+    def call_extract_input_shortcut(self):
+        """Ctrl+F槽函数"""
+        self.tabWidget.setCurrentIndex(self.tabWidget.indexOf(self.share_tab))
+        self.line_share_url.selectAll()  # 全选中
+        self.line_share_url.setFocus()  # 焦点
 
     # jobs tab
     def call_jobs_clean_all(self):
