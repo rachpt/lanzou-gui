@@ -24,6 +24,8 @@
 
 ![lanzou-gui_screenshot](https://i.loli.net/2020/07/24/DmRBtuAjhikGep8.png)
 
+[![what's-new-v0.3.6.gif](https://i.loli.net/2021/01/03/UCkicu6H7QeOyMs.gif)](https://files.catbox.moe/o2b3q1.webp)
+
 
 # 说明
 - 默认并发上传下载任务为3，可以自行设置，单个文件还是单线程的；
