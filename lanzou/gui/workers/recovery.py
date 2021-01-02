@@ -104,6 +104,7 @@ class RecManipulator(QThread):
             self._mutex.lock()
             self._is_work = True
             try:
+                res = None
                 if self._action == "recovery":
                     if self._files or self._folders:
                         res = self._disk.recovery_multi(self._files, self._folders)

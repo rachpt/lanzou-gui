@@ -41,7 +41,7 @@ class GetSharedInfo(QThread):
             elif is_folder_url(share_url):  # 文件夹链接
                 is_folder = True
                 is_file = False
-                self.msg.emit("正在获取文件夹链接信息，可能需要几秒钟，请稍候……", 30000)
+                self.msg.emit("正在获取文件夹链接信息，可能需要几秒钟，请稍候……", 500000)
             else:
                 self.msg.emit(f"{share_url} 为非法链接！", 0)
                 self.update.emit()
@@ -92,10 +92,13 @@ class GetSharedInfo(QThread):
                 if self.is_file:  # 链接为文件
                     _infos = self._disk.get_share_info_by_url(self.share_url, self.pwd)
                     self.emit_msg(_infos)
+                    self.infos.emit(_infos)
                 elif self.is_folder:  # 链接为文件夹
                     _infos = self._disk.get_folder_info_by_url(self.share_url, self.pwd)
                     self.emit_msg(_infos)
-                self.infos.emit(_infos)
+                    self.infos.emit(_infos)
+                else:
+                    logger.error(f"GetShareInfo error: Not a file or folder!")
             except TimeoutError:
                 self.msg.emit("font color='red'>网络超时！请稍后重试</font>", 5000)
             except Exception as e:

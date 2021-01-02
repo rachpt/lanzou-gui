@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 from setuptools import setup, find_packages
-
+from lanzou.gui import version
 
 setup(
     name='lanzou-gui',
-    version='0.3.4',
+    version=version,
     description='Lanzou Cloud GUI',
     license="MIT",
     author='rachpt',
@@ -34,5 +34,6 @@ setup(
         'PyQtWebEngine',
         'requests',
         'requests_toolbelt',
+        'browser_cookie3',
     ],
 )

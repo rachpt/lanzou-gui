@@ -4,7 +4,7 @@
 
 import os
 from PyQt5.QtCore import Qt, pyqtSignal, QTimer, QSize
-from PyQt5.QtGui import QTextDocument, QAbstractTextDocumentLayout, QPalette, QFontMetrics, QIcon
+from PyQt5.QtGui import QTextDocument, QAbstractTextDocumentLayout, QPalette, QFontMetrics, QIcon, QStandardItem
 from PyQt5.QtWidgets import (QApplication, QAbstractItemView, QStyle, QListView, QLineEdit, QTableView,
                              QPushButton, QStyledItemDelegate, QStyleOptionViewItem, QTextEdit, QSizePolicy)
 
@@ -221,6 +221,14 @@ class TableDelegate(QStyledItemDelegate):
         self.doc.setHtml(options.text)
         self.doc.setTextWidth(options.rect.width())
         return QSize(self.doc.idealWidth(), self.doc.size().height())
+
+
+class MyStandardItem(QStandardItem):
+    def __lt__(self, other):
+        if self.data(Qt.UserRole) and other.data(Qt.UserRole):
+            return self.data(Qt.UserRole) < other.data(Qt.UserRole)
+        else:  # 没有setData并设置UserRole，则使用默认的方式进行比较排序
+            return self.text() < other.text()
 
 
 class MyTableView(QTableView):

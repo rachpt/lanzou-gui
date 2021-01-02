@@ -1,3 +1,4 @@
+from logging import Logger
 import os
 import re
 import browser_cookie3
@@ -9,7 +10,7 @@ from PyQt5.QtWidgets import (QDialog, QLabel, QLineEdit, QTextEdit, QPushButton,
 from lanzou.gui.others import QDoublePushButton, MyLineEdit
 from lanzou.gui.qss import dialog_qss_style, btn_style
 from lanzou.gui import USE_WEB_ENG
-from lanzou.debug import SRC_DIR
+from lanzou.debug import logger, SRC_DIR
 
 if USE_WEB_ENG:  # 是否使用 PyQtWebEngine 辅助登录
     from lanzou.gui.login_assister import LoginWindow
@@ -371,13 +372,18 @@ class LoginDialog(QDialog):
 
     def call_auto_get_cookie(self):
         """自动读取浏览器cookie槽函数"""
-        self._cookie = get_cookie_from_browser()
-        if self._cookie:
-            self._user = self._pwd = ''
-            self.auto_get_cookie_ok.setText("✅获取成功即将登录……")
-            QTimer.singleShot(2000, self._close_dialog)
+        try:
+            self._cookie = get_cookie_from_browser()
+        except Exception as e:
+            logger.error(f"Browser_cookie3 Error: {e}")
+            self.auto_get_cookie_ok.setText(f"❌获取失败，错误信息：{e}")
         else:
-            self.auto_get_cookie_ok.setText("❌获取失败，请提前使用 Firefox/Chrome 登录蓝奏云！")
+            if self._cookie:
+                self._user = self._pwd = ''
+                self.auto_get_cookie_ok.setText("✅获取成功即将登录……")
+                QTimer.singleShot(2000, self._close_dialog)
+            else:
+                self.auto_get_cookie_ok.setText("❌获取失败，请提前使用 Firefox/Chrome 登录蓝奏云！")
 
     def _close_dialog(self):
         """关闭对话框"""

@@ -4,18 +4,20 @@ import re
 from logging import getLevelName, DEBUG, ERROR
 
 from PyQt5.QtCore import Qt, QCoreApplication, QTimer, QUrl, QSize
-from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel, QDesktopServices
+from PyQt5.QtGui import QIcon, QStandardItemModel, QDesktopServices
 from PyQt5.QtWidgets import (QApplication, QAbstractItemView, QHeaderView, QMenu, QAction, QStyle,
                              QPushButton, QFileDialog, QMessageBox, QSystemTrayIcon)
 
 from lanzou.api import LanZouCloud
 from lanzou.api.utils import time_format
+from lanzou.api.utils import convert_file_size_to_int as format_size_int
 from lanzou.api.models import FolderList
-from lanzou.api.types import RecFolder, FolderDetail
+from lanzou.api.types import RecFolder, FolderDetail, ShareItem
 
 from lanzou.gui.models import DlJob, Tasks, FileInfos, FolderInfos, ShareFileInfos
 from lanzou.gui.ui import Ui_MainWindow
 from lanzou.gui.others import set_file_icon, TableDelegate
+from lanzou.gui.others import MyStandardItem as QStandardItem
 from lanzou.gui.config import config
 from lanzou.gui.workers import *
 from lanzou.gui.workers.manager import change_size_unit
@@ -115,8 +117,12 @@ class MainWindow(Ui_MainWindow):
         self._disk = LanZouCloud()
         self._config = config
         self._user = None    # 当前登录用户名
-        self._folder_list = {}
-        self._file_list = {}
+        self._folder_list = {}  # disk 工作目录文件夹
+        self._file_list = {}  # disk 工作目录文件
+        self._extract_folder_list = {}  # share 提取子文件夹
+        self._extract_show_dir = []  # share 提取文件显示子文件夹
+        self._extract_setted_head = False  # share 提取界面设置表头标示
+        self._extract_count = 0  # share 提取界面文件数
         self._path_list = FolderList()
         self._path_list_old = FolderList()
         self._locs = {}
@@ -130,6 +136,7 @@ class MainWindow(Ui_MainWindow):
         self._dl_jobs_lists = {}
         self._up_jobs_lists = {}
         self._to_tray = False
+        self._show_subfolder = False  # 提取界面递归展示子文件
 
     def set_disk(self):
         """方便切换用户更新信息"""
@@ -360,17 +367,20 @@ class MainWindow(Ui_MainWindow):
             if not infos:
                 return None
             tasks = {}
-
-            if infos[0][1] is None:  # 单文件信息链接 (info, None, 1)
-                info = info[0]  # ShareInfo(code=0, name, url, pwd, desc, time, size)
+            first_item = infos[0]
+            if first_item.all is None:  # 单文件信息链接 (info, None, 1, [])
+                info = first_item.item  # ShareInfo(code=0, name, url, pwd, desc, time, size)
                 tasks[info.url] = DlJob(infos=info, path=self._config.path, total_file=1)
-            elif len(infos) != 1 and len(infos) == infos[0][2]:  # 下载整个文件夹文件 (info, folder_info, count)
-                info = infos[0][1]  # 文件夹信息
-                tasks[info.url] = DlJob(infos=info, path=self._config.path, total_file=infos[0][2])
+            elif len(infos) != 1 and len(infos) >= first_item.count:  # 下载整个文件夹文件 (info, all, count, parrent)
+                info = first_item.all.folder  # 当前文件夹信息
+                tasks[info.url] = DlJob(infos=info, path=self._config.path, total_file=first_item.count)
             else:  # 下载文件夹中部分文件
+                parent_dir_lst = first_item.parrent  # 父文件夹信息
+                parent_dir = os.sep.join(parent_dir_lst)
+                path = self._config.path + os.sep + parent_dir if parent_dir_lst else self._config.path
                 for info in infos:
-                    info = info[0]  # 文件夹中单文件信息
-                    tasks[info.url] = DlJob(infos=info, path=self._config.path, total_file=1)
+                    info = info.item  # 文件夹中单文件信息
+                    tasks[info.url] = DlJob(infos=info, path=path, total_file=1)
             logger.debug(f"manipulator, share tab tasks={tasks}")
             self.call_task_manager_thread(tasks)
         elif tab_page == self.tabWidget.indexOf(self.disk_tab):  # 登录文件界面下载
@@ -380,6 +390,7 @@ class MainWindow(Ui_MainWindow):
             self.desc_pwd_fetcher.set_values(infos, download=True, dl_path=self._config.path)
         elif tab_page == self.tabWidget.indexOf(self.rec_tab):  # 回收站
             logger.debug(f"manipulator, rec tab action={action}")
+            title = msg = ""
             if action == "recovery":
                 title = "确定恢复选定文件(夹)？"
             elif action == "delete":
@@ -390,6 +401,7 @@ class MainWindow(Ui_MainWindow):
             elif action == "clean":
                 title = "确定清除全部文件(夹)？"
                 msg = "提示: 删除回收站中的文件将不可恢复，请确认。"
+
             if action == "recovery" or action == "delete":
                 if not infos:
                     self.show_status("请先选中需要操作的文件！", 2999)
@@ -547,7 +559,9 @@ class MainWindow(Ui_MainWindow):
             name.setText(txt)
             name.setToolTip(tips)
             time = time_format(infos.time) if self.time_fmt else infos.time
-            self.model_disk.appendRow([name, QStandardItem(infos.size), QStandardItem(time)])
+            size = QStandardItem(infos.size)
+            size.setData(format_size_int(infos.size), Qt.UserRole)  # 配合MyStandardItem实现正确排序
+            self.model_disk.appendRow([name, size, QStandardItem(time)])
         for row in range(self.model_disk.rowCount()):  # 右对齐
             self.model_disk.item(row, 1).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             self.model_disk.item(row, 2).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
@@ -584,6 +598,9 @@ class MainWindow(Ui_MainWindow):
         elif tab == "jobs":
             model = self.model_jobs
             table = self.table_jobs
+        else:
+            logger.error(f"Gui config_tableview: tab={tab}")
+            return None
 
         if tab == "jobs":
             model.setHorizontalHeaderLabels(["任务名", "完成度", "状态", "操作"])
@@ -609,8 +626,8 @@ class MainWindow(Ui_MainWindow):
         # 设置 不可选择单个单元格，只可选择一行。
         table.setSelectionBehavior(QAbstractItemView.SelectRows)
         # 设置第二三列的宽度
-        table.horizontalHeader().resizeSection(1, 64)
-        table.horizontalHeader().resizeSection(2, 84)
+        table.horizontalHeader().resizeSection(1, 76)
+        table.horizontalHeader().resizeSection(2, 90)
         # 设置第一列宽度自动调整，充满屏幕
         table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         if tab != "rec" and tab != "jobs":
@@ -730,11 +747,11 @@ class MainWindow(Ui_MainWindow):
 
         return callfunc
 
-    def change_dir(self, dir_name):
+    def change_disk_dir(self, dir_name):
         """双击切换工作目录"""
         if self.model_disk.item(dir_name.row(), 0).text() == "..":  # 返回上级路径
             self.list_refresher.set_values(self._parent_id)
-            return
+            return None
         dir_name = self.model_disk.item(dir_name.row(), 0).data().name  # 文件夹名
         if dir_name in self._folder_list.keys():
             folder_id = self._folder_list[dir_name].id
@@ -819,7 +836,7 @@ class MainWindow(Ui_MainWindow):
         self.btn_disk_delete.clicked.connect(self.call_remove_files)
         # 文件拖拽上传
         self.table_disk.drop_files.connect(self.show_upload_dialog)
-        self.table_disk.doubleClicked.connect(self.change_dir)
+        self.table_disk.doubleClicked.connect(self.change_disk_dir)
 
     # rec tab
     def pop_up_rec_folder_dialog(self, files):
@@ -891,30 +908,102 @@ class MainWindow(Ui_MainWindow):
 
     # shared url
     def call_get_shared_info(self):
+        """提取分享链接槽函数"""
         if not self.get_shared_info_thread.isRunning():  # 防止快速多次调用
+            self._extract_show_dir = []
+            self._extract_folder_list = {}
+            self._extract_setted_head = False
+            self._extract_count = 0
             self.line_share_url.setEnabled(False)
             self.btn_extract.setEnabled(False)
             text = self.line_share_url.text().strip()
+            self.model_share.setHorizontalHeaderLabels(['文件(夹)', "大小", "时间"])
             self.get_shared_info_thread.set_values(text)
+
+    def show_share_folder_url_lists(self, infos, root_dir=[], show_dir=[]):
+        # infos: 文件夹 FolderDetail -> code, folder, files, sub_folders
+        folder_ico = QIcon(SRC_DIR + "folder.gif")
+        if not (show_dir or self._extract_setted_head):
+            self._extract_setted_head = True
+            all_file = infos.folder.count  # 包括子文件夹的所有文件
+            file_count = len(infos.files)  # 父文件夹中的文件数量
+            folder_count = len(infos.sub_folders) or 0
+            if self._show_subfolder:
+                self._extract_count = all_file + folder_count  # 标记是否为全选下载
+            else:
+                self._extract_count = file_count + folder_count  # 标记是否为全选下载
+            dots = '...' if len(infos.folder.desc) > 60 else ''
+            desc = "| " + infos.folder.desc.replace('\n', ' ')[:60] + dots if infos.folder.desc else ""
+            title = f"{infos.folder.name} | 文件{file_count}个 "
+            if folder_count:
+                title += f"| 子文件夹{folder_count}个 "
+            if self._show_subfolder and all_file != file_count:
+                title += f"| 递归文件{all_file}个 "
+            title += f"｜ 总共 {infos.folder.size} {desc}"
+            self.model_share.setHorizontalHeaderLabels([title, "大小", "时间"])
+
+        if len(show_dir) == 1:
+            _back = QStandardItem(folder_ico, "..")
+            _back.setToolTip("双击返回上层文件夹，选中无效")
+            _back.setData(ShareItem(all=infos))
+            self.model_share.appendRow([_back, QStandardItem(""), QStandardItem("")])
+        for sub_folder in iter(infos.sub_folders):  # 展示子文件夹
+            if sub_folder.folder.name:  # 没有密码的子文件夹不展示在提取界面
+                name = QStandardItem(folder_ico, sub_folder.folder.name)
+                if root_dir:
+                    root_path = [*show_dir, infos.folder.url]
+                    post_root_dir = [*root_dir, sub_folder.folder.name]
+                    pre_root_dir = f'<span style="font-size:14px;color:pink;text-align:right">{"/".join(root_dir)}/</span>'
+                else:
+                    root_path = [infos.folder.url, ]
+                    pre_root_dir = ''
+                    post_root_dir = [sub_folder.folder.name,]
+                if sub_folder.folder.desc:
+                    text = ' <span style="font-size:14px;color:green;text-align:right">{}</span>'.format(
+                        sub_folder.folder.desc.replace("\n", " "))
+                else:
+                    text = ''
+                set_data = ShareItem(item=sub_folder.folder, all=infos, count=self._extract_count, parrent=root_dir)
+                if not show_dir:
+                    name.setData(set_data)
+                    name.setText(pre_root_dir + sub_folder.folder.name + text)
+                    if self.time_fmt:
+                        time = QStandardItem(time_format(sub_folder.folder.time)) 
+                    else:
+                        time = QStandardItem(sub_folder.folder.time)
+                    size = QStandardItem(sub_folder.folder.size)
+                    size.setData(format_size_int(sub_folder.folder.size), Qt.UserRole)
+                    self.model_share.appendRow([name, size, time])
+                if self._show_subfolder or show_dir:  # 在当前窗口递归展示子文件夹中的文件
+                    self.show_share_folder_url_lists(sub_folder, root_dir=post_root_dir, show_dir=show_dir[1:])
+                else:  # 不递归展示才会记录子文件夹信息
+                    self._extract_folder_list[sub_folder.folder.url] = root_path
+        if show_dir:
+            return None
+        for item in iter(infos.files):  # 展示文件
+            if item:
+                if root_dir:
+                    pre_root_dir = f'<span style="font-size:14px;color:pink;text-align:right">{"/".join(root_dir)}/</span>'
+                else:
+                    pre_root_dir = ''
+                name = QStandardItem(set_file_icon(item.name), item.name)
+                name.setData(ShareItem(item=item, all=infos, count=self._extract_count, parrent=root_dir))
+                name.setText(pre_root_dir + item.name)
+                size = QStandardItem(item.size)
+                size.setData(format_size_int(item.size), Qt.UserRole)
+                time = QStandardItem(time_format(item.time)) if self.time_fmt else QStandardItem(item.time)
+                self.model_share.appendRow([name, size, time])
 
     def show_share_url_file_lists(self, infos):
         if infos.code == LanZouCloud.SUCCESS:
-            if isinstance(infos, FolderDetail):  # 文件夹 FolderDetail -> code, folder, files
-                file_count = len(infos.files)
-                desc = "| " + infos.folder.desc[:50] if infos.folder.desc else ""
-                title = f"{infos.folder.name} | 文件{file_count}个 | 总共 {infos.folder.size} {desc}"
-                for one in iter(infos.files):
-                    name = QStandardItem(set_file_icon(one.name), one.name)
-                    name.setData((one, infos.folder, file_count))
-                    time = QStandardItem(time_format(one.time)) if self.time_fmt else QStandardItem(one.time)
-                    self.model_share.appendRow([name, QStandardItem(one.size), time])
+            if isinstance(infos, FolderDetail):  # 文件夹 FolderDetail -> code, folder, files, sub_folders
+                self.show_share_folder_url_lists(infos)
             else:  # 单文件
-                title = "文件名"
                 name = QStandardItem(set_file_icon(infos.name), infos.name)
-                name.setData((infos, None, 1))
+                name.setData(ShareItem(item=infos))
                 time = time_format(infos.time) if self.time_fmt else infos.time
                 self.model_share.appendRow([name, QStandardItem(infos.size), QStandardItem(time)])
-            self.model_share.setHorizontalHeaderLabels([title, "大小", "时间"])
+                self.model_share.setHorizontalHeaderLabels(["文件名", "大小", "时间"])
             for r in range(self.model_share.rowCount()):  # 右对齐
                 self.model_share.item(r, 1).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
                 self.model_share.item(r, 2).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
@@ -940,6 +1029,51 @@ class MainWindow(Ui_MainWindow):
             self._config.path = dl_path
         self.share_set_dl_path.setText(self._config.path)
 
+    def change_share_dir(self, dir_name):
+        """双击子文件夹改变路径"""
+        all_infos = self.model_share.item(dir_name.row(), 0).data() # 
+        if self.model_share.item(dir_name.row(), 0).text() == "..":  # 返回父文件夹
+            if self._extract_show_dir:
+                self.model_share.removeRows(0, self.model_share.rowCount())
+                self.show_share_folder_url_lists(all_infos.all, show_dir=self._extract_show_dir[:-1])
+        elif all_infos.item.url in self._extract_folder_list.keys():
+            show_url = self._extract_folder_list[all_infos.item.url]
+            self._extract_show_dir = show_url
+            self.model_share.removeRows(0, self.model_share.rowCount())
+            self.show_share_folder_url_lists(all_infos.all, show_dir=show_url)
+
+    def call_show_share_url_sub_folder(self, infos):
+        """切换展示子文件夹按钮"""
+        if self._show_subfolder:
+            self._show_subfolder = False
+            self._share_url_show_subfolder.setText("递归展示")
+            self._share_url_show_subfolder.setToolTip("将子文件递归展示")
+        else:
+            self._show_subfolder = True
+            self._extract_folder_list = {}  # 递归展示时不记录子文件夹信息
+            self._share_url_show_subfolder.setText("收起文件")
+            self._share_url_show_subfolder.setToolTip("将子文件收起，不展示")
+        self.model_share.removeRows(0, self.model_share.rowCount())
+        self.show_share_folder_url_lists(infos)
+
+    def show_share_url_judge_folder(self, infos):
+        """判断是否包含子文件夹"""
+        try:
+            if infos.sub_folders:
+                logger.debug('Have subfolders!')
+                self._share_url_show_subfolder = QPushButton("递归展示", self.share_tab)
+                self._share_url_show_subfolder.setToolTip("将子文件递归展示")
+                self._share_url_show_subfolder.setIcon(QIcon(SRC_DIR + "folder.gif"))
+                self.share_hlayout_top.addWidget(self._share_url_show_subfolder)
+                self._share_url_show_subfolder.clicked.connect(lambda: self.call_show_share_url_sub_folder(infos))
+            else:
+                logger.debug('Have No subfolders!')
+                self.share_hlayout_top.removeWidget(self._share_url_show_subfolder)
+                self._share_url_show_subfolder.deleteLater()
+                self._share_url_show_subfolder = None
+                del self._share_url_show_subfolder
+        except: pass
+
     def init_extract_share_ui(self):
         self.btn_share_select_all.setDisabled(True)
         self.btn_share_dl.setDisabled(True)
@@ -950,9 +1084,11 @@ class MainWindow(Ui_MainWindow):
         # 清理旧的信息
         self.get_shared_info_thread.clean.connect(lambda: self.model_share.removeRows(0, self.model_share.rowCount()))
         self.get_shared_info_thread.msg.connect(self.show_status)  # 提示信息
+        self.get_shared_info_thread.infos.connect(self.show_share_url_judge_folder)  # 判断是否包含子文件夹
         self.get_shared_info_thread.infos.connect(self.show_share_url_file_lists)  # 内容信息
         self.get_shared_info_thread.update.connect(lambda: self.btn_extract.setEnabled(True))
         self.get_shared_info_thread.update.connect(lambda: self.line_share_url.setEnabled(True))
+        self.table_share.doubleClicked.connect(self.change_share_dir)  # 双击
         # 控件设置
         self.line_share_url.setPlaceholderText("蓝奏云链接，如有提取码，放后面，空格或汉字等分割，回车键提取")
         self.line_share_url.returnPressed.connect(self.call_get_shared_info)
@@ -1110,6 +1246,8 @@ class MainWindow(Ui_MainWindow):
     def show_status(self, msg, duration=0):
         self.statusbar_msg_label.setText(msg)
         if msg and duration >= 3000:
+            self.statusbar_load_lb.clear()
+            self.statusbar_load_movie.stop()
             ht = self.statusbar_msg_label.size().height()
             self.statusbar_load_movie.setScaledSize(QSize(ht, ht))
             self.statusbar_load_lb.setMovie(self.statusbar_load_movie)
@@ -1123,7 +1261,10 @@ class MainWindow(Ui_MainWindow):
     def call_change_tab(self):
         """切换标签页 动作"""
         tab_index = self.tabWidget.currentIndex()
-        if tab_index == self.tabWidget.indexOf(self.rec_tab):  # rec 界面
+        if tab_index == self.tabWidget.indexOf(self.share_tab):  # share 界面
+            if self.get_shared_info_thread.isRunning():
+                self.show_status("正在获取文件夹链接信息，可能需要几秒钟，请稍候……", 500000)
+        elif tab_index == self.tabWidget.indexOf(self.rec_tab):  # rec 界面
             if not self.statusbar_msg_label.text():
                 self.show_status("正在更新回收站...", 10000)
             self.get_rec_lists_worker.start()

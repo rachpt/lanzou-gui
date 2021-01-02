@@ -10,7 +10,7 @@ from time import sleep
 from datetime import datetime
 from urllib3 import disable_warnings
 from random import shuffle, uniform
-from typing import List
+from typing import List, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
@@ -44,14 +44,14 @@ class LanZouCloud(object):
         self._timeout = 5  # 每个请求的超时(不包含下载响应体的用时)
         self._max_size = 100  # 单个文件大小上限 MB
         self._upload_delay = (0, 0)  # 文件上传延时
-        self._host_url = 'https://www.lanzous.com'
+        self._host_url = 'https://pan.lanzous.com'
         self._doupload_url = 'https://pc.woozooo.com/doupload.php'
         self._account_url = 'https://pc.woozooo.com/account.php'
         self._mydisk_url = 'https://pc.woozooo.com/mydisk.php'
         self._cookies = None
         self._headers = {
             'User-Agent': USER_AGENT,
-            'Referer': 'https://www.lanzous.com',
+            'Referer': 'https://pan.lanzous.com',
             'Accept-Language': 'zh-CN,zh;q=0.9',  # 提取直连必需设置这个，否则拿不到数据
         }
         disable_warnings(InsecureRequestWarning)  # 全局禁用 SSL 警告
@@ -365,7 +365,7 @@ class LanZouCloud(object):
                 ))
         return file_list
 
-    def get_dir_list(self, folder_id=-1) -> (FolderList, FolderList):
+    def get_dir_list(self, folder_id=-1) -> Tuple[FolderList, FolderList]:
         """获取子文件夹列表与全路径"""
         folder_list = FolderList()
         path_list = FolderList()
@@ -720,7 +720,7 @@ class LanZouCloud(object):
         self.delete_rec(folder_id, False)
         return LanZouCloud.SUCCESS
 
-    def _upload_small_file(self, task, file_path, folder_id=-1, callback=None) -> (int, int, bool):
+    def _upload_small_file(self, task, file_path, folder_id=-1, callback=None) -> Tuple[int, int, bool]:
         """绕过格式限制上传不超过 max_size 的文件"""
         if not os.path.isfile(file_path):
             return LanZouCloud.PATH_ERROR, 0, True
@@ -845,7 +845,7 @@ class LanZouCloud(object):
         logger.debug(f"Upload finished, Delete tmp folder:{tmp_dir}")
         return LanZouCloud.SUCCESS, int(dir_id), False  # 大文件返回文件夹id
 
-    def upload_file(self, task: object, file_path, folder_id=-1, callback=None, allow_big_file=False) -> (int, int, bool):
+    def upload_file(self, task: object, file_path, folder_id=-1, callback=None, allow_big_file=False) -> Tuple[int, int, bool]:
         """解除限制上传文件"""
         if not os.path.isfile(file_path):
             return LanZouCloud.PATH_ERROR, 0, True
@@ -918,7 +918,7 @@ class LanZouCloud(object):
 
         if share_url == task.url:  # 下载单文件
             task.total_size = total_size
-        file_path = task.path + os.sep + info.name
+        file_path = task.path + os.sep + info.name.replace("*", "_")  # 替换文件名中的 *
         logger.debug(f'Save file to file_path={file_path}')
         now_size = 0
         if os.path.exists(file_path):
@@ -926,7 +926,7 @@ class LanZouCloud(object):
             task.now_size += now_size
             callback()
             if now_size >= total_size:
-                logger.debug(f'File {info.name=} local aleardy exist!')
+                logger.debug(f'File file_path={file_path} local already exist!')
                 return LanZouCloud.SUCCESS
 
         chunk_size = 1024 * 64  # 4096
@@ -966,7 +966,7 @@ class LanZouCloud(object):
                 f.truncate()
         return LanZouCloud.SUCCESS
 
-    def get_folder_info_by_url(self, share_url, dir_pwd=''):
+    def get_folder_info_by_url(self, share_url, dir_pwd='') -> FolderDetail():
         """获取文件夹里所有文件的信息"""
         if is_file_url(share_url):
             return FolderDetail(LanZouCloud.URL_INVALID)
@@ -975,7 +975,7 @@ class LanZouCloud(object):
         except requests.RequestException as e:
             logger.error(f"requests error: {e}")
             return FolderDetail(LanZouCloud.NETWORK_ERROR)
-        if any(each in html for each in ["文件不存在", "文件取消分享了"]):
+        if any(item in html for item in ["文件不存在", "文件取消分享了"]):
             return FolderDetail(LanZouCloud.FILE_CANCELLED)
         if '请输入密码' in html and len(dir_pwd) == 0:
             return FolderDetail(LanZouCloud.LACK_PASSWORD)
@@ -988,16 +988,30 @@ class LanZouCloud(object):
             # 文件夹的信息
             folder_id = re.findall(r"'fid':'?(\d+)'?,", html)[0]
             folder_name = re.search(r"var.+?='(.+?)';\n.+document.title", html) or \
-                          re.search(r'user-title">(.+?)</div>', html)  # 会员自定义
+                          re.search(r'user-title">(.+?)</div>', html) or \
+                          re.search(r'<div class="b">(.+?)<div', html)  # 会员自定义
             folder_name = folder_name.group(1) if folder_name else ''
             folder_time = re.search(r'class="rets">([\d\-]+?)<a', html)  # 日期不全 %m-%d
             folder_time = folder_time.group(1) if folder_time else ''
-            folder_desc = re.search(r'id="filename">(.+?)</span>', html)  # 无描述时无法完成匹配
+            folder_desc = re.search(r'id="filename">(.+?)</span>', html, re.DOTALL) or \
+                          re.search(r'<div class="user-radio-\d"></div>(.+?)</div>', html) or \
+                          re.search(r'class="teta tetb">说</span>(.+?)</div><div class="d2">', html, re.DOTALL)
             folder_desc = folder_desc.group(1) if folder_desc else ''
         except IndexError:
             logger.error("IndexError")
             return FolderDetail(LanZouCloud.FAILED)
 
+        # 提取子文件夹信息(vip用户分享的文件夹可以递归包含子文件夹)
+        sub_folders = FolderList()
+        # 文件夹描述放在 filesize 一栏, 迷惑行为
+        all_sub_folders = re.findall(
+            r'mbxfolder"><a href="(.+?)".+class="filename">(.+?)<div class="filesize">(.*?)</div>', html)
+        for url, _, _ in all_sub_folders:
+            url = self._host_url + url
+            sub_forder_detail = self.get_folder_info_by_url(url, dir_pwd)
+            sub_folders.append(sub_forder_detail)
+
+        # 提取改文件夹下全部文件
         page = 1
         files = FileList()
         while True:
@@ -1008,13 +1022,17 @@ class LanZouCloud(object):
                 return FolderDetail(LanZouCloud.NETWORK_ERROR)
             if resp['zt'] == 1:  # 成功获取一页文件信息
                 for f in resp["text"]:
-                    files.append(FileInFolder(
-                        name=f['name_all'].replace("&amp;", "&"),  # 文件名
-                        time=f["time"],  # 上传时间
-                        size=f["size"].replace(",", ""),  # 文件大小
-                        type=f["name_all"].split('.')[-1],  # 文件格式
-                        url=self._host_url + "/" + f["id"]  # 文件分享链接
-                    ))
+                    name = f['name_all'].replace("&amp;", "&")
+                    if "*" in name:
+                        logger.debug(f"Having unexpected file: id={f['id']}, name={name}")
+                    if str(f["id"]).startswith('i'):  # 去除不以 i 开头的文件链接
+                        files.append(FileInFolder(
+                            name=name,  # 文件名
+                            time=f["time"],  # 上传时间
+                            size=f["size"].replace(",", ""),  # 文件大小
+                            type=f["name_all"].split('.')[-1],  # 文件格式
+                            url=self._host_url + "/" + f["id"]  # 文件分享链接
+                        ))
                 page += 1  # 下一页
                 continue
             elif resp['zt'] == 2:  # 已经拿到全部的文件信息
@@ -1027,15 +1045,22 @@ class LanZouCloud(object):
                 return FolderDetail(LanZouCloud.FAILED)  # 其它未知错误
         # 通过文件的时间信息补全文件夹的年份(如果有文件的话)
         if files:  # 最后一个文件上传时间最早，文件夹的创建年份与其相同
-            folder_time = files[-1].time.split('-')[0] + '-' + folder_time
-            folder_size, size_int = sum_files_size(files)
+            if folder_time:
+                folder_time = files[-1].time.split('-')[0] + '-' + folder_time
+            else:  # 没有时间就取第一个文件日期
+                folder_time = files[-1].time
+            size_int = sum_files_size(files)
+            count = len(files)
         else:  # 可恶，没有文件，日期就设置为今年吧
             folder_time = datetime.today().strftime('%Y-%m-%d')
-            folder_size, size_int = '0 B', 0
-        return FolderDetail(LanZouCloud.SUCCESS,
-                            FolderInfo(folder_name, folder_id, dir_pwd, folder_time,
-                                       folder_desc, share_url, folder_size, size_int),
-                            files)
+            size_int = count = 0
+        for sub_folder in sub_folders:  # 将子文件夹文件大小数量信息透传到父文件夹
+            size_int += sub_folder.folder.size_int
+            count += sub_folder.folder.count
+        folder_size = convert_file_size_to_str(size_int)
+        this_folder = FolderInfo(folder_name, folder_id, dir_pwd, folder_time,
+                                 folder_desc, share_url, folder_size, size_int, count)
+        return FolderDetail(LanZouCloud.SUCCESS, folder=this_folder, files=files, sub_folders=sub_folders)
 
     def get_folder_info_by_id(self, folder_id):
         """通过 id 获取文件夹及内部文件信息"""
@@ -1131,7 +1156,7 @@ class LanZouCloud(object):
             os.remove(record_file)
         return LanZouCloud.SUCCESS
 
-    def down_dir_by_url(self, task: object, callback) -> int:
+    def down_dir_by_url(self, task: object, callback, parent_dir="") -> int:
         """通过分享链接下载文件夹"""
         folder_detail = self.get_folder_info_by_url(task.url, task.pwd)
         if folder_detail.code != LanZouCloud.SUCCESS:  # 获取文件信息失败
@@ -1143,14 +1168,18 @@ class LanZouCloud(object):
         if info is not None:
             return self._down_big_file(*info, task, callback)
 
+        if parent_dir:  # 递归下载
+            task.path = parent_dir + os.sep + folder_detail.folder.name
+        else:  # 父文件夹
+            task.path = task.path + os.sep + folder_detail.folder.name
+            task.total_file = folder_detail.folder.count
+            task.total_size = folder_detail.folder.size_int
         # 自动创建子文件夹
-        task.path = task.path + os.sep + folder_detail.folder.name
         if not os.path.exists(task.path):
+            task.path = task.path.replace('*', '_')  # 替换特殊字符以符合路径规则
             os.makedirs(task.path)
 
         # 不是大文件分段数据,直接下载
-        task.total_file = len(folder_detail.files)
-        task.total_size = folder_detail.folder.size_int
         task.size = folder_detail.folder.size
         for index, file in enumerate(folder_detail.files, start=1):
             task.current = index
@@ -1159,6 +1188,13 @@ class LanZouCloud(object):
                 logger.error(f'Download file result: Code:{code}, File: {file}')
                 # if failed_callback is not None:
                 #     failed_callback(code, file)
+
+        # 如果有子文件夹则递归下载子文件夹
+        parent_dir = task.path
+        if folder_detail.sub_folders:
+            for sub_folder in folder_detail.sub_folders:
+                task.url = sub_folder.url
+                self.down_dir_by_url(task, callback, parent_dir)
         task.rate = 1000
         return LanZouCloud.SUCCESS
 

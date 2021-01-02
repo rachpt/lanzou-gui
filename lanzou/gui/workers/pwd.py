@@ -40,6 +40,7 @@ class SetPwdWorker(QThread):
                 has_file = False
                 has_folder = False
                 failed = False
+                failed_code = ""
                 for infos in self.infos:
                     if infos.is_file:  # 文件
                         has_file = True
@@ -55,11 +56,12 @@ class SetPwdWorker(QThread):
                             raise UserWarning
                     res = self._disk.set_passwd(infos.id, infos.new_pwd, infos.is_file)
                     if res != LanZouCloud.SUCCESS:
+                        failed_code = failed_code + str(res)
                         failed = True
                 if failed:
-                    self.msg.emit("部分提取码变更失败❀╳❀:{}，请勿使用特殊符号!".format(res), 4000)
+                    self.msg.emit(f"❌部分提取码变更失败:{failed_code}，请勿使用特殊符号!", 4000)
                 else:
-                    self.msg.emit("提取码变更成功！♬", 3000)
+                    self.msg.emit("✅提取码变更成功！♬", 3000)
 
                 self.update.emit(self._work_id, has_file, has_folder, False)
             except TimeoutError:

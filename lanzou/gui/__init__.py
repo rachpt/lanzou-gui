@@ -1,2 +1,2 @@
-version = '0.3.4'
+version = '0.3.6'
 USE_WEB_ENG = True

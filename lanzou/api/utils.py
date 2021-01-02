@@ -5,6 +5,7 @@ API 处理网页数据、数据切片时使用的工具
 import os
 import pickle
 import re
+from typing import Tuple
 from datetime import timedelta, datetime
 from random import uniform, choices, sample, shuffle, choice
 import requests
@@ -14,15 +15,15 @@ from lanzou.debug import logger
 
 __all__ = ['remove_notes', 'name_format', 'time_format', 'is_name_valid', 'is_file_url',
            'is_folder_url', 'big_file_split', 'un_serialize', 'let_me_upload', 'USER_AGENT',
-           'sum_files_size']
+           'sum_files_size', 'convert_file_size_to_str']
 
 
-USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0'
+USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:78.0) Gecko/20100101 Firefox/78.0'
 
 
 headers = {
     'User-Agent': USER_AGENT,
-    'Referer': 'https://www.lanzous.com',
+    'Referer': 'https://pan.lanzous.com',
     'Accept-Language': 'zh-CN,zh;q=0.9',
 }
 
@@ -41,30 +42,43 @@ def name_format(name: str) -> str:
     name = name.replace(u'\xa0', ' ').replace(u'\u3000', ' ').replace('  ', ' ')  # 去除其它字符集的空白符,去除重复空白字符
     return re.sub(r'[$%^!*<>)(+=`\'\"/:;,?]', '', name)
 
+def convert_file_size_to_int(size_str: str) -> int:
+    """文件大小描述转化为字节大小"""
+    if 'G' in size_str:
+        size_int = float(size_str.replace('G', '')) * (1 << 30)
+    elif 'M' in size_str:
+        size_int = float(size_str.replace('M', '')) * (1 << 20)
+    elif 'K' in size_str:
+        size_int = float(size_str.replace('K', '')) * (1 << 10)
+    elif 'B' in size_str:
+        size_int = float(size_str.replace('B', ''))
+    else:
+        size_int = 0
+        logger.debug(f"Unknown size: {size_str}")
+    return int(size_int)
 
-def sum_files_size(files):
+
+def sum_files_size(files: object) -> int:
     """计算文件夹中所有文件的大小， [files,]: FileInFolder"""
-    total = 0.0
+    # 此处的 size 用于全选下载判断、展示文件夹大小
+    total = 0
     for file_ in files:
-        if 'M' in file_.size:
-            total += float(file_.size.replace('M', '')) * (1 << 20)
-        elif 'K' in file_.size:
-            total += float(file_.size.replace('K', '')) * (1 << 10)
-        elif 'B' in file_.size:
-            total += float(file_.size.replace('B', ''))
-        else:
-            logger.debug(f"Unknow size: {file_.size}")
+        size_str = file_.size
+        total += convert_file_size_to_int(size_str)
+    return int(total)
 
+
+def convert_file_size_to_str(total: int) -> str:
     if total < 1 << 10:
         size = "{:.2f} B".format(total)
     elif total < 1 << 20:
-        size = "{:.2f} KB".format(total / (1 << 10))
+        size = "{:.2f} K".format(total / (1 << 10))
     elif total < 1 << 30:
-        size = "{:.2f} MB".format(total / (1 << 20))
+        size = "{:.2f} M".format(total / (1 << 20))
     else:
-        size = "{:.2f} GB".format(total / (1 << 30))
+        size = "{:.2f} G".format(total / (1 << 30))
 
-    return size, int(total)
+    return size
 
 
 def time_format(time_str: str) -> str:
@@ -142,7 +156,7 @@ def un_serialize(data: bytes):
         return None
 
 
-def big_file_split(file_path: str, max_size: int = 100, start_byte: int = 0) -> (int, str):
+def big_file_split(file_path: str, max_size: int = 100, start_byte: int = 0) -> Tuple[int, str]:
     """将大文件拆分为大小、格式随机的数据块, 可指定文件起始字节位置(用于续传)
     :return 数据块文件的大小和绝对路径
     """
