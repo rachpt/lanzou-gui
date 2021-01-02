@@ -7,4 +7,6 @@
       "--disable",
       "no-member, arguments-differ, unused-argument, attribute-defined-outside-init, broad-except, missing-docstring, invalid-name, no-self-use, too-few-public-methods, too-many-ancestors, too-many-instance-attributes, too-many-arguments, line-too-long, protected-access"
     ],
+    "files.autoSave": "afterDelay",
+    "editor.formatOnSave": false,
 }
