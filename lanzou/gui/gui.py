@@ -720,8 +720,8 @@ class MainWindow(Ui_MainWindow):
         action = self.left_menus.exec_(self.sender().mapToGlobal(pos))
         if action == self.left_menu_share_url:  # 显示详细信息
             # 后台跟新信息，并显示信息对话框
-            if isinstance(info, tuple) and len(info) == 3:
-                info = ShareFileInfos(info[0])  # 提取界面 info 在第一个位置
+            if isinstance(info, ShareItem):
+                info = ShareFileInfos(info.item)  # 提取界面 info 在第一个位置
             self.more_info_worker.set_values(info)
             self.info_dialog.exec()
         elif action == self.left_menu_move:  # 移动文件

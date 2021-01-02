@@ -4,6 +4,7 @@ from random import choice
 
 from lanzou.api.utils import USER_AGENT
 
+timeout = 2
 
 def get_short_url(url: str):
     """短链接生成器"""
@@ -12,7 +13,7 @@ def get_short_url(url: str):
     api_infos = ['http://xuewaurl.cn/user/info', 'http://yldwz.cn/user/info', 'http://knurl.cn/user/info']
     apis = ['http://pay.jump-api.cn/tcn/web/test', 'http://pay.jump-api.cn/urlcn/web/test']  # 新浪、腾讯
     try:
-        http = requests.get(choice(api_infos), verify=False, headers=headers)
+        http = requests.get(choice(api_infos), verify=False, headers=headers, timeout=timeout)
         infos = http.json()
 
         uid = infos["uid"]
@@ -32,7 +33,7 @@ def get_short_url(url: str):
             "url_long": url
         }
         for api in apis:
-            resp = requests.post(api, data=post_data, verify=False, headers=headers)
+            resp = requests.post(api, data=post_data, verify=False, headers=headers, timeout=timeout)
             if resp.text.startswith('http'):
                 short_url = resp.text
                 break
@@ -42,7 +43,7 @@ def get_short_url(url: str):
         chinaz_api = 'http://tool.chinaz.com/tools/dwz.aspx'
         post_data = {"longurl":url, "aliasurl":""}
         try:
-            html = requests.post(chinaz_api, data=post_data, verify=False, headers=headers).text
+            html = requests.post(chinaz_api, data=post_data, verify=False, headers=headers, timeout=timeout).text
             short_url = re.findall('id="shorturl">(http[^<]*?)</span>', html)
             if short_url:
                 short_url = short_url[0] 

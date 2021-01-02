@@ -16,6 +16,7 @@ class InfoDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.infos = None
+        self._short_link_flag = True  # 防止多次重试
         self.initUI()
         self.setStyleSheet(dialog_qss_style)
 
@@ -92,19 +93,23 @@ class InfoDialog(QDialog):
         self.tx_dl_link.setPlaceholderText("后台获取中，请稍候！")
 
     def call_get_short_url(self):
-        self.tx_short.setPlaceholderText("后台获取中，请稍候！")
-        url = self.tx_share_url.text()
-        from lanzou.api.extra import get_short_url
+        if self._short_link_flag:
+            self._short_link_flag = False
+            self.tx_short.setPlaceholderText("后台获取中，请稍候！")
+            url = self.tx_share_url.text()
+            from lanzou.api.extra import get_short_url
 
-        short_url = get_short_url(url)
-        if short_url:
-            self.tx_short.setText(short_url)
-            self.tx_short.setPlaceholderText("")
-        else:
-            self.tx_short.setText("")
-            self.tx_short.setPlaceholderText("生成失败！")
+            short_url = get_short_url(url)
+            if short_url:
+                self.tx_short.setText(short_url)
+                self.tx_short.setPlaceholderText("")
+                self._short_link_flag = True
+            else:
+                self.tx_short.setText("")
+                self.tx_short.setPlaceholderText("生成失败！api 可能已经失效")
 
     def clean(self):
+        self._short_link_flag = True
         self.tx_short.setText("")
         self.tx_short.setPlaceholderText("单击获取")
 
