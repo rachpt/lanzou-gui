@@ -20,7 +20,6 @@ class RenameDialog(QDialog):
     def set_values(self, infos=None):
         self.infos = infos or []
         self.update_text()  # 更新界面
-        self.tx_desc.setFocus()
 
     def initUI(self):
         self.setWindowIcon(QIcon(SRC_DIR + "desc.ico"))
@@ -52,6 +51,7 @@ class RenameDialog(QDialog):
         self.buttonBox.rejected.connect(self.reject)
 
     def update_text(self):
+        self.tx_desc.setFocus()
         num = len(self.infos)
         if num == 1:
             self.lb_name.setVisible(True)
@@ -76,6 +76,7 @@ class RenameDialog(QDialog):
             else:
                 self.tx_name.setFocusPolicy(Qt.StrongFocus)
                 self.tx_name.setReadOnly(False)
+                self.tx_name.setFocus()
         elif num > 1:
             self.lb_name.setVisible(False)
             self.tx_name.setVisible(False)
@@ -93,6 +94,7 @@ class RenameDialog(QDialog):
             self.tx_name.setFocusPolicy(Qt.StrongFocus)
             self.tx_name.setReadOnly(False)
             self.tx_desc.setPlaceholderText("可选项，建议160字数以内。")
+            self.tx_name.setFocus()
         if self.min_width < 400:
             self.min_width = 400
         self.resize(self.min_width, 200)
@@ -105,12 +107,11 @@ class RenameDialog(QDialog):
     def btn_ok(self):
         new_name = self.tx_name.text()
         new_des = self.tx_desc.toPlainText()
-        if not self.infos:  # 在 work_id 新建文件夹
+        info_len = len(self.infos)
+        if info_len == 0:  # 在 work_id 新建文件夹
             if new_name:
                 self.out.emit(("new", new_name, new_des))
-            else:
-                return
-        if len(self.infos) == 1:
+        elif info_len == 1:
             if new_name != self.infos[0].name or new_des != self.infos[0].desc:
                 self.infos[0].new_des = new_des
                 self.infos[0].new_name = new_name
