@@ -1,19 +1,17 @@
-from logging import Logger
 import os
 import re
-import browser_cookie3
+# import browser_cookie3
+# https://github.com/borisbabic/browser_cookie3/pull/70
+from lanzou import browser_cookie3_n as browser_cookie3
 from PyQt5.QtCore import Qt, pyqtSignal, QPropertyAnimation, QRect, QTimer
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtWidgets import (QDialog, QLabel, QLineEdit, QTextEdit, QPushButton, QFormLayout,
                              QHBoxLayout, QVBoxLayout, QMessageBox, QFileDialog, QTabWidget, QWidget)
 
-from lanzou.gui.others import QDoublePushButton, MyLineEdit
+from lanzou.gui.others import QDoublePushButton, MyLineEdit, AutoResizingTextEdit
 from lanzou.gui.qss import dialog_qss_style, btn_style
-from lanzou.gui import USE_WEB_ENG
 from lanzou.debug import logger, SRC_DIR
-
-if USE_WEB_ENG:  # 是否使用 PyQtWebEngine 辅助登录
-    from lanzou.gui.login_assister import LoginWindow
+from lanzou import USE_WEB_ENG
 
 
 is_windows = True if os.name == 'nt' else False
@@ -88,7 +86,8 @@ class LoginDialog(QDialog):
         # Add tabs
         self.tabs.addTab(self.auto_tab,"自动获取Cookie")
         self.tabs.addTab(self.hand_tab,"手动输入Cookie")
-        self.auto_get_cookie_ok = QLabel("🔶点击👇自动获取浏览器登录信息👇")
+        self.auto_get_cookie_ok = AutoResizingTextEdit("🔶点击👇自动获取浏览器登录信息👇")
+        self.auto_get_cookie_ok.setReadOnly(True)
         self.auto_get_cookie_btn = QPushButton("自动读取Firefox/Chrome登录信息")
         auto_cookie_notice = '优先读取Firefix登录cookie，然后是Chrome'
         self.auto_get_cookie_btn.setToolTip(auto_cookie_notice)
@@ -330,7 +329,9 @@ class LoginDialog(QDialog):
                 self._config.set_infos(up_info)
             self.clicked_ok.emit()
             self.close()
-        elif USE_WEB_ENG:
+        elif USE_WEB_ENG:  # 是否使用 PyQtWebEngine 辅助登录
+            from lanzou.login_assister import LoginWindow
+
             self.web = LoginWindow(self._user, self._pwd)
             self.web.cookie.connect(self.get_cookie_by_web)
             self.web.setWindowModality(Qt.ApplicationModal)
@@ -376,14 +377,14 @@ class LoginDialog(QDialog):
             self._cookie = get_cookie_from_browser()
         except Exception as e:
             logger.error(f"Browser_cookie3 Error: {e}")
-            self.auto_get_cookie_ok.setText(f"❌获取失败，错误信息：{e}")
+            self.auto_get_cookie_ok.setPlainText(f"❌获取失败，错误信息\n{e}")
         else:
             if self._cookie:
                 self._user = self._pwd = ''
-                self.auto_get_cookie_ok.setText("✅获取成功即将登录……")
+                self.auto_get_cookie_ok.setPlainText("✅获取成功即将登录……")
                 QTimer.singleShot(2000, self._close_dialog)
             else:
-                self.auto_get_cookie_ok.setText("❌获取失败，请提前使用 Firefox/Chrome 登录蓝奏云！")
+                self.auto_get_cookie_ok.setPlainText("❌获取失败\n请提前使用 Firefox/Chrome 登录蓝奏云，获取前完全退出浏览器！\n浏览器顺序：chrome, chromium, opera, edge, firefox")
 
     def _close_dialog(self):
         """关闭对话框"""

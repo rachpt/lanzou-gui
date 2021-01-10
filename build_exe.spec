@@ -21,8 +21,7 @@ a = Analysis(['main.py'],
 
 a.binaries = [x for x in a.binaries if 'login_assister' not in x[0]]
 
-pyz = PYZ(a.pure, a.zipped_data,
-             cipher=block_cipher)
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(pyz,
           a.scripts,
           [],
