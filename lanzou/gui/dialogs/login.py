@@ -13,6 +13,9 @@ from lanzou.gui.qss import dialog_qss_style, btn_style
 from lanzou.debug import logger, SRC_DIR
 from lanzou import USE_WEB_ENG
 
+if USE_WEB_ENG:  # 此处不能移动到后面，会抛出异常
+    from lanzou.login_assister import LoginWindow
+
 
 is_windows = True if os.name == 'nt' else False
 
@@ -329,9 +332,7 @@ class LoginDialog(QDialog):
                 self._config.set_infos(up_info)
             self.clicked_ok.emit()
             self.close()
-        elif USE_WEB_ENG:  # 是否使用 PyQtWebEngine 辅助登录
-            from lanzou.login_assister import LoginWindow
-
+        elif USE_WEB_ENG:
             self.web = LoginWindow(self._user, self._pwd)
             self.web.cookie.connect(self.get_cookie_by_web)
             self.web.setWindowModality(Qt.ApplicationModal)
