@@ -38,4 +38,11 @@ exe = EXE(pyz,
 app = BUNDLE(exe,
              name='lanzou-gui.app',
              icon='./app_icon.icns',
+             info_plist={
+                'CFBundleDevelopmentRegion': 'Chinese',
+                'CFBundleIdentifier': "cn.rachpt.lanzou-gui",
+                'CFBundleVersion': '0.3.7',
+                'CFBundleShortVersionString': "0.3.7",
+                'NSHumanReadableCopyright': u"Copyright © 2021, rachpt, All Rights Reserved"
+             },
              bundle_identifier=None)
