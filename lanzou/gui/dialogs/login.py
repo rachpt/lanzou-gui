@@ -91,8 +91,8 @@ class LoginDialog(QDialog):
         self.tabs.addTab(self.hand_tab,"手动输入Cookie")
         self.auto_get_cookie_ok = AutoResizingTextEdit("🔶点击👇自动获取浏览器登录信息👇")
         self.auto_get_cookie_ok.setReadOnly(True)
-        self.auto_get_cookie_btn = QPushButton("自动读取Firefox/Chrome登录信息")
-        auto_cookie_notice = '优先读取Firefix登录cookie，然后是Chrome'
+        self.auto_get_cookie_btn = QPushButton("自动读取浏览器登录信息")
+        auto_cookie_notice = '支持浏览器：Chrome, Chromium, Opera, Edge, Firefox'
         self.auto_get_cookie_btn.setToolTip(auto_cookie_notice)
         self.auto_get_cookie_btn.clicked.connect(self.call_auto_get_cookie)
         self.auto_get_cookie_btn.setStyleSheet("QPushButton {min-width: 210px;max-width: 210px;}")
@@ -385,7 +385,7 @@ class LoginDialog(QDialog):
                 self.auto_get_cookie_ok.setPlainText("✅获取成功即将登录……")
                 QTimer.singleShot(2000, self._close_dialog)
             else:
-                self.auto_get_cookie_ok.setPlainText("❌获取失败\n请提前使用 Firefox/Chrome 登录蓝奏云，获取前完全退出浏览器！\n浏览器顺序：chrome, chromium, opera, edge, firefox")
+                self.auto_get_cookie_ok.setPlainText("❌获取失败\n请提前使用支持的浏览器登录蓝奏云，读取前完全退出浏览器！\n支持的浏览器与顺序：\nchrome, chromium, opera, edge, firefox")
 
     def _close_dialog(self):
         """关闭对话框"""
