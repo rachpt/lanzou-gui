@@ -1113,6 +1113,18 @@ class LanZouCloud(object):
                 logger.debug(f"Find download record file: {info}")
 
         task.total_size = total_size
+        if os.path.exists(big_file):
+            now_size = os.path.getsize(big_file)  # 本地已经下载的文件大小
+            task.now_size += now_size
+            if callback is not None:
+                callback()
+            if now_size >= total_size:
+                logger.debug(f'File file_path={big_file} local already exist!')
+                # 全部数据块下载完成, 记录文件可以删除
+                logger.debug(f"Delete download record file: {record_file}")
+                os.remove(record_file)
+                return LanZouCloud.SUCCESS
+
         with open(big_file, 'ab') as bf:
             for file in file_list:
                 try:
