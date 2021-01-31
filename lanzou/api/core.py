@@ -854,7 +854,7 @@ class LanZouCloud(object):
         if os.path.getsize(file_path) <= self._max_size * 1048576:
             return self._upload_small_file(task, file_path, folder_id, callback)
         elif not allow_big_file:
-            logger.debug(f'Forbid upload big file！file_path={file_path}, {self._max_size=}')
+            logger.debug(f'Forbid upload big file！file_path={file_path}, max_size={self._max_size}')
             return LanZouCloud.FAILED, 0, False  # 不允许上传超过 max_size 的文件
 
         # 上传超过 max_size 的文件

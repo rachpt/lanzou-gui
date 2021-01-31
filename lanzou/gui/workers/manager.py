@@ -139,7 +139,7 @@ class TaskManager(QThread):
         self.start()
 
     def add_task(self, task):
-        logger.debug(f"TaskMgr add one: {task.added=}, {task.pause=}")
+        logger.debug(f"TaskMgr add one: added={task.added}, pause={task.pause}")
         if task.url not in self._tasks.keys():
             self._tasks[task.url] = task
         task.added = False
@@ -153,7 +153,7 @@ class TaskManager(QThread):
         self.start()
 
     def del_task(self, task):
-        logger.debug(f"TaskMgr del: {task.url=}")
+        logger.debug(f"TaskMgr del: url={task.url}")
         if task in self._queues:
             self._queues.remove(task)
         if task.url in self._tasks:
@@ -164,7 +164,7 @@ class TaskManager(QThread):
     def _task_to_queue(self):
         for task in self._tasks.values():
             if not task.added and not task.pause and task not in self._queues:
-                logger.debug(f"TaskMgr task2queue: {task.url=}")
+                logger.debug(f"TaskMgr task2queue: url={task.url}")
                 self._queues.append(task)
                 task.added = True
 
@@ -191,7 +191,7 @@ class TaskManager(QThread):
 
     def _add_thread(self, task):
         self.update.emit()
-        logger.debug(f"TaskMgr count: {self._count=}")
+        logger.debug(f"TaskMgr count: count={self._count}")
         self._count -= 1
         del self._workers[task.url]
         # 发送所有任务完成信号
@@ -222,7 +222,7 @@ class TaskManager(QThread):
                     self.sleep(1)
                 self._count += 1
                 task = self._queues.pop()
-                logger.debug(f"TaskMgr run: {task.url=}")
+                logger.debug(f"TaskMgr run: url={task.url}")
                 if task.type == 'dl':
                     self._workers[task.url] = Downloader(self._disk, task, Callback)
                     self.mgr_msg.emit(f"准备下载：<font color='#FFA500'>{task.name}</font>", 0)
