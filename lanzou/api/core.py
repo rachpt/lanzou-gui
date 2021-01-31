@@ -803,17 +803,17 @@ class LanZouCloud(object):
                 uploaded_size = info['uploaded']  # 读取已经上传的大小
                 logger.debug(f"Find upload record: {uploaded_size}/{file_size}")
 
-        def _callback(name, t_size, now_size):  # 重新封装回调函数，隐藏数据块上传细节
-            nonlocal uploaded_size
-            if callback is not None:
-                # MultipartEncoder 以后,文件数据流比原文件略大几百字节, now_size 略大于 file_size
-                now_size = uploaded_size + now_size
-                now_size = now_size if now_size < file_size else file_size  # 99.99% -> 100.00%
-                callback(file_name, file_size, now_size)
+        # def _callback(now_size):  # 重新封装回调函数，隐藏数据块上传细节
+        #     nonlocal uploaded_size
+        #     if callback is not None:
+        #         # MultipartEncoder 以后,文件数据流比原文件略大几百字节, now_size 略大于 file_size
+        #         now_size = uploaded_size + now_size
+        #         task.now_size = now_size if now_size < task.total_size else task.total_size  # 99.99% -> 100.00%
+        #         callback()
 
         while uploaded_size < file_size:
             data_size, data_path = big_file_split(file_path, self._max_size, start_byte=uploaded_size)
-            code, _, _ = self._upload_small_file(data_path, dir_id, _callback)
+            code, _, _ = self._upload_small_file(task, data_path, dir_id, callback)
             if code == LanZouCloud.SUCCESS:
                 uploaded_size += data_size  # 更新已上传的总字节大小
                 info['uploaded'] = uploaded_size
@@ -822,7 +822,7 @@ class LanZouCloud(object):
                     logger.debug(f"Update record file: {uploaded_size}/{file_size}")
                     pickle.dump(info, f)
             else:
-                logger.debug(f"Upload data file failed: data_path={data_path}")
+                logger.debug(f"Upload data file failed: code={code}, data_path={data_path}")
                 return LanZouCloud.FAILED, 0, False
             os.remove(data_path)  # 删除临时数据块
             min_s, max_s = self._upload_delay  # 设置两次上传间的延时，减小封号可能性
@@ -836,9 +836,9 @@ class LanZouCloud(object):
         record_name = name_format(''.join(record_name)) + '.txt'
         record_file_new = tmp_dir + os.sep + record_name
         os.rename(record_file, record_file_new)
-        code, _, _ = self._upload_small_file(record_file_new, dir_id)  # 上传记录文件
+        code, _, _ = self._upload_small_file(task, record_file_new, dir_id, callback)  # 上传记录文件
         if code != LanZouCloud.SUCCESS:
-            logger.debug(f"Upload record file failed: {record_file_new}")
+            logger.error(f"Upload record file failed: code={code}, record_file={record_file_new}")
             return LanZouCloud.FAILED, 0, False
         # 记录文件上传成功，删除临时文件
         shutil.rmtree(tmp_dir)
@@ -1078,7 +1078,7 @@ class LanZouCloud(object):
             except AttributeError:
                 info = self.get_durl_by_id(txt_files[0].id)
             if info.code != LanZouCloud.SUCCESS:
-                logger.debug("Big file checking: Failed")
+                logger.error("Big file checking: Failed")
                 return None
             resp = self._get(info.durl)
             info = un_serialize(resp.content) if resp else None

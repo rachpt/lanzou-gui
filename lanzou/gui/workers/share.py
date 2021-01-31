@@ -30,6 +30,7 @@ class GetSharedInfo(QThread):
     def set_values(self, text, pwd_input=""):
         '''获取分享链接信息'''
         text = text.strip()
+        pwd_input = pwd_input.strip()
         if not text:
             self.update.emit()
             return None

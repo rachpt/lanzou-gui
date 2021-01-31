@@ -63,7 +63,7 @@ class SettingDialog(QDialog):
         self.upload_delay_var.setText(str(self.upload_delay))
         self.big_file_box.setChecked(self.allow_big_file)
         self.big_file_box.setText(f"允许上传超过 {self.max_size}MB 的大文件")
-        self.big_file_box.setDisabled(True)  # 关闭允许上传大文件设置入口
+        # self.big_file_box.setDisabled(True)  # 关闭允许上传大文件设置入口
         self.upgrade_box.setChecked(self.upgrade)
 
     def set_values(self, reset=False):
@@ -84,6 +84,8 @@ class SettingDialog(QDialog):
         self.upload_delay = settings["upload_delay"]
         if 'upgrade' in settings:
             self.upgrade = settings["upgrade"]
+        if 'allow_big_file' in settings:
+            self.allow_big_file = settings["allow_big_file"]
         self.show_values()
 
     def get_values(self) -> dict:
