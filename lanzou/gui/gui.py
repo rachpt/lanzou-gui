@@ -312,6 +312,7 @@ class MainWindow(Ui_MainWindow):
             self.show_toolbar.setText("显示工具栏")
         else:
             self.toolbar.show()
+            self.toolbar.setIconSize(QSize(20,20))
             self.show_toolbar.setText("关闭工具栏")
 
     def show_login_dialog(self):
@@ -931,10 +932,12 @@ class MainWindow(Ui_MainWindow):
             self._extract_setted_head = False
             self._extract_count = 0
             self.line_share_url.setEnabled(False)
+            self.line_share_pwd.setEnabled(False)
             self.btn_extract.setEnabled(False)
             text = self.line_share_url.text().strip()
+            input_pwd = self.line_share_pwd.text().strip()
             self.model_share.setHorizontalHeaderLabels(['文件(夹)', "大小", "时间"])
-            self.get_shared_info_thread.set_values(text)
+            self.get_shared_info_thread.set_values(text, input_pwd)
 
     def show_share_folder_url_lists(self, infos, root_dir=[], show_dir=[]):
         # infos: 文件夹 FolderDetail -> code, folder, files, sub_folders
@@ -1104,11 +1107,14 @@ class MainWindow(Ui_MainWindow):
         self.get_shared_info_thread.infos.connect(self.show_share_url_file_lists)  # 内容信息
         self.get_shared_info_thread.update.connect(lambda: self.btn_extract.setEnabled(True))
         self.get_shared_info_thread.update.connect(lambda: self.line_share_url.setEnabled(True))
+        self.get_shared_info_thread.update.connect(lambda: self.line_share_pwd.setEnabled(True))
         self.table_share.doubleClicked.connect(self.change_share_dir)  # 双击
         # 控件设置
-        self.line_share_url.setPlaceholderText("蓝奏云链接，如有提取码，放后面，空格或汉字等分割，回车键提取")
+        self.line_share_url.setPlaceholderText("蓝奏云链接，如有提取码，放后面，空格或汉字等分割(汉字、特殊符号提取码手动右侧输入！)，回车键提取")
         self.line_share_url.returnPressed.connect(self.call_get_shared_info)
         self.line_share_url.setFocus()  # 光标焦点
+        self.line_share_pwd.setPlaceholderText("特殊提取码")
+        self.line_share_pwd.setFixedWidth(100)  # 提取码输入框 宽度
         self.btn_extract.clicked.connect(self.call_get_shared_info)
         self.btn_share_dl.clicked.connect(lambda: self.call_multi_manipulator("download"))
         self.btn_share_dl.setIcon(QIcon(SRC_DIR + "downloader.ico"))
@@ -1362,6 +1368,7 @@ class MainWindow(Ui_MainWindow):
         for share_url, _, pwd in re.findall(pat, text):
             if share_url and not self.get_shared_info_thread.isRunning():
                 self.line_share_url.setEnabled(False)
+                self.line_share_pwd.setEnabled(False)
                 self.btn_extract.setEnabled(False)
                 txt = share_url + "提取码：" + pwd if pwd else share_url
                 self.line_share_url.setText(txt)

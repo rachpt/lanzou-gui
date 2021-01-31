@@ -27,7 +27,7 @@ class GetSharedInfo(QThread):
     def set_disk(self, disk):
         self._disk = disk
 
-    def set_values(self, text):
+    def set_values(self, text, pwd_input=""):
         '''获取分享链接信息'''
         text = text.strip()
         if not text:
@@ -48,7 +48,9 @@ class GetSharedInfo(QThread):
                 return None
             self.clean.emit()  # 清理旧的显示信息
             self.share_url = share_url
-            if pwd:
+            if pwd_input:
+                self.pwd = pwd_input
+            elif pwd:
                 self.pwd = pwd
             else:  # 一个或两个汉字的提取码
                 pwd_ = text.split(' ')[-1].split('：')[-1].split(':')[-1]
