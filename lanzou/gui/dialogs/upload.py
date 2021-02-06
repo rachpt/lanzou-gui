@@ -40,7 +40,7 @@ class UploadDialog(QDialog):
         if self.allow_big_file:
             self.btn_chooseMultiFile.setToolTip("")
         else:
-            self.btn_chooseMultiFile.setToolTip(f"文件大小上线 {self.max_size}MB")
+            self.btn_chooseMultiFile.setToolTip(f"文件大小上限 {self.max_size}MB")
 
     def set_values(self, folder_name, folder_id, files):
         self.setWindowTitle("上传文件至 ➩ " + str(folder_name))
@@ -207,6 +207,7 @@ class UploadDialog(QDialog):
             return
         if dir_choose not in self.selected:
             self.selected.append(dir_choose)
+            self.cwd = os.path.dirname(dir_choose)
         self.show_selected()
 
     def slot_btn_chooseMultiFile(self):

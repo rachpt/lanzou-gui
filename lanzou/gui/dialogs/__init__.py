@@ -9,8 +9,9 @@ from lanzou.gui.dialogs.rename import RenameDialog
 from lanzou.gui.dialogs.setpwd import SetPwdDialog
 from lanzou.gui.dialogs.setting import SettingDialog
 from lanzou.gui.dialogs.upload import UploadDialog
+from lanzou.gui.dialogs.merge_file import MergeFileDialog
 
 
 __ALL__ = ['LoginDialog', 'UploadDialog', 'InfoDialog', 'RenameDialog',
            'SettingDialog', 'RecFolderDialog', 'SetPwdDialog', 'MoveFileDialog',
-           'DeleteDialog', 'KEY', 'AboutDialog', 'CaptchaDialog']
+           'DeleteDialog', 'KEY', 'AboutDialog', 'CaptchaDialog', 'MergeFileDialog']

@@ -114,6 +114,7 @@ class MainWindow(Ui_MainWindow):
         self.how.triggered.connect(self.open_wiki_url)
         self.about.triggered.connect(self.about_dialog.exec)
         self.tabWidget.currentChanged.connect(self.call_change_tab)  # tab 切换时更新
+        self.merge_file.triggered.connect(self.merge_file_dialog.exec)  # 合并文件
 
     def init_variables(self):
         self._disk = LanZouCloud()
@@ -289,6 +290,7 @@ class MainWindow(Ui_MainWindow):
         # self.captcha_dialog.captcha.connect(self.set_captcha)
         # self.captcha_dialog.setWindowModality(Qt.ApplicationModal)
 
+        self.merge_file_dialog = MergeFileDialog(USER_HOME)
         self.set_disk()
 
     # def set_captcha(self, code):
