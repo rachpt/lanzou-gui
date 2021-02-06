@@ -61,5 +61,7 @@ class Uploader(QThread):
                 if self._task.desc:
                     self._disk.set_desc(fid, self._task.desc, is_file=isfile)
                 self._task.rate = 1000  # 回调线程可能在休眠
+            else:
+                self.failed.emit()
         self._task.run = False
         self.finished_.emit(self._task)

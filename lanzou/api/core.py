@@ -38,6 +38,7 @@ class LanZouCloud(object):
     PATH_ERROR = 8
     NETWORK_ERROR = 9
     CAPTCHA_ERROR = 10
+    OFFICIAL_LIMITED = 11
 
     def __init__(self):
         self._session = requests.Session()
@@ -855,7 +856,8 @@ class LanZouCloud(object):
             return self._upload_small_file(task, file_path, folder_id, callback)
         elif not allow_big_file:
             logger.debug(f'Forbid upload big file！file_path={file_path}, max_size={self._max_size}')
-            return LanZouCloud.FAILED, 0, False  # 不允许上传超过 max_size 的文件
+            task.info = f"文件大于{self._max_size}MB" # LanZouCloud.OFFICIAL_LIMITED
+            return LanZouCloud.OFFICIAL_LIMITED, 0, False  # 不允许上传超过 max_size 的文件
 
         # 上传超过 max_size 的文件
         folder_name = os.path.basename(file_path)  # 保存分段文件的文件夹名
