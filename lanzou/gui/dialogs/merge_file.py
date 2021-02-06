@@ -56,7 +56,6 @@ def un_serialize(folder):
             record = _record
     except Exception as e:  # 这里可能会丢奇怪的异常
         # logger.debug(f"Pickle e={e}")
-        print(record, e)
         pass
     if not record:
         msg = f"{record_file} : 记录文件不对"
@@ -168,4 +167,3 @@ class MergeFileDialog(QDialog):
         else:
             text = "未选择文件夹📂"
         self.status.setText(text)
-        print(text)
