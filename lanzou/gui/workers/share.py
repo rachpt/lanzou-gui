@@ -105,6 +105,7 @@ class GetSharedInfo(QThread):
             except TimeoutError:
                 self.msg.emit("font color='red'>网络超时！请稍后重试</font>", 5000)
             except Exception as e:
+                self.msg.emit(f"font color='red'>未知错误：{e}</font>", 5000)
                 logger.error(f"GetShareInfo error: e={e}")
             self._is_work = False
             self.update.emit()
