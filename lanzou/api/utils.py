@@ -103,7 +103,7 @@ def is_name_valid(filename: str) -> bool:
                          'crx', 'rpm', 'txf', 'pdf', 'apk', 'ipa', 'txt', 'mobi', 'osk', 'dmg', 'rp', 'osz', 'jar',
                          'ttc', 'z', 'w3x', 'xlsx', 'cetrainer', 'ct', 'rar', 'mp3', 'pptx', 'mobileconfig', 'epub',
                          'imazingapp', 'doc', 'iso', 'img', 'appimage', '7z', 'rplib', 'lolgezi', 'exe', 'azw3', 'zip',
-                         'conf', 'tar', 'dll', 'flac', 'xpa', 'lua')
+                         'conf', 'tar', 'dll', 'flac', 'xpa', 'lua', 'cad', 'hwt', 'accdb', 'ce', 'xmind', 'enc', 'bds', 'bdi', 'ssf', 'it', 'gz')
 
     return filename.split('.')[-1] in valid_suffix_list
 

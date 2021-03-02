@@ -52,7 +52,7 @@ class LanZouCloud(object):
         self._cookies = None
         self._headers = {
             'User-Agent': USER_AGENT,
-            'Referer': 'https://pan.lanzous.com',
+            'Referer': 'https://pc.woozooo.com/mydisk.php',
             'Accept-Language': 'zh-CN,zh;q=0.9',  # 提取直连必需设置这个，否则拿不到数据
         }
         disable_warnings(InsecureRequestWarning)  # 全局禁用 SSL 警告
@@ -94,10 +94,13 @@ class LanZouCloud(object):
         return LanZouCloud.FAILED
 
     def login(self, username, passwd) -> int:
-        """登录蓝奏云控制台"""
+        """
+        登录蓝奏云控制台已弃用]
+        对某些用户可能有用
+        """
         self._session.cookies.clear()
-        login_data = {"action": "login", "task": "login", "setSessionId": "", "setToken": "", "setSig": "",
-                      "setScene": "", "username": username, "password": passwd}
+        login_data = {"task": 3, "setSessionId": "", "setToken": "", "setSig": "",
+                      "setScene": "", "uid": username, "pwd": passwd}
         phone_header = {
             "User-Agent": "Mozilla/5.0 (Linux; Android 5.0; SM-G900P Build/LRX21T) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/82.0.4051.0 Mobile Safari/537.36"}
         html = self._get(self._account_url)
@@ -108,15 +111,17 @@ class LanZouCloud(object):
             logger.error("formhash is None!")
             return LanZouCloud.FAILED
         login_data['formhash'] = formhash[0]
-        html = self._post(self._account_url, login_data, headers=phone_header)
+        html = self._post(self._mydisk_url, login_data, headers=phone_header)
         if not html:
             return LanZouCloud.NETWORK_ERROR
-        if '登录成功' in html.text:
-            self._cookies = html.cookies.get_dict()
-            self._session.cookies.update(self._cookies)
-            return LanZouCloud.SUCCESS
-        else:
-            return LanZouCloud.FAILED
+        try:
+            if '成功' in html.json()['info']:
+                self._cookies = html.cookies.get_dict()
+                self._session.cookies.update(self._cookies)
+                return LanZouCloud.SUCCESS
+        except ValueError:
+            pass
+        return LanZouCloud.FAILED
 
     def get_cookie(self) -> dict:
         """获取用户 Cookie"""
@@ -569,6 +574,7 @@ class LanZouCloud(object):
 
     def set_passwd(self, fid, passwd='', is_file=True) -> int:
         """设置网盘文件(夹)的提取码"""
+        # 设置网盘文件(夹)的提取码, 现在非会员用户不允许关闭提取码
         # id 无效或者 id 类型不对应仍然返回成功 :(
         # 文件夹提取码长度 0-12 位  文件提取码 2-6 位
         passwd_status = 0 if passwd == '' else 1  # 是否开启密码
@@ -772,6 +778,9 @@ class LanZouCloud(object):
             logger.debug('Upload file no result')
             return LanZouCloud.NETWORK_ERROR, 0, True
         else:
+            if result.status_code == 413:
+                logger.error(f"Upload file too Large: {result.text}")
+                return LanZouCloud.FAILED, 0, True  # 文件超过限制, 上传失败
             result = result.json()
         if result["zt"] != 1:
             logger.debug(f'Upload failed: result={result}')
