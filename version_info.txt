@@ -2,8 +2,8 @@
 
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(0, 3, 8, 0),
-    prodvers=(0, 3, 8, 0),
+    filevers=(0, 3, 9, 0),
+    prodvers=(0, 3, 9, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x4,
@@ -17,12 +17,12 @@ VSVersionInfo(
         u'040904B0',
         [StringStruct(u'CompanyName', u'rachpt.cn'),
         StringStruct(u'FileDescription', u'蓝奏云客户端'),
-        StringStruct(u'FileVersion', u'0.3.8'),
+        StringStruct(u'FileVersion', u'0.3.9'),
         StringStruct(u'InternalName', u'lanzou-gui'),
         StringStruct(u'LegalCopyright', u'Copyright (c) rachpt'),
-        StringStruct(u'OriginalFilename', u'lanzou-gui_win64_v0.3.8.exe'),
+        StringStruct(u'OriginalFilename', u'lanzou-gui_win64_v0.3.9.exe'),
         StringStruct(u'ProductName', u'lanzou-gui_win64'),
-        StringStruct(u'ProductVersion', u'0.3.8 (r210207)')])
+        StringStruct(u'ProductVersion', u'0.3.9 (r210305)')])
       ]), 
     VarFileInfo([VarStruct(u'Translation', [2052, 1033])])
   ]
