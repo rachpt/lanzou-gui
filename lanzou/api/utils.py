@@ -105,7 +105,7 @@ def is_name_valid(filename: str) -> bool:
                          'imazingapp', 'doc', 'iso', 'img', 'appimage', '7z', 'rplib', 'lolgezi', 'exe', 'azw3', 'zip',
                          'conf', 'tar', 'dll', 'flac', 'xpa', 'lua', 'cad', 'hwt', 'accdb', 'ce', 'xmind', 'enc', 'bds', 'bdi', 'ssf', 'it', 'gz')
 
-    return filename.split('.')[-1] in valid_suffix_list
+    return filename.split('.')[-1].lower() in valid_suffix_list
 
 
 def is_file_url(share_url: str) -> bool:
