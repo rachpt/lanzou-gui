@@ -66,7 +66,7 @@ class MainWindow(Ui_MainWindow):
         if self.upgrade:  # 检测新版
             self.check_update_worker.set_values(version, False)
         self.clipboard_monitor()  # 系统粘贴板
-        # self.call_login_luncher()
+        # self.call_login_launcher()
 
     def create_tray(self):
         """创建 系统托盘"""
@@ -145,7 +145,7 @@ class MainWindow(Ui_MainWindow):
         """方便切换用户更新信息"""
         self.task_manager.set_disk(self._disk)
         self.get_shared_info_thread.set_disk(self._disk)
-        self.login_luncher.set_disk(self._disk)
+        self.login_launcher.set_disk(self._disk)
         self.list_refresher.set_disk(self._disk)
         self.remove_files_worker.set_disk(self._disk)
         self.get_rec_lists_worker.set_disk(self._disk)
@@ -196,10 +196,10 @@ class MainWindow(Ui_MainWindow):
 
     def init_workers(self):
         # 登录器
-        self.login_luncher = LoginLuncher()
-        self.login_luncher.update_username.connect(self._config.set_username)
-        self.login_luncher.update_cookie.connect(self._config.set_cookie)  # 目前失效
-        self.login_luncher.code.connect(self.login_update_ui)
+        self.login_launcher = LoginLuncher()
+        self.login_launcher.update_username.connect(self._config.set_username)
+        self.login_launcher.update_cookie.connect(self._config.set_cookie)  # 目前失效
+        self.login_launcher.code.connect(self.login_update_ui)
         # 登出器
         self.logout_worker = LogoutWorker()
         self.logout_worker.succeeded.connect(self.call_logout_update_ui)
@@ -320,7 +320,7 @@ class MainWindow(Ui_MainWindow):
     def show_login_dialog(self):
         """显示登录对话框"""
         login_dialog = LoginDialog(self._config)
-        login_dialog.clicked_ok.connect(self.call_login_luncher)
+        login_dialog.clicked_ok.connect(self.call_login_launcher)
         login_dialog.setWindowModality(Qt.ApplicationModal)
         login_dialog.exec()
 
@@ -488,7 +488,7 @@ class MainWindow(Ui_MainWindow):
             self.download.setEnabled(False)
             self.delete.setEnabled(False)
 
-    def call_login_luncher(self):
+    def call_login_launcher(self):
         """登录网盘"""
         self.logout_worker.set_values(update_ui=False)
         self.toolbar.removeAction(self.logout)
@@ -499,7 +499,7 @@ class MainWindow(Ui_MainWindow):
             if not username and not cookie:
                 return None
             self.show_status("正在登陆，稍候……", 25000)
-            self.login_luncher.set_values(username, password, cookie)
+            self.login_launcher.set_values(username, password, cookie)
         except Exception as err:
             logger.error(f"Login: err={err}")
 
