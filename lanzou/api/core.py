@@ -6,6 +6,7 @@ import os
 import pickle
 import re
 import shutil
+from threading import Thread
 from time import sleep
 from datetime import datetime
 from urllib3 import disable_warnings
@@ -56,6 +57,7 @@ class LanZouCloud(object):
             'Accept-Language': 'zh-CN,zh;q=0.9',  # 提取直连必需设置这个，否则拿不到数据
         }
         disable_warnings(InsecureRequestWarning)  # 全局禁用 SSL 警告
+        Thread(target=self._choose_lanzou_host).start()
 
     def _get(self, url, **kwargs):
         try:
@@ -78,6 +80,25 @@ class LanZouCloud(object):
             raise TimeoutError
         except (requests.RequestException, Exception) as e:
             logger.error(f"Unexpected error: e={e}")
+
+    def _get_response_host(self, info):
+        """获取蓝奏响应的下载 host 域名"""
+        new_host = info.get("is_newd", "")
+        if new_host and new_host != self._host_url:
+            self._host_url = new_host
+
+    def _choose_lanzou_host(self):
+        """选择一个可用的蓝奏域名"""
+        hosts = ("lanzous", "lanzoui", "lanzoux")
+        for i in hosts:
+            host = f"https://wwa.{i}.com"
+            try:
+                requests.get(host, headers=self._headers, timeout=3, verify=False)
+                self._host_url = host
+                break
+            except:
+                pass
+
 
     def set_max_size(self, max_size=100) -> int:
         """设置单文件大小限制(会员用户可超过 100M)"""
@@ -425,7 +446,10 @@ class LanZouCloud(object):
         return LanZouCloud.SUCCESS
 
     def get_file_info_by_url(self, share_url, pwd='') -> FileDetail:
-        """获取文件各种信息(包括下载直链)"""
+        """获取文件各种信息(包括下载直链)
+        :param share_url: 文件分享链接
+        :param pwd: 文件提取码(如果有的话)
+        """
         if not is_file_url(share_url):  # 非文件链接返回错误
             return FileDetail(LanZouCloud.URL_INVALID, pwd=pwd, url=share_url)
 
@@ -433,12 +457,22 @@ class LanZouCloud(object):
         if not first_page:
             return FileDetail(LanZouCloud.NETWORK_ERROR, pwd=pwd, url=share_url)
 
+        if "acw_sc__v2" in first_page.text:
+            # 在页面被过多访问或其他情况下，有时候会先返回一个加密的页面，其执行计算出一个acw_sc__v2后放入页面后再重新访问页面才能获得正常页面
+            # 若该页面进行了js加密，则进行解密，计算acw_sc__v2，并加入cookie
+            acw_sc__v2 = calc_acw_sc__v2(first_page.text)
+            self._session.cookies.set("acw_sc__v2", acw_sc__v2)
+            logger.debug(f"Set Cookie: acw_sc__v2={acw_sc__v2}")
+            first_page = self._get(share_url)  # 文件分享页面(第一页)
+            if not first_page:
+                return FileDetail(LanZouCloud.NETWORK_ERROR, pwd=pwd, url=share_url)
+
         first_page = remove_notes(first_page.text)  # 去除网页里的注释
-        if '文件取消' in first_page:
+        if '文件取消' in first_page or '文件不存在' in first_page:
             return FileDetail(LanZouCloud.FILE_CANCELLED, pwd=pwd, url=share_url)
 
         # 这里获取下载直链 304 重定向前的链接
-        if '输入密码' in first_page:  # 文件设置了提取码时
+        if 'id="pwdload"' in first_page or 'id="passwddiv"' in first_page or '输入密码' in first_page:  # 文件设置了提取码时
             if len(pwd) == 0:
                 return FileDetail(LanZouCloud.LACK_PASSWORD, pwd=pwd, url=share_url)  # 没给提取码直接退出
             # data : 'action=downprocess&sign=AGZRbwEwU2IEDQU6BDRUaFc8DzxfMlRjCjTPlVkWzFSYFY7ATpWYw_c_c&p='+pwd,
@@ -558,6 +592,7 @@ class LanZouCloud(object):
             return ShareInfo(LanZouCloud.ID_ERROR)
 
         # onof=1 时，存在有效的提取码; onof=0 时不存在提取码，但是 pwd 字段还是有一个无效的随机密码
+        self._get_response_host(f_info)
         pwd = f_info['pwd'] if int(f_info['onof']) == 1 else ''
         if 'f_id' in f_info.keys():  # 说明返回的是文件的信息
             url = f_info['is_newd'] + '/' + f_info['f_id']  # 文件的分享链接需要拼凑
@@ -573,10 +608,11 @@ class LanZouCloud(object):
         return ShareInfo(LanZouCloud.SUCCESS, name=name, url=url, desc=desc, pwd=pwd)
 
     def set_passwd(self, fid, passwd='', is_file=True) -> int:
-        """设置网盘文件(夹)的提取码"""
-        # 设置网盘文件(夹)的提取码, 现在非会员用户不允许关闭提取码
-        # id 无效或者 id 类型不对应仍然返回成功 :(
-        # 文件夹提取码长度 0-12 位  文件提取码 2-6 位
+        """
+        设置网盘文件(夹)的提取码, 现在非会员用户不允许关闭提取码
+        id 无效或者 id 类型不对应仍然返回成功 :(
+        文件夹提取码长度 0-12 位  文件提取码 2-6 位
+        """
         passwd_status = 0 if passwd == '' else 1  # 是否开启密码
         if is_file:
             post_data = {"task": 23, "file_id": fid, "shows": passwd_status, "shownames": passwd}
@@ -860,8 +896,10 @@ class LanZouCloud(object):
         if not os.path.isfile(file_path):
             return LanZouCloud.PATH_ERROR, 0, True
 
-        # 单个文件不超过 max_size 直接上传
-        if os.path.getsize(file_path) <= self._max_size * 1048576:
+        file_size = os.path.getsize(file_path)
+        if file_size == 0:  # 空文件无法上传
+            return LanZouCloud.FAILED, 0, False
+        elif file_size <= self._max_size * 1048576:  # 单个文件不超过 max_size 直接上传
             return self._upload_small_file(task, file_path, folder_id, callback)
         elif not allow_big_file:
             logger.debug(f'Forbid upload big file！file_path={file_path}, max_size={self._max_size}')
@@ -925,7 +963,30 @@ class LanZouCloud(object):
         if not resp:
             task.info = LanZouCloud.NETWORK_ERROR
             return LanZouCloud.NETWORK_ERROR
-        total_size = int(resp.headers['Content-Length'])
+
+        # 对于 txt 文件, 可能出现没有 Content-Length 的情况
+        # 此时文件需要下载一次才会出现 Content-Length
+        # 这时候我们先读取一点数据, 再尝试获取一次, 通常只需读取 1 字节数据
+        content_length = resp.headers.get('Content-Length', None)
+        if not content_length:
+            data_iter = resp.iter_content(chunk_size=1)
+            max_retries = 5  # 5 次拿不到就算了
+            while not content_length and max_retries > 0:
+                max_retries -= 1
+                logger.warning("Not found Content-Length in response headers")
+                logger.debug("Read 1 byte from stream...")
+                try:
+                    next(data_iter)  # 读取一个字节
+                except StopIteration:
+                    logger.debug("Please wait for a moment before downloading")
+                    return LanZouCloud.FAILED
+                resp_ = self._get(info.durl, stream=True)  # 再请求一次试试
+                if not resp_:
+                    return LanZouCloud.FAILED
+                content_length = resp_.headers.get('Content-Length', None)
+                logger.debug(f"Content-Length: {content_length}")
+
+        total_size = int(content_length)
 
         if share_url == task.url:  # 下载单文件
             task.total_size = total_size
@@ -988,8 +1049,17 @@ class LanZouCloud(object):
             return FolderDetail(LanZouCloud.NETWORK_ERROR)
         if any(item in html for item in ["文件不存在", "文件取消分享了"]):
             return FolderDetail(LanZouCloud.FILE_CANCELLED)
-        if '请输入密码' in html and len(dir_pwd) == 0:
+        if ('id="pwdload"' in html or 'id="passwddiv"' in html or '请输入密码' in html) and len(dir_pwd) == 0:
             return FolderDetail(LanZouCloud.LACK_PASSWORD)
+
+        if "acw_sc__v2" in html:
+            # 在页面被过多访问或其他情况下，有时候会先返回一个加密的页面，其执行计算出一个acw_sc__v2后放入页面后再重新访问页面才能获得正常页面
+            # 若该页面进行了js加密，则进行解密，计算acw_sc__v2，并加入cookie
+            acw_sc__v2 = calc_acw_sc__v2(html)
+            self._session.cookies.set("acw_sc__v2", acw_sc__v2)
+            logger.debug(f"Set Cookie: acw_sc__v2={acw_sc__v2}")
+            html = self._get(share_url).text  # 文件分享页面(第一页)
+
         try:
             # 获取文件需要的参数
             html = remove_notes(html)
@@ -1092,6 +1162,7 @@ class LanZouCloud(object):
                 logger.error("Big file checking: Failed")
                 return None
             resp = self._get(info.durl)
+            # 这里无需知道 txt 文件的 Content-Length, 全部读取即可
             info = un_serialize(resp.content) if resp else None
             if info is not None:  # 确认是大文件
                 name, size, *_, parts = info.values()  # 真实文件名, 文件字节大小, (其它数据),分段数据文件名(有序)
@@ -1233,9 +1304,9 @@ class LanZouCloud(object):
         if not first_page:
             return ShareInfo(LanZouCloud.NETWORK_ERROR)
         first_page = remove_notes(first_page.text)  # 去除网页里的注释
-        if "文件取消" in first_page:
+        if '文件取消' in first_page or '文件不存在' in first_page:
             return ShareInfo(LanZouCloud.FILE_CANCELLED)
-        if "输入密码" in first_page:  # 文件设置了提取码时
+        if ('id="pwdload"' in first_page or 'id="passwddiv"' in first_page or "输入密码" in first_page):  # 文件设置了提取码时
             if len(pwd) == 0:
                 return ShareInfo(LanZouCloud.LACK_PASSWORD)
             f_size = re.search(r'class="n_filesize">[^<0-9]*([\.0-9 MKBmkbGg]+)<', first_page)

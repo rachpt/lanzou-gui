@@ -15,7 +15,7 @@ from lanzou.debug import logger
 
 __all__ = ['remove_notes', 'name_format', 'time_format', 'is_name_valid', 'is_file_url',
            'is_folder_url', 'big_file_split', 'un_serialize', 'let_me_upload', 'USER_AGENT',
-           'sum_files_size', 'convert_file_size_to_str']
+           'sum_files_size', 'convert_file_size_to_str', 'calc_acw_sc__v2']
 
 
 USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:78.0) Gecko/20100101 Firefox/78.0'
@@ -229,3 +229,52 @@ def let_me_upload(file_path):
         data = pickle.dumps(data)
         out_f.write(data)
     return new_file_path
+
+
+
+def auto_rename(file_path) -> str:
+    """如果文件存在，则给文件名添加序号"""
+    if not os.path.exists(file_path):
+        return file_path
+    fpath, fname = os.path.split(file_path)
+    fname_no_ext, ext = os.path.splitext(fname)
+    flist = [f for f in os.listdir(fpath) if re.fullmatch(rf"{fname_no_ext}\(?\d*\)?{ext}", f)]
+    count = 1
+    while f"{fname_no_ext}({count}){ext}" in flist:
+        count += 1
+    return fpath + os.sep + fname_no_ext + '(' + str(count) + ')' + ext
+
+
+def calc_acw_sc__v2(html_text: str) -> str:
+    arg1 = re.search(r"arg1='([0-9A-Z]+)'", html_text)
+    arg1 = arg1.group(1) if arg1 else ""
+    acw_sc__v2 = hex_xor(unsbox(arg1), "3000176000856006061501533003690027800375")
+    return acw_sc__v2
+
+
+# 参考自 https://zhuanlan.zhihu.com/p/228507547
+def unsbox(str_arg):
+    v1 = [15, 35, 29, 24, 33, 16, 1, 38, 10, 9, 19, 31, 40, 27, 22, 23, 25, 13, 6, 11, 39, 18, 20, 8, 14, 21, 32, 26, 2,
+          30, 7, 4, 17, 5, 3, 28, 34, 37, 12, 36]
+    v2 = ["" for _ in v1]
+    for idx in range(0, len(str_arg)):
+        v3 = str_arg[idx]
+        for idx2 in range(len(v1)):
+            if v1[idx2] == idx + 1:
+                v2[idx2] = v3
+
+    res = ''.join(v2)
+    return res
+
+
+def hex_xor(str_arg, args):
+    res = ''
+    for idx in range(0, min(len(str_arg), len(args)), 2):
+        v1 = int(str_arg[idx:idx + 2], 16)
+        v2 = int(args[idx:idx + 2], 16)
+        v3 = format(v1 ^ v2, 'x')
+        if len(v3) == 1:
+            v3 = '0' + v3
+        res += v3
+
+    return res
