@@ -159,6 +159,8 @@ class UploadDialog(QDialog):
             total_file = 0
             if os.path.isfile(url):
                 total_size = os.path.getsize(url)
+                if not total_size:
+                    continue  # 空文件无法上传
                 total_file += 1
             else:
                 for filename in os.listdir(url):
