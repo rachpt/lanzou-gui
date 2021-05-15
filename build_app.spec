@@ -3,7 +3,7 @@
 # 本文件用于打包 MacOS 应用
 # pyinstaller --clean --noconfirm build_app.spec
 
-version = '0.3.9'
+version = '0.4.0'
 block_cipher = None
 
 
