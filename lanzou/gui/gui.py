@@ -82,7 +82,8 @@ class MainWindow(Ui_MainWindow):
             hide_action.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarMinButton))
             quit_action.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarCloseButton))
             self.tray.activated[QSystemTrayIcon.ActivationReason].connect(self.icon_activated)  # 托盘点击事件
-            tray_menu = QMenu(QApplication.desktop())
+            tray_menu = QMenu()
+            # tray_menu = QMenu(QApplication.desktop())
             tray_menu.addAction(show_action)
             tray_menu.addAction(hide_action)
             tray_menu.addAction(quit_action)
@@ -93,7 +94,7 @@ class MainWindow(Ui_MainWindow):
             self._created_tray = True
 
     def icon_activated(self, reason):
-        if reason == QSystemTrayIcon.DoubleClick:
+        if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             tip_title = f"蓝奏云客户端 <{self._user}>" if self._user else "蓝奏云客户端"
             if self.isHidden():
                 self.show()
@@ -1340,7 +1341,7 @@ class MainWindow(Ui_MainWindow):
                 self.tray.showMessage(
                     "已经最小化到托盘",
                     "双击显示/隐藏窗口，退出请右击",
-                    QSystemTrayIcon.Information,
+                    QSystemTrayIcon.MessageIcon.Information,
                     3000
                 )
                 self._show_to_tray_msg = False  # 提示一次

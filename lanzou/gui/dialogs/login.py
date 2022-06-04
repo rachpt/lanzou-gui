@@ -1,8 +1,8 @@
 import os
 import re
-# import browser_cookie3
+import browser_cookie3
 # https://github.com/borisbabic/browser_cookie3/pull/70
-from lanzou import browser_cookie3_n as browser_cookie3
+# from lanzou import browser_cookie3_n as browser_cookie3
 from PyQt6.QtCore import Qt, pyqtSignal, QPropertyAnimation, QRect, QTimer
 from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtWidgets import (QDialog, QLabel, QLineEdit, QTextEdit, QPushButton, QFormLayout,
