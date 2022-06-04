@@ -1,9 +1,9 @@
 import os
 from pickle import load
 
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QPixmap, QIcon
-from PyQt5.QtWidgets import (
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QPixmap, QIcon
+from PyQt6.QtWidgets import (
     QDialog,
     QLabel,
     QDialogButtonBox,
@@ -108,7 +108,7 @@ class MergeFileDialog(QDialog):
         self.logo = QLabel()
         self.logo.setPixmap(QPixmap(SRC_DIR + "logo3.gif"))
         self.logo.setStyleSheet("background-color:rgb(0,153,255);")
-        self.logo.setAlignment(Qt.AlignCenter)
+        self.logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # lable
         self.choose_lb = QLabel("选择文件夹")
@@ -119,10 +119,10 @@ class MergeFileDialog(QDialog):
         self.status = QLabel(self)
 
         self.buttonBox = QDialogButtonBox()
-        self.buttonBox.setOrientation(Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        self.buttonBox.button(QDialogButtonBox.Ok).setText("提取")
-        self.buttonBox.button(QDialogButtonBox.Cancel).setText("关闭")
+        self.buttonBox.setOrientation(Qt.Orientation.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setText("提取")
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Cancel).setText("关闭")
         self.buttonBox.setStyleSheet(btn_style)
 
         vbox = QVBoxLayout()

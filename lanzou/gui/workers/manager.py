@@ -1,6 +1,6 @@
 from time import sleep, time
 from random import uniform
-from PyQt5.QtCore import QThread, pyqtSignal, QMutex
+from PyQt6.QtCore import QThread, pyqtSignal, QMutex
 
 from lanzou.gui.workers.down import Downloader
 from lanzou.gui.workers.upload import Uploader

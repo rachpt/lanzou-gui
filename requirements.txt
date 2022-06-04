@@ -1,14 +1,14 @@
-PyQt5
-PyQtWebEngine  # 可能需要装 spyder 解决 PyQtWebEngine 版本冲突
+PyQt6
+# PyQtWebEngine  # 可能需要装 spyder 解决 PyQtWebEngine 版本冲突
 requests
 requests_toolbelt
-# browser_cookie3
+browser_cookie3
 
 # browser_cookie3 requires
-pyaes
-pbkdf2
-keyring
-lz4
-pycryptodome
-SecretStorage
+# pyaes
+# pbkdf2
+# keyring
+# lz4
+# pycryptodome
+# SecretStorage
 # linux： pip install secretstorage dbus-python

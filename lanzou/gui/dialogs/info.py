@@ -1,6 +1,6 @@
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtWidgets import (QLineEdit, QDialog, QLabel, QFormLayout,
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QIcon, QPixmap
+from PyQt6.QtWidgets import (QLineEdit, QDialog, QLabel, QFormLayout,
                              QDialogButtonBox, QVBoxLayout)
 
 from lanzou.gui.qss import dialog_qss_style
@@ -117,16 +117,16 @@ class InfoDialog(QDialog):
         self.setWindowIcon(QIcon(SRC_DIR + "share.ico"))
         self.setWindowTitle("文件信息")
         self.buttonBox = QDialogButtonBox()
-        self.buttonBox.setOrientation(Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.Close)
-        self.buttonBox.button(QDialogButtonBox.Close).setText("关闭")
+        self.buttonBox.setOrientation(Qt.Orientation.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.StandardButton.Close)
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Close).setText("关闭")
         self.buttonBox.rejected.connect(self.reject)
         self.buttonBox.rejected.connect(self.clean)
         self.buttonBox.rejected.connect(self.closed.emit)
 
         self.logo = QLabel()
         self.logo.setPixmap(QPixmap(SRC_DIR + "q9.gif"))
-        self.logo.setAlignment(Qt.AlignCenter)
+        self.logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.logo.setStyleSheet("background-color:rgb(255,204,51);")
 
         self.lb_name = QLabel()
@@ -183,7 +183,7 @@ class InfoDialog(QDialog):
         vbox.addWidget(self.logo)
         vbox.addStretch(1)
         form = QFormLayout()
-        form.setLabelAlignment(Qt.AlignRight)
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
         form.addRow(self.lb_name, self.tx_name)
         form.addRow(self.lb_size, self.tx_size)
         form.addRow(self.lb_time, self.tx_time)

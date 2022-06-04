@@ -1,7 +1,7 @@
 import os
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QIcon, QPixmap, QStandardItem, QStandardItemModel
-from PyQt5.QtWidgets import (QDialog, QLabel, QDialogButtonBox, QPushButton, QListView,
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QIcon, QPixmap, QStandardItem, QStandardItemModel
+from PyQt6.QtWidgets import (QDialog, QLabel, QDialogButtonBox, QPushButton, QListView,
                              QVBoxLayout, QHBoxLayout, QAbstractItemView, QFileDialog)
 
 from lanzou.gui.qss import dialog_qss_style
@@ -57,7 +57,7 @@ class UploadDialog(QDialog):
         self.logo = QLabel()
         self.logo.setPixmap(QPixmap(SRC_DIR + "logo3.gif"))
         self.logo.setStyleSheet("background-color:rgb(0,153,255);")
-        self.logo.setAlignment(Qt.AlignCenter)
+        self.logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # btn 1
         self.btn_chooseDir = QPushButton("选择文件夹", self)
@@ -80,20 +80,20 @@ class UploadDialog(QDialog):
         # 列表
         self.list_view = MyListView()
         self.list_view.drop_files.connect(self.add_drop_files)
-        self.list_view.setViewMode(QListView.ListMode)
+        self.list_view.setViewMode(QListView.ViewMode.ListMode)
         self.slm = QStandardItem()
         self.model = QStandardItemModel()
         self.list_view.setModel(self.model)
         self.model.removeRows(0, self.model.rowCount())  # 清除旧的选择
-        self.list_view.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.list_view.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.list_view.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.list_view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.list_view.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.list_view.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
 
         self.buttonBox = QDialogButtonBox()
-        self.buttonBox.setOrientation(Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        self.buttonBox.button(QDialogButtonBox.Ok).setText("确定")
-        self.buttonBox.button(QDialogButtonBox.Cancel).setText("取消")
+        self.buttonBox.setOrientation(Qt.Orientation.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setText("确定")
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Cancel).setText("取消")
 
         vbox = QVBoxLayout()
         hbox_head = QHBoxLayout()
@@ -225,5 +225,5 @@ class UploadDialog(QDialog):
         self.show_selected()
 
     def keyPressEvent(self, e):
-        if e.key() == Qt.Key_Delete:  # delete
+        if e.key() == Qt.Key.Key_Delete:  # delete
             self.slot_btn_deleteSelect()

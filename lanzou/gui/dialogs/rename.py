@@ -1,6 +1,6 @@
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QDialog, QLabel, QGridLayout, QDialogButtonBox, QLineEdit, QTextEdit
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import QDialog, QLabel, QGridLayout, QDialogButtonBox, QLineEdit, QTextEdit
 
 from lanzou.gui.qss import dialog_qss_style
 from lanzou.debug import SRC_DIR
@@ -25,18 +25,18 @@ class RenameDialog(QDialog):
         self.setWindowIcon(QIcon(SRC_DIR + "desc.ico"))
         self.lb_name = QLabel()
         self.lb_name.setText("文件夹名：")
-        self.lb_name.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
+        self.lb_name.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTrailing | Qt.AlignmentFlag.AlignVCenter)
         self.tx_name = QLineEdit()
         self.lb_desc = QLabel()
         self.tx_desc = QTextEdit()
         self.lb_desc.setText("描　　述：")
-        self.lb_desc.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
+        self.lb_desc.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTrailing | Qt.AlignmentFlag.AlignVCenter)
 
         self.buttonBox = QDialogButtonBox()
-        self.buttonBox.setOrientation(Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        self.buttonBox.button(QDialogButtonBox.Ok).setText("确定")
-        self.buttonBox.button(QDialogButtonBox.Cancel).setText("取消")
+        self.buttonBox.setOrientation(Qt.Orientation.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setText("确定")
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Cancel).setText("取消")
 
         self.grid = QGridLayout()
         self.grid.setSpacing(10)
@@ -57,8 +57,8 @@ class RenameDialog(QDialog):
             self.lb_name.setVisible(True)
             self.tx_name.setVisible(True)
             infos = self.infos[0]
-            self.buttonBox.button(QDialogButtonBox.Ok).setToolTip("")  # 去除新建文件夹影响
-            self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(True)  # 去除新建文件夹影响
+            self.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setToolTip("")  # 去除新建文件夹影响
+            self.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setEnabled(True)  # 去除新建文件夹影响
             self.setWindowTitle("修改文件夹名与描述")
             self.tx_name.setText(str(infos.name))
             if infos.desc:
@@ -71,10 +71,10 @@ class RenameDialog(QDialog):
             self.min_width = len(str(infos.name)) * 8
             if infos.is_file:
                 self.setWindowTitle("修改文件描述")
-                self.tx_name.setFocusPolicy(Qt.NoFocus)
+                self.tx_name.setFocusPolicy(Qt.FocusPolicy.NoFocus)
                 self.tx_name.setReadOnly(True)
             else:
-                self.tx_name.setFocusPolicy(Qt.StrongFocus)
+                self.tx_name.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
                 self.tx_name.setReadOnly(False)
                 self.tx_name.setFocus()
         elif num > 1:
@@ -87,11 +87,11 @@ class RenameDialog(QDialog):
         else:
             self.setWindowTitle("新建文件夹")
             self.tx_name.setText("")
-            self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(False)
-            self.buttonBox.button(QDialogButtonBox.Ok).setToolTip("请先输入文件名！")
+            self.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setEnabled(False)
+            self.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setToolTip("请先输入文件名！")
             self.tx_name.textChanged.connect(self.slot_new_ok_btn)
             self.tx_name.setPlaceholderText("不支持空格，如有会被自动替换成 _")
-            self.tx_name.setFocusPolicy(Qt.StrongFocus)
+            self.tx_name.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
             self.tx_name.setReadOnly(False)
             self.tx_desc.setPlaceholderText("可选项，建议160字数以内。")
             self.tx_name.setFocus()
@@ -101,8 +101,8 @@ class RenameDialog(QDialog):
 
     def slot_new_ok_btn(self):
         """新建文件夹槽函数"""
-        self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(True)
-        self.buttonBox.button(QDialogButtonBox.Ok).setToolTip("")
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setEnabled(True)
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setToolTip("")
 
     def btn_ok(self):
         new_name = self.tx_name.text()

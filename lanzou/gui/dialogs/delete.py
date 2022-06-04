@@ -1,7 +1,7 @@
 
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QIcon, QStandardItem, QStandardItemModel
-from PyQt5.QtWidgets import  QDialog, QLabel, QListView, QDialogButtonBox, QVBoxLayout
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QIcon, QStandardItem, QStandardItemModel
+from PyQt6.QtWidgets import  QDialog, QLabel, QListView, QDialogButtonBox, QVBoxLayout
 
 from lanzou.gui.others import set_file_icon
 from lanzou.gui.qss import dialog_qss_style
@@ -23,7 +23,7 @@ class DeleteDialog(QDialog):
         self.setWindowIcon(QIcon(SRC_DIR + "delete.ico"))
         self.layout = QVBoxLayout()
         self.list_view = QListView()
-        self.list_view.setViewMode(QListView.ListMode)
+        self.list_view.setViewMode(QListView.ViewMode.ListMode)
         # 列表
         self.slm = QStandardItem()
         self.model = QStandardItemModel()
@@ -42,10 +42,10 @@ class DeleteDialog(QDialog):
 
         self.lb_name = QLabel("尝试删除以下{}个文件(夹)：".format(count))
         self.buttonBox = QDialogButtonBox()
-        self.buttonBox.setOrientation(Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        self.buttonBox.button(QDialogButtonBox.Ok).setText("确定")
-        self.buttonBox.button(QDialogButtonBox.Cancel).setText("取消")
+        self.buttonBox.setOrientation(Qt.Orientation.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setText("确定")
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Cancel).setText("取消")
 
         self.layout.addWidget(self.lb_name)
         self.layout.addWidget(self.list_view)

@@ -3,10 +3,10 @@ import os
 import re
 from logging import getLevelName, DEBUG, ERROR
 
-from PyQt5.QtCore import Qt, QCoreApplication, QTimer, QUrl, QSize
-from PyQt5.QtGui import QIcon, QStandardItemModel, QDesktopServices, QKeySequence
-from PyQt5.QtWidgets import (QApplication, QAbstractItemView, QHeaderView, QMenu, QAction, QStyle,
-                             QPushButton, QFileDialog, QMessageBox, QSystemTrayIcon, QShortcut)
+from PyQt6.QtCore import Qt, QCoreApplication, QTimer, QUrl, QSize
+from PyQt6.QtGui import QIcon, QStandardItemModel, QDesktopServices, QKeySequence, QAction, QShortcut
+from PyQt6.QtWidgets import (QApplication, QAbstractItemView, QHeaderView, QMenu, QStyle,
+                             QPushButton, QFileDialog, QMessageBox, QSystemTrayIcon)
 
 from lanzou.api import LanZouCloud
 from lanzou.api.utils import time_format
@@ -78,9 +78,9 @@ class MainWindow(Ui_MainWindow):
             show_action.triggered.connect(self.show)
             hide_action.triggered.connect(self.hide)
             quit_action.triggered.connect(self.Exit)
-            show_action.setIcon(self.style().standardIcon(QStyle.SP_ComputerIcon))
-            hide_action.setIcon(self.style().standardIcon(QStyle.SP_TitleBarMinButton))
-            quit_action.setIcon(self.style().standardIcon(QStyle.SP_TitleBarCloseButton))
+            show_action.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ComputerIcon))
+            hide_action.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarMinButton))
+            quit_action.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarCloseButton))
             self.tray.activated[QSystemTrayIcon.ActivationReason].connect(self.icon_activated)  # 托盘点击事件
             tray_menu = QMenu(QApplication.desktop())
             tray_menu.addAction(show_action)
@@ -210,7 +210,7 @@ class MainWindow(Ui_MainWindow):
         self.task_manager.mgr_finished.connect(self.call_show_mgr_finished)
         # 获取更多信息，直链、下载次数等
         self.info_dialog = InfoDialog()  # 对话框
-        self.info_dialog.setWindowModality(Qt.ApplicationModal)  # 窗口前置
+        self.info_dialog.setWindowModality(Qt.WindowModality.ApplicationModal)  # 窗口前置
         self.more_info_worker = GetMoreInfoWorker()  # 后台更新线程
         self.more_info_worker.msg.connect(self.show_status)
         self.more_info_worker.infos.connect(lambda: self.pause_extract_clipboard(True))  # 禁用剪切板监听
@@ -288,7 +288,7 @@ class MainWindow(Ui_MainWindow):
         # 验证码对话框
         # self.captcha_dialog = CaptchaDialog()
         # self.captcha_dialog.captcha.connect(self.set_captcha)
-        # self.captcha_dialog.setWindowModality(Qt.ApplicationModal)
+        # self.captcha_dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
 
         self.merge_file_dialog = MergeFileDialog(USER_HOME)
         self.set_disk()
@@ -321,7 +321,7 @@ class MainWindow(Ui_MainWindow):
         """显示登录对话框"""
         login_dialog = LoginDialog(self._config)
         login_dialog.clicked_ok.connect(self.call_login_launcher)
-        login_dialog.setWindowModality(Qt.ApplicationModal)
+        login_dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
         login_dialog.exec()
 
     def show_upload_dialog(self, files):
@@ -415,16 +415,16 @@ class MainWindow(Ui_MainWindow):
                 for i in infos:
                     msg += f"{i.time}\t{i.name}\t{i.size}\n"
             message_box = QMessageBox(self)
-            message_box.setIcon(QMessageBox.Warning)
+            message_box.setIcon(QMessageBox.Icon.Warning)
             message_box.setStyleSheet(btn_style)
             message_box.setWindowTitle(title)
             message_box.setText(msg)
-            message_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-            buttonY = message_box.button(QMessageBox.Yes)
+            message_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            buttonY = message_box.button(QMessageBox.StandardButton.Yes)
             buttonY.setText('确定')
-            buttonN = message_box.button(QMessageBox.No)
+            buttonN = message_box.button(QMessageBox.StandardButton.No)
             buttonN.setText('取消')
-            message_box.exec_()
+            message_box.exec()
             if message_box.clickedButton() == buttonY:
                 self.rec_manipulator.set_values(infos, action)
 
@@ -510,10 +510,10 @@ class MainWindow(Ui_MainWindow):
         message_box.setIcon(QMessageBox.Question)
         message_box.setWindowTitle("确认登出")
         message_box.setText("提示：登出不会删除已经保存的用户信息！\n\n是否确认登出？")
-        message_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        buttonY = message_box.button(QMessageBox.Yes)
+        message_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        buttonY = message_box.button(QMessageBox.StandardButton.Yes)
         buttonY.setText('确定')
-        buttonN = message_box.button(QMessageBox.No)
+        buttonN = message_box.button(QMessageBox.StandardButton.No)
         buttonN.setText('取消')
         message_box.accepted.connect(lambda: self.logout_worker.set_values(True))
         message_box.exec()
@@ -569,11 +569,11 @@ class MainWindow(Ui_MainWindow):
             name.setToolTip(tips)
             time = time_format(infos.time) if self.time_fmt else infos.time
             size = QStandardItem(infos.size)
-            size.setData(format_size_int(infos.size), Qt.UserRole)  # 配合MyStandardItem实现正确排序
+            size.setData(format_size_int(infos.size), Qt.ItemDataRole.UserRole)  # 配合MyStandardItem实现正确排序
             self.model_disk.appendRow([name, size, QStandardItem(time)])
         for row in range(self.model_disk.rowCount()):  # 右对齐
-            self.model_disk.item(row, 1).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            self.model_disk.item(row, 2).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self.model_disk.item(row, 1).setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            self.model_disk.item(row, 2).setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
     def update_disk_lists(self, infos):
         """更新用户文件列表"""
@@ -621,7 +621,7 @@ class MainWindow(Ui_MainWindow):
         # 是否显示网格线
         table.setShowGrid(False)
         # 禁止编辑表格
-        table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         # 隐藏水平表头
         table.verticalHeader().setVisible(False)
         # 设置表头可以自动排序
@@ -633,14 +633,14 @@ class MainWindow(Ui_MainWindow):
         # 设置表头的背景色为绿色
         table.horizontalHeader().setStyleSheet("QHeaderView::section{background:lightgray}")
         # 设置 不可选择单个单元格，只可选择一行。
-        table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         # 设置第二三列的宽度
         table.horizontalHeader().resizeSection(1, 76)
         table.horizontalHeader().resizeSection(2, 90)
         # 设置第一列宽度自动调整，充满屏幕
-        table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         if tab != "rec" and tab != "jobs":
-            table.setContextMenuPolicy(Qt.CustomContextMenu)  # 允许右键产生子菜单
+            table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)  # 允许右键产生子菜单
             table.customContextMenuRequested.connect(self.generateMenu)  # 右键菜单
 
     def call_rename_mkdir_worker(self, infos):
@@ -720,7 +720,7 @@ class MainWindow(Ui_MainWindow):
             self.left_menu_move.setDisabled(True)
             self.left_menu_set_pwd.setDisabled(True)
 
-        action = self.left_menus.exec_(self.sender().mapToGlobal(pos))
+        action = self.left_menus.exec(self.sender().mapToGlobal(pos))
         if action == self.left_menu_share_url:  # 显示详细信息
             # 后台跟新信息，并显示信息对话框
             if isinstance(info, ShareItem):
@@ -901,8 +901,8 @@ class MainWindow(Ui_MainWindow):
             time_ = QStandardItem(item.time)
             self.model_rec.appendRow([name, size_, time_])
         for row in range(self.model_rec.rowCount()):  # 右对齐
-            self.model_rec.item(row, 1).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            self.model_rec.item(row, 2).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self.model_rec.item(row, 1).setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            self.model_rec.item(row, 2).setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
     def init_rec_ui(self):
         """回收站ui初始化"""
@@ -993,7 +993,7 @@ class MainWindow(Ui_MainWindow):
                     else:
                         time = QStandardItem(sub_folder.folder.time)
                     size = QStandardItem(sub_folder.folder.size)
-                    size.setData(format_size_int(sub_folder.folder.size), Qt.UserRole)
+                    size.setData(format_size_int(sub_folder.folder.size), Qt.ItemDataRole.UserRole)
                     self.model_share.appendRow([name, size, time])
                 if self._show_subfolder or show_dir:  # 在当前窗口递归展示子文件夹中的文件
                     self.show_share_folder_url_lists(sub_folder, root_dir=post_root_dir, show_dir=show_dir[1:])
@@ -1011,7 +1011,7 @@ class MainWindow(Ui_MainWindow):
                 name.setData(ShareItem(item=item, all=infos, count=self._extract_count, parrent=root_dir))
                 name.setText(pre_root_dir + item.name)
                 size = QStandardItem(item.size)
-                size.setData(format_size_int(item.size), Qt.UserRole)
+                size.setData(format_size_int(item.size), Qt.ItemDataRole.UserRole)
                 time = QStandardItem(time_format(item.time)) if self.time_fmt else QStandardItem(item.time)
                 self.model_share.appendRow([name, size, time])
 
@@ -1026,8 +1026,8 @@ class MainWindow(Ui_MainWindow):
                 self.model_share.appendRow([name, QStandardItem(infos.size), QStandardItem(time)])
                 self.model_share.setHorizontalHeaderLabels(["文件名", "大小", "时间"])
             for r in range(self.model_share.rowCount()):  # 右对齐
-                self.model_share.item(r, 1).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-                self.model_share.item(r, 2).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                self.model_share.item(r, 1).setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                self.model_share.item(r, 2).setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             self.table_share.setDisabled(False)
             self.btn_share_select_all.setDisabled(False)
             self.btn_share_select_all.setToolTip("按下 Ctrl/Alt + A 全选或则取消全选")
@@ -1259,8 +1259,8 @@ class MainWindow(Ui_MainWindow):
             _index += 1
 
         for row in range(self.model_jobs.rowCount()):  # 右对齐
-            self.model_jobs.item(row, 1).setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
-            self.model_jobs.item(row, 2).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self.model_jobs.item(row, 1).setTextAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+            self.model_jobs.item(row, 2).setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
     def init_jobs_ui(self):
         """初始化上传下载任务管理界面"""
@@ -1309,10 +1309,10 @@ class MainWindow(Ui_MainWindow):
             self.show_jobs_lists()
 
     def keyPressEvent(self, e):
-        if e.key() == Qt.Key_A:  # Ctrl/Alt + A 全选
+        if e.key() == Qt.Key.Key_A:  # Ctrl/Alt + A 全选
             if e.modifiers() and Qt.ControlModifier:
                 self.select_all_btn()
-        elif e.key() == Qt.Key_F5:  # 刷新
+        elif e.key() == Qt.Key.Key_F5:  # 刷新
             self.call_change_tab()
 
     def open_wiki_url(self):
@@ -1376,9 +1376,9 @@ class MainWindow(Ui_MainWindow):
                 self.line_share_url.setText(txt)
                 self.get_shared_info_thread.set_values(txt)
                 self.tabWidget.setCurrentIndex(0)
-                self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)  # 窗口最前
+                self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)  # 窗口最前
                 self.show()
-                self.setWindowFlags(Qt.WindowCloseButtonHint | Qt.WindowMinMaxButtonsHint)  # 窗口恢复
+                self.setWindowFlags(Qt.WindowType.WindowCloseButtonHint | Qt.WindowType.WindowMinMaxButtonsHint)  # 窗口恢复
                 self.show()
                 break
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
-from PyQt5.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication
 
 from lanzou.gui.gui import MainWindow, get_lanzou_logo
 

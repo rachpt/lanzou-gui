@@ -1,6 +1,6 @@
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QDialog, QLabel, QGridLayout, QDialogButtonBox, QComboBox
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import QDialog, QLabel, QGridLayout, QDialogButtonBox, QComboBox
 
 from lanzou.gui.qss import dialog_qss_style
 from lanzou.gui.others import AutoResizingTextEdit
@@ -42,20 +42,20 @@ class MoveFileDialog(QDialog):
         self.setWindowIcon(QIcon(SRC_DIR + "move.ico"))
         self.lb_name = QLabel()
         self.lb_name.setText("文件(夹)名：")
-        self.lb_name.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
+        self.lb_name.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTrailing | Qt.AlignmentFlag.AlignVCenter)
         self.tx_name = AutoResizingTextEdit()
-        self.tx_name.setFocusPolicy(Qt.NoFocus)  # 只读
+        self.tx_name.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # 只读
         self.tx_name.setReadOnly(True)
         self.lb_new_path = QLabel()
         self.lb_new_path.setText("目标文件夹：")
-        self.lb_new_path.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
+        self.lb_new_path.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTrailing | Qt.AlignmentFlag.AlignVCenter)
         self.tx_new_path = QComboBox()
 
         self.buttonBox = QDialogButtonBox()
-        self.buttonBox.setOrientation(Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        self.buttonBox.button(QDialogButtonBox.Ok).setText("确定")
-        self.buttonBox.button(QDialogButtonBox.Cancel).setText("取消")
+        self.buttonBox.setOrientation(Qt.Orientation.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setText("确定")
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Cancel).setText("取消")
 
         self.grid = QGridLayout()
         self.grid.setSpacing(10)

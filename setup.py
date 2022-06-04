@@ -16,7 +16,7 @@ setup(
     },
     python_requires=">=3.6",
     url='https://github.com/rachpt/lanzou-gui',
-    keywords=['lanzou', 'lanzoucloud', 'gui', 'application', 'PyQt5', 'Python 3'],
+    keywords=['lanzou', 'lanzoucloud', 'gui', 'application', 'PyQt6', 'Python 3'],
     classifiers=(
         'Development Status :: 3 - Alpha',
         'Programming Language :: Python :: 3.8',
@@ -30,7 +30,7 @@ setup(
         'Operating System :: MacOS',
     ),
     install_requires=[
-        'PyQt5',
+        'PyQt6',
         'PyQtWebEngine',
         'requests',
         'requests_toolbelt',

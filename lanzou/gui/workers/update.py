@@ -1,7 +1,7 @@
 from time import sleep
 import re
 import requests
-from PyQt5.QtCore import QThread, pyqtSignal, QMutex
+from PyQt6.QtCore import QThread, pyqtSignal, QMutex
 from lanzou.debug import logger
 
 

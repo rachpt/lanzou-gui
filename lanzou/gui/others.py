@@ -3,9 +3,9 @@
 '''
 
 import os
-from PyQt5.QtCore import Qt, pyqtSignal, QTimer, QSize
-from PyQt5.QtGui import QTextDocument, QAbstractTextDocumentLayout, QPalette, QFontMetrics, QIcon, QStandardItem
-from PyQt5.QtWidgets import (QApplication, QAbstractItemView, QStyle, QListView, QLineEdit, QTableView,
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QSize
+from PyQt6.QtGui import QTextDocument, QAbstractTextDocumentLayout, QPalette, QFontMetrics, QIcon, QStandardItem
+from PyQt6.QtWidgets import (QApplication, QAbstractItemView, QStyle, QListView, QLineEdit, QTableView,
                              QPushButton, QStyledItemDelegate, QStyleOptionViewItem, QTextEdit, QSizePolicy)
 
 from lanzou.debug import SRC_DIR
@@ -49,7 +49,7 @@ class MyLineEdit(QLineEdit):
         super(MyLineEdit, self).__init__(parent)
 
     def mouseReleaseEvent(self, QMouseEvent):
-        if QMouseEvent.button() == Qt.LeftButton:
+        if QMouseEvent.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit()
 
 
@@ -60,7 +60,7 @@ class MyListView(QListView):
     def __init__(self):
         QListView.__init__(self)
 
-        self.setDragDropMode(QAbstractItemView.InternalMove)
+        self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
@@ -102,7 +102,7 @@ class AutoResizingTextEdit(QTextEdit):
         # I still set it to True in size policy just in case - for consistency.
         size_policy = self.sizePolicy()
         size_policy.setHeightForWidth(True)
-        size_policy.setVerticalPolicy(QSizePolicy.Preferred)
+        size_policy.setVerticalPolicy(QSizePolicy.Policy.Preferred)
         self.setSizePolicy(size_policy)
         self.textChanged.connect(self.updateGeometry)
 
@@ -144,7 +144,7 @@ class AutoResizingTextEdit(QTextEdit):
         return QSize(original_hint.width(), self.heightForWidth(original_hint.width()))
 
     def mouseReleaseEvent(self, QMouseEvent):
-        if QMouseEvent.button() == Qt.LeftButton:
+        if QMouseEvent.button() == Qt.MouseButton.LeftButton:
             if not self.toPlainText():
                 self.clicked.emit()
 
@@ -191,18 +191,18 @@ class TableDelegate(QStyledItemDelegate):
         self.doc.setHtml(options.text)
         options.text = ""  # 原字符
         style = QApplication.style() if options.widget is None else options.widget.style()
-        style.drawControl(QStyle.CE_ItemViewItem, options, painter)
+        style.drawControl(QStyle.ControlElement.CE_ItemViewItem, options, painter)
 
         ctx = QAbstractTextDocumentLayout.PaintContext()
 
-        if option.state & QStyle.State_Selected:
-            ctx.palette.setColor(QPalette.Text, option.palette.color(
-                QPalette.Active, QPalette.HighlightedText))
+        if option.state & QStyle.StateFlag.State_Selected:
+            ctx.palette.setColor(QPalette.ColorRole.Text, option.palette.color(
+                QPalette.ColorGroup.Active, QPalette.ColorRole.HighlightedText))
         else:
-            ctx.palette.setColor(QPalette.Text, option.palette.color(
-                QPalette.Active, QPalette.Text))
+            ctx.palette.setColor(QPalette.ColorRole.Text, option.palette.color(
+                QPalette.ColorGroup.Active, QPalette.ColorRole.Text))
 
-        text_rect = style.subElementRect(QStyle.SE_ItemViewItemText, options)
+        text_rect = style.subElementRect(QStyle.SubElement.SE_ItemViewItemText, options)
 
         the_fuck_your_shit_up_constant = 3  # ￣へ￣ #
         margin = (option.rect.height() - options.fontMetrics.height()) // 2
@@ -225,8 +225,8 @@ class TableDelegate(QStyledItemDelegate):
 
 class MyStandardItem(QStandardItem):
     def __lt__(self, other):
-        if self.data(Qt.UserRole) and other.data(Qt.UserRole):
-            return self.data(Qt.UserRole) < other.data(Qt.UserRole)
+        if self.data(Qt.ItemDataRole.UserRole) and other.data(Qt.ItemDataRole.UserRole):
+            return self.data(Qt.ItemDataRole.UserRole) < other.data(Qt.ItemDataRole.UserRole)
         else:  # 没有setData并设置UserRole，则使用默认的方式进行比较排序
             return self.text() < other.text()
 
@@ -237,7 +237,7 @@ class MyTableView(QTableView):
 
     def __init__(self, parent):
         super(MyTableView, self).__init__(parent)
-        self.setDragDropMode(QAbstractItemView.InternalMove)
+        self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)

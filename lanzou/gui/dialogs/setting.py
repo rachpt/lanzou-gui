@@ -1,7 +1,7 @@
 import os
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QPixmap
-from PyQt5.QtWidgets import (QDialog, QLabel, QDialogButtonBox, QLineEdit, QCheckBox,
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QPixmap
+from PyQt6.QtWidgets import (QDialog, QLabel, QDialogButtonBox, QLineEdit, QCheckBox,
                              QHBoxLayout, QVBoxLayout, QFormLayout, QFileDialog)
 
 from lanzou.gui.qss import dialog_qss_style
@@ -122,7 +122,7 @@ class SettingDialog(QDialog):
         logo = QLabel()
         logo.setPixmap(QPixmap(SRC_DIR + "logo2.gif"))
         logo.setStyleSheet("background-color:rgb(255,255,255);")
-        logo.setAlignment(Qt.AlignCenter)
+        logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.download_threads_lb = QLabel("同时下载文件数")
         self.download_threads_var = QLineEdit()
         self.download_threads_var.setPlaceholderText("范围：1-9")
@@ -177,17 +177,17 @@ class SettingDialog(QDialog):
         self.upgrade_box.stateChanged.connect(self.change_upgrade)
 
         buttonBox = QDialogButtonBox()
-        buttonBox.setOrientation(Qt.Horizontal)
-        buttonBox.setStandardButtons(QDialogButtonBox.Reset | QDialogButtonBox.Save | QDialogButtonBox.Cancel)
-        buttonBox.button(QDialogButtonBox.Reset).setText("重置")
-        buttonBox.button(QDialogButtonBox.Save).setText("保存")
-        buttonBox.button(QDialogButtonBox.Cancel).setText("取消")
-        buttonBox.button(QDialogButtonBox.Reset).clicked.connect(lambda: self.set_values(reset=True))
-        buttonBox.button(QDialogButtonBox.Save).clicked.connect(self.slot_save)
+        buttonBox.setOrientation(Qt.Orientation.Horizontal)
+        buttonBox.setStandardButtons(QDialogButtonBox.StandardButton.Reset | QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+        buttonBox.button(QDialogButtonBox.StandardButton.Reset).setText("重置")
+        buttonBox.button(QDialogButtonBox.StandardButton.Save).setText("保存")
+        buttonBox.button(QDialogButtonBox.StandardButton.Cancel).setText("取消")
+        buttonBox.button(QDialogButtonBox.StandardButton.Reset).clicked.connect(lambda: self.set_values(reset=True))
+        buttonBox.button(QDialogButtonBox.StandardButton.Save).clicked.connect(self.slot_save)
         buttonBox.rejected.connect(self.reject)
 
         form = QFormLayout()
-        form.setLabelAlignment(Qt.AlignRight)
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
         form.setSpacing(10)
         form.addRow(self.download_threads_lb, self.download_threads_var)
         form.addRow(self.timeout_lb, self.timeout_var)
@@ -227,43 +227,43 @@ class SettingDialog(QDialog):
         self.setMinimumWidth(500)
 
     def change_time_fmt(self, state):
-        if state == Qt.Checked:
+        if state == Qt.CheckState.Checked.value:
             self.time_fmt = True
         else:
             self.time_fmt = False
 
     def change_to_tray(self, state):
-        if state == Qt.Checked:
+        if state == Qt.CheckState.Checked.value:
             self.to_tray = True
         else:
             self.to_tray = False
 
     def change_watch_clipboard(self, state):
-        if state == Qt.Checked:
+        if state == Qt.CheckState.Checked.value:
             self.watch_clipboard = True
         else:
             self.watch_clipboard = False
 
     def change_debug(self, state):
-        if state == Qt.Checked:
+        if state == Qt.CheckState.Checked.value:
             self.debug = True
         else:
             self.debug = False
 
     def change_big_file(self, state):
-        if state == Qt.Checked:
+        if state == Qt.CheckState.Checked.value:
             self.allow_big_file = True
         else:
             self.allow_big_file = False
 
     def change_upgrade(self, state):
-        if state == Qt.Checked:
+        if state == Qt.CheckState.Checked.value:
             self.upgrade = True
         else:
             self.upgrade = False
 
     def change_set_pwd(self, state):
-        if state == Qt.Checked:
+        if state == Qt.CheckState.Checked.value:
             self.set_pwd = True
             self.set_pwd_var.setDisabled(False)
         else:
@@ -271,7 +271,7 @@ class SettingDialog(QDialog):
             self.set_pwd_var.setDisabled(True)
 
     def change_set_desc(self, state):
-        if state == Qt.Checked:
+        if state == Qt.CheckState.Checked.value:
             self.set_desc = True
             self.set_desc_var.setDisabled(False)
         else:

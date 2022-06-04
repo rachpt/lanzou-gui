@@ -1,6 +1,6 @@
-from PyQt5.QtCore import Qt, pyqtSignal, QLine, QPoint
-from PyQt5.QtGui import  QPixmap, QPainter, QPen
-from PyQt5.QtWidgets import (QPushButton, QDialog, QLabel, QFormLayout,
+from PyQt6.QtCore import Qt, pyqtSignal, QLine, QPoint
+from PyQt6.QtGui import  QPixmap, QPainter, QPen
+from PyQt6.QtWidgets import (QPushButton, QDialog, QLabel, QFormLayout,
                              QDialogButtonBox, QVBoxLayout, QHBoxLayout)
 
 from lanzou.gui.qss import others_style, btn_style
@@ -38,7 +38,7 @@ class AboutDialog(QDialog):
 
     def initUI(self):
         self.setWindowTitle("关于 lanzou-gui")
-        about = f'本项目使用PyQt5实现图形界面，可以完成蓝奏云的大部分功能<br/> \
+        about = f'本项目使用PyQt6实现图形界面，可以完成蓝奏云的大部分功能<br/> \
     得益于 <a href="{self._api_url}">API</a> 的功能，可以间接突破单文件最大 100MB 的限制，同时增加了批量上传/下载的功能<br/> \
 Python 依赖见<a href="{self._github }/blob/master/requirements.txt">requirements.txt</a>，\
 <a href="{self._github}/releases">releases</a> 有打包好了的 Windows 可执行程序，但可能不是最新的'
@@ -47,7 +47,7 @@ Python 依赖见<a href="{self._github }/blob/master/requirements.txt">requireme
         self.logo = QLabel()  # logo
         self.logo.setPixmap(QPixmap(SRC_DIR + "logo2.gif"))
         self.logo.setStyleSheet("background-color:rgb(255,255,255);")
-        self.logo.setAlignment(Qt.AlignCenter)
+        self.logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lb_name = QLabel("版本")  # 版本
         self.lb_name_text = QPushButton("")  # 版本
         self.lb_name_text.setToolTip("点击检查更新")
@@ -65,9 +65,9 @@ Python 依赖见<a href="{self._github }/blob/master/requirements.txt">requireme
         self.lb_update_url = QLabel(project_url)
         self.lb_update_url.setOpenExternalLinks(True)
         self.buttonBox = QDialogButtonBox()
-        self.buttonBox.setOrientation(Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.Close)
-        self.buttonBox.button(QDialogButtonBox.Close).setText("关闭")
+        self.buttonBox.setOrientation(Qt.Orientation.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.StandardButton.Close)
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Close).setText("关闭")
         self.buttonBox.rejected.connect(self.reject)
         self.buttonBox.setStyleSheet(btn_style)
 
@@ -81,8 +81,8 @@ Python 依赖见<a href="{self._github }/blob/master/requirements.txt">requireme
         vbox.addWidget(self.logo)
         vbox.addStretch(1)
         self.form = QFormLayout()
-        self.form.setLabelAlignment(Qt.AlignRight)
-        self.form.setFormAlignment(Qt.AlignLeft)
+        self.form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        self.form.setFormAlignment(Qt.AlignmentFlag.AlignLeft)
         self.form.setHorizontalSpacing(40)
         self.form.setVerticalSpacing(15)
         self.form.addRow(self.lb_name, self.lb_name_text)
@@ -95,7 +95,7 @@ Python 依赖见<a href="{self._github }/blob/master/requirements.txt">requireme
         vbox.addWidget(self.lb_line)
         donate = QLabel()
         donate.setText("<b>捐助我</b>&nbsp;如果你愿意")
-        donate.setAlignment(Qt.AlignCenter)
+        donate.setAlignment(Qt.AlignmentFlag.AlignCenter)
         hbox = QHBoxLayout()
         hbox.addStretch(2)
         for it in ["wechat", "alipay", "qqpay"]:
@@ -113,6 +113,6 @@ Python 依赖见<a href="{self._github }/blob/master/requirements.txt">requireme
         QDialog.paintEvent(self, event)
         if not self.line.isNull():
             painter = QPainter(self)
-            pen = QPen(Qt.red, 3)
+            pen = QPen(Qt.GlobalColor.red, 3)
             painter.setPen(pen)
             painter.drawLine(self.line)

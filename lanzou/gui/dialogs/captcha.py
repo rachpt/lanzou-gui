@@ -1,7 +1,7 @@
 import os
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QPixmap
-from PyQt5.QtWidgets import (QLineEdit, QDialog, QLabel, QDialogButtonBox, QVBoxLayout)
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QPixmap
+from PyQt6.QtWidgets import (QLineEdit, QDialog, QLabel, QDialogButtonBox, QVBoxLayout)
 
 from lanzou.gui.qss import others_style, btn_style
 
@@ -41,13 +41,13 @@ class CaptchaDialog(QDialog):
         self.code.setPlaceholderText("在此输入验证码")
 
         self.buttonBox = QDialogButtonBox()
-        self.buttonBox.setOrientation(Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.Reset|QDialogButtonBox.Ok|QDialogButtonBox.Close)
-        self.buttonBox.button(QDialogButtonBox.Reset).setText("显示图片")
-        self.buttonBox.button(QDialogButtonBox.Ok).setText("确定")
-        self.buttonBox.button(QDialogButtonBox.Close).setText("关闭")
+        self.buttonBox.setOrientation(Qt.Orientation.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.StandardButton.Reset|QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Close)
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Reset).setText("显示图片")
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setText("确定")
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Close).setText("关闭")
         self.buttonBox.setStyleSheet(btn_style)
-        self.buttonBox.button(QDialogButtonBox.Reset).clicked.connect(self.show_img)
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Reset).clicked.connect(self.show_img)
         self.buttonBox.accepted.connect(self.on_ok)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)

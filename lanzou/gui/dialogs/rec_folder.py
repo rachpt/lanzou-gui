@@ -1,5 +1,5 @@
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtWidgets import QDialog, QLabel, QDialogButtonBox, QVBoxLayout, QPushButton, QHBoxLayout
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import QDialog, QLabel, QDialogButtonBox, QVBoxLayout, QPushButton, QHBoxLayout
 
 from lanzou.gui.others import set_file_icon
 from lanzou.gui.qss import others_style, btn_style
@@ -30,9 +30,9 @@ class RecFolderDialog(QDialog):
 
         self.form.setSpacing(10)
         self.buttonBox = QDialogButtonBox()
-        self.buttonBox.setOrientation(Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.Close)
-        self.buttonBox.button(QDialogButtonBox.Close).setText("关闭")
+        self.buttonBox.setOrientation(Qt.Orientation.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.StandardButton.Close)
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Close).setText("关闭")
         self.buttonBox.setStyleSheet(btn_style)
         self.buttonBox.rejected.connect(self.reject)
 

@@ -1,4 +1,4 @@
-from PyQt5.QtCore import QThread, pyqtSignal, QMutex
+from PyQt6.QtCore import QThread, pyqtSignal, QMutex
 
 from lanzou.api.utils import is_folder_url, is_file_url
 from lanzou.api import why_error

@@ -3,9 +3,9 @@ import re
 # import browser_cookie3
 # https://github.com/borisbabic/browser_cookie3/pull/70
 from lanzou import browser_cookie3_n as browser_cookie3
-from PyQt5.QtCore import Qt, pyqtSignal, QPropertyAnimation, QRect, QTimer
-from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtWidgets import (QDialog, QLabel, QLineEdit, QTextEdit, QPushButton, QFormLayout,
+from PyQt6.QtCore import Qt, pyqtSignal, QPropertyAnimation, QRect, QTimer
+from PyQt6.QtGui import QIcon, QPixmap
+from PyQt6.QtWidgets import (QDialog, QLabel, QLineEdit, QTextEdit, QPushButton, QFormLayout,
                              QHBoxLayout, QVBoxLayout, QMessageBox, QFileDialog, QTabWidget, QWidget)
 
 from lanzou.gui.others import QDoublePushButton, MyLineEdit, AutoResizingTextEdit
@@ -80,7 +80,7 @@ class LoginDialog(QDialog):
         logo = QLabel()
         logo.setPixmap(QPixmap(SRC_DIR + "logo3.gif"))
         logo.setStyleSheet("background-color:rgb(0,153,255);")
-        logo.setAlignment(Qt.AlignCenter)
+        logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.tabs = QTabWidget()
         self.auto_tab = QWidget()
@@ -98,14 +98,14 @@ class LoginDialog(QDialog):
         self.auto_get_cookie_btn.setStyleSheet("QPushButton {min-width: 210px;max-width: 210px;}")
 
         self.name_lb = QLabel("&U 用户")
-        self.name_lb.setAlignment(Qt.AlignCenter)
+        self.name_lb.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.name_ed = QLineEdit()
         self.name_lb.setBuddy(self.name_ed)
 
         self.pwd_lb = QLabel("&P 密码")
-        self.pwd_lb.setAlignment(Qt.AlignCenter)
+        self.pwd_lb.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.pwd_ed = QLineEdit()
-        self.pwd_ed.setEchoMode(QLineEdit.Password)
+        self.pwd_ed.setEchoMode(QLineEdit.EchoMode.Password)
         self.pwd_lb.setBuddy(self.pwd_ed)
 
         self.cookie_lb = QLabel("&Cookie")
@@ -129,7 +129,7 @@ class LoginDialog(QDialog):
         lb_line_2.setText('<html><hr /></html>')
 
         self.form = QFormLayout()
-        self.form.setLabelAlignment(Qt.AlignRight)
+        self.form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
         self.form.addRow(self.name_lb, self.name_ed)
         self.form.addRow(self.pwd_lb, self.pwd_ed)
         if is_windows:
@@ -146,7 +146,7 @@ class LoginDialog(QDialog):
                 self._cookie_assister = assister_path
 
             self.assister_lb = QLabel("登录辅助程序")
-            self.assister_lb.setAlignment(Qt.AlignCenter)
+            self.assister_lb.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.assister_ed = MyLineEdit(self)
             self.assister_ed.setText(self._cookie_assister)
             self.assister_ed.clicked.connect(set_assister_path)
@@ -181,7 +181,7 @@ class LoginDialog(QDialog):
         vbox = QVBoxLayout()
         if self._config.name:
             vbox.addWidget(lb_line_1)
-            user_box.setAlignment(Qt.AlignCenter)
+            user_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
             vbox.addLayout(user_box)
             vbox.addWidget(lb_line_2)
             if self.user_num > 1:
@@ -197,13 +197,13 @@ class LoginDialog(QDialog):
         vbox.addLayout(self.form)
         vbox.addStretch(1)
         vbox.addLayout(hbox)
-        vbox.setAlignment(Qt.AlignCenter)
+        vbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.hand_tab.setLayout(vbox)
         auto_cookie_vbox = QVBoxLayout()
         auto_cookie_vbox.addWidget(self.auto_get_cookie_ok)
         auto_cookie_vbox.addWidget(self.auto_get_cookie_btn)
-        auto_cookie_vbox.setAlignment(Qt.AlignCenter)
+        auto_cookie_vbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.auto_tab.setLayout(auto_cookie_vbox)
         self.layout.addWidget(self.tabs)
         self.setLayout(self.layout)
@@ -335,7 +335,7 @@ class LoginDialog(QDialog):
         elif USE_WEB_ENG:
             self.web = LoginWindow(self._user, self._pwd)
             self.web.cookie.connect(self.get_cookie_by_web)
-            self.web.setWindowModality(Qt.ApplicationModal)
+            self.web.setWindowModality(Qt.WindowModality.ApplicationModal)
             self.web.exec()
         elif os.path.isfile(self._cookie_assister):
             try:

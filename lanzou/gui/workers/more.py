@@ -1,4 +1,4 @@
-from PyQt5.QtCore import QThread, pyqtSignal, QMutex
+from PyQt6.QtCore import QThread, pyqtSignal, QMutex
 from lanzou.api import LanZouCloud
 
 from lanzou.gui.models import Infos

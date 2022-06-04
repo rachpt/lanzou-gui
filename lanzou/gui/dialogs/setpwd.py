@@ -1,6 +1,6 @@
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QDialog, QLabel, QGridLayout, QDialogButtonBox, QLineEdit
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import QDialog, QLabel, QGridLayout, QDialogButtonBox, QLineEdit
 
 from lanzou.gui.qss import dialog_qss_style
 from lanzou.gui.models import FileInfos
@@ -29,21 +29,21 @@ class SetPwdDialog(QDialog):
         self.setWindowIcon(QIcon(SRC_DIR + "password.ico"))
         self.lb_oldpwd = QLabel()
         self.lb_oldpwd.setText("当前提取码：")
-        self.lb_oldpwd.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
+        self.lb_oldpwd.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTrailing | Qt.AlignmentFlag.AlignVCenter)
         self.tx_oldpwd = QLineEdit()
         # 当前提取码 只读
-        self.tx_oldpwd.setFocusPolicy(Qt.NoFocus)
+        self.tx_oldpwd.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.tx_oldpwd.setReadOnly(True)
         self.lb_newpwd = QLabel()
         self.lb_newpwd.setText("新的提取码：")
-        self.lb_newpwd.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
+        self.lb_newpwd.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTrailing | Qt.AlignmentFlag.AlignVCenter)
         self.tx_newpwd = QLineEdit()
 
         self.buttonBox = QDialogButtonBox()
-        self.buttonBox.setOrientation(Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        self.buttonBox.button(QDialogButtonBox.Ok).setText("确定")
-        self.buttonBox.button(QDialogButtonBox.Cancel).setText("取消")
+        self.buttonBox.setOrientation(Qt.Orientation.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setText("确定")
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Cancel).setText("取消")
 
         self.grid = QGridLayout()
         self.grid.setSpacing(10)

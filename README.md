@@ -14,7 +14,7 @@
 <img src="https://img.shields.io/github/downloads/rachpt/lanzou-gui/total.svg">
 </p>
 
-- 本项目使用`PyQt5`实现图形界面，可以完成蓝奏云的大部分功能
+- 本项目使用`PyQt6`实现图形界面，可以完成蓝奏云的大部分功能
 
 - 得益于 API 的功能，~~可以间接突破单文件最大 100MB 的限制~~(已关闭)，可以上传任意后缀文件，同时增加了批量上传/下载的功能
 
@@ -52,7 +52,7 @@ python >= 3.6。
 
 [Gitee 镜像 repo](https://gitee.com/rachpt/lanzou-gui)，[命令行版本](https://github.com/zaxtyson/LanZouCloud-CMD)。
 
-本项目的目的旨在学习 `PyQt5` 在开发桌面程序方面的应用，如需进行其他目的使用，请遵照许可协议 Fork，使用本软件所造成的一切后果与本人无关。
+本项目的目的旨在学习 `PyQt6` 在开发桌面程序方面的应用，如需进行其他目的使用，请遵照许可协议 Fork，使用本软件所造成的一切后果与本人无关。
 
 # 致谢
 
