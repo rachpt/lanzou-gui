@@ -3,7 +3,7 @@
 # 本文件用于打包 MacOS 应用
 # pyinstaller --clean --noconfirm build_app.spec
 
-version = '0.4.0'
+version = '0.5.0'
 block_cipher = None
 
 
@@ -44,6 +44,6 @@ app = BUNDLE(exe,
                 'CFBundleIdentifier': "cn.rachpt.lanzou-gui",
                 'CFBundleVersion': version,
                 'CFBundleShortVersionString': version,
-                'NSHumanReadableCopyright': u"Copyright © 2021, rachpt, All Rights Reserved"
+                'NSHumanReadableCopyright': u"Copyright © 2022, rachpt, All Rights Reserved"
              },
              bundle_identifier=None)
