@@ -43,10 +43,10 @@ class LanZouCloud(object):
 
     def __init__(self):
         self._session = requests.Session()
-        self._timeout = 5  # 每个请求的超时(不包含下载响应体的用时)
+        self._timeout = 15  # 每个请求的超时(不包含下载响应体的用时)
         self._max_size = 100  # 单个文件大小上限 MB
         self._upload_delay = (0, 0)  # 文件上传延时
-        self._host_url = 'https://pan.lanzous.com'
+        self._host_url = 'https://pan.lanzouo.com'
         self._doupload_url = 'https://pc.woozooo.com/doupload.php'
         self._account_url = 'https://pc.woozooo.com/account.php'
         self._mydisk_url = 'https://pc.woozooo.com/mydisk.php'
@@ -57,29 +57,34 @@ class LanZouCloud(object):
             'Accept-Language': 'zh-CN,zh;q=0.9',  # 提取直连必需设置这个，否则拿不到数据
         }
         disable_warnings(InsecureRequestWarning)  # 全局禁用 SSL 警告
-        Thread(target=self._choose_lanzou_host).start()
 
     def _get(self, url, **kwargs):
-        try:
-            kwargs.setdefault('timeout', self._timeout)
-            kwargs.setdefault('headers', self._headers)
-            return self._session.get(url, verify=False, **kwargs)
-        except requests.Timeout:
-            logger.warning("Encountered timeout error while requesting network!")
-            raise TimeoutError
-        except (requests.RequestException, Exception) as e:
-            logger.error(f"Unexpected error: e={e}")
+        for possible_url in self._all_possible_urls(url):
+            try:
+                kwargs.setdefault('timeout', self._timeout)
+                kwargs.setdefault('headers', self._headers)
+                return self._session.get(possible_url, verify=False, **kwargs)
+            except requests.Timeout:
+                logger.warning("Encountered timeout error while requesting network!")
+                raise TimeoutError
+            except (ConnectionError, requests.RequestException):
+                logger.debug(f"Get {possible_url} failed, try another domain")
+
+        return None
 
     def _post(self, url, data, **kwargs):
-        try:
-            kwargs.setdefault('timeout', self._timeout)
-            kwargs.setdefault('headers', self._headers)
-            return self._session.post(url, data, verify=False, **kwargs)
-        except requests.Timeout:
-            logger.warning("Encountered timeout error while requesting network!")
-            raise TimeoutError
-        except (requests.RequestException, Exception) as e:
-            logger.error(f"Unexpected error: e={e}")
+        for possible_url in self._all_possible_urls(url):
+            try:
+                kwargs.setdefault('timeout', self._timeout)
+                kwargs.setdefault('headers', self._headers)
+                return self._session.post(possible_url, data, verify=False, **kwargs)
+            except requests.Timeout:
+                logger.warning("Encountered timeout error while requesting network!")
+                raise TimeoutError
+            except (ConnectionError, requests.RequestException):
+                logger.debug(f"Post to {possible_url} ({data}) failed, try another domain")
+
+        return None
 
     def _get_response_host(self, info):
         """获取蓝奏响应的下载 host 域名"""
@@ -87,17 +92,15 @@ class LanZouCloud(object):
         if new_host and new_host != self._host_url:
             self._host_url = new_host
 
-    def _choose_lanzou_host(self):
-        """选择一个可用的蓝奏域名"""
-        hosts = ("lanzous", "lanzoui", "lanzoux")
-        for i in hosts:
-            host = f"https://wwa.{i}.com"
-            try:
-                requests.get(host, headers=self._headers, timeout=3, verify=False)
-                self._host_url = host
-                break
-            except:
-                pass
+    @staticmethod
+    def _all_possible_urls(url: str) -> List[str]:
+        """蓝奏云的主域名有时会挂掉, 此时尝试切换到备用域名"""
+        available_domains = [
+            'lanzouw.com',  # 鲁ICP备15001327号-7, 2021-09-02
+            'lanzoui.com',  # 鲁ICP备15001327号-6, 2020-06-09
+            'lanzoux.com'  # 鲁ICP备15001327号-5, 2020-06-09
+        ]
+        return [url.replace('lanzouo.com', d) for d in available_domains]
 
 
     def set_max_size(self, max_size=100) -> int:
@@ -116,11 +119,11 @@ class LanZouCloud(object):
 
     def login(self, username, passwd) -> int:
         """
-        登录蓝奏云控制台已弃用]
+        登录蓝奏云控制台[已弃用]
         对某些用户可能有用
         """
         self._session.cookies.clear()
-        login_data = {"task": 3, "setSessionId": "", "setToken": "", "setSig": "",
+        login_data = {"task": "3", "setSessionId": "", "setToken": "", "setSig": "",
                       "setScene": "", "uid": username, "pwd": passwd}
         phone_header = {
             "User-Agent": "Mozilla/5.0 (Linux; Android 5.0; SM-G900P Build/LRX21T) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/82.0.4051.0 Mobile Safari/537.36"}
@@ -502,7 +505,7 @@ class LanZouCloud(object):
                      re.search(r"var filename = '(.+?)';", first_page) or \
                      re.search(r'id="filenajax">(.+?)</div>', first_page) or \
                      re.search(r'<div class="b"><span>([^<>]+?)</span></div>', first_page)
-            f_name = f_name.group(1) if f_name else "未匹配到文件名"
+            f_name = f_name.group(1).replace("*", "_") if f_name else "未匹配到文件名"
 
             f_time = re.search(r'>(\d+\s?[秒天分小][钟时]?前|[昨前]天\s?[\d:]+?|\d+\s?天前|\d{4}-\d\d-\d\d)<', first_page)
             f_time = f_time.group(1) if f_time else ''
@@ -520,6 +523,14 @@ class LanZouCloud(object):
             if len(sign) < 20:  # 此时 sign 保存在变量里面, 变量名是 sign 匹配的字符
                 sign = re.search(rf"var {sign}\s*=\s*'(.+?)';", first_page).group(1)
             post_data = {'action': 'downprocess', 'sign': sign, 'ves': 1}
+            # 某些特殊情况 share_url 会出现 webpage 参数, post_data 需要更多参数
+            # https://github.com/zaxtyson/LanZouCloud-API/issues/74
+            if "?webpage=" in share_url:
+                ajax_data = re.search(r"var ajaxdata\s*=\s*'(.+?)';", first_page).group(1)
+                web_sign = re.search(r"var websign\s*=\s*'(.+?)';", first_page).group(1)
+                web_sign_key = re.search(r"var websignkey\s*=\s*'(.+?)';", first_page).group(1)
+                post_data = {'action': 'downprocess', 'signs': ajax_data, 'sign': sign, 'ves': 1,
+                             'websign': web_sign, 'websignkey': web_sign_key}
             link_info = self._post(self._host_url + '/ajaxm.php', post_data)
             if not link_info:
                 return FileDetail(LanZouCloud.NETWORK_ERROR, name=f_name, time=f_time, size=f_size, desc=f_desc, pwd=pwd, url=share_url)
@@ -1047,7 +1058,7 @@ class LanZouCloud(object):
         except requests.RequestException as e:
             logger.error(f"requests error: {e}")
             return FolderDetail(LanZouCloud.NETWORK_ERROR)
-        if any(item in html for item in ["文件不存在", "文件取消分享了"]):
+        if any(item in html for item in ["文件不存在", "文件取消"]):
             return FolderDetail(LanZouCloud.FILE_CANCELLED)
         if ('id="pwdload"' in html or 'id="passwddiv"' in html or '请输入密码' in html) and len(dir_pwd) == 0:
             return FolderDetail(LanZouCloud.LACK_PASSWORD)
