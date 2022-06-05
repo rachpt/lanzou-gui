@@ -193,6 +193,7 @@ class InfoDialog(QDialog):
         form.addRow(self.lb_short, self.tx_short)
         form.addRow(self.lb_desc, self.tx_desc)
         form.addRow(self.lb_dl_link, self.tx_dl_link)
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)  # 覆盖MacOS的默认样式
         vbox.addLayout(form)
         vbox.addStretch(1)
         vbox.addWidget(self.buttonBox)

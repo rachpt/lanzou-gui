@@ -188,6 +188,7 @@ class SettingDialog(QDialog):
 
         form = QFormLayout()
         form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)  # 覆盖MacOS的默认样式
         form.setSpacing(10)
         form.addRow(self.download_threads_lb, self.download_threads_var)
         form.addRow(self.timeout_lb, self.timeout_var)

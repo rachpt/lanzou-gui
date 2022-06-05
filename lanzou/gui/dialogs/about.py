@@ -1,4 +1,4 @@
-from PyQt6.QtCore import Qt, pyqtSignal, QLine, QPoint
+from PyQt6.QtCore import Qt, pyqtSignal, QLine, QPoint, PYQT_VERSION_STR, QT_VERSION_STR
 from PyQt6.QtGui import  QPixmap, QPainter, QPen
 from PyQt6.QtWidgets import (QPushButton, QDialog, QLabel, QFormLayout,
                              QDialogButtonBox, QVBoxLayout, QHBoxLayout)
@@ -48,6 +48,8 @@ Python 依赖见<a href="{self._github }/blob/master/requirements.txt">requireme
         self.logo.setPixmap(QPixmap(SRC_DIR + "logo2.gif"))
         self.logo.setStyleSheet("background-color:rgb(255,255,255);")
         self.logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lb_qt_ver = QLabel("依赖")  # QT 版本
+        self.lb_qt_text = QLabel(f"QT: {QT_VERSION_STR}, PyQt: {PYQT_VERSION_STR}")  # QT 版本
         self.lb_name = QLabel("版本")  # 版本
         self.lb_name_text = QPushButton("")  # 版本
         self.lb_name_text.setToolTip("点击检查更新")
@@ -85,10 +87,12 @@ Python 依赖见<a href="{self._github }/blob/master/requirements.txt">requireme
         self.form.setFormAlignment(Qt.AlignmentFlag.AlignLeft)
         self.form.setHorizontalSpacing(40)
         self.form.setVerticalSpacing(15)
+        self.form.addRow(self.lb_qt_ver, self.lb_qt_text)
         self.form.addRow(self.lb_name, self.lb_name_text)
         self.form.addRow(self.lb_update, self.lb_update_url)
         self.form.addRow(self.lb_author, self.lb_author_mail)
         self.form.addRow(self.lb_about, self.lb_about_text)
+        self.form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)  # 覆盖MacOS的默认样式
         vbox.addLayout(self.form)
         vbox.addStretch(1)
         vbox.addWidget(self.recommend)

@@ -53,7 +53,7 @@ class LoginDialog(QDialog):
         self._del_user = ""
         self.initUI()
         self.setStyleSheet(dialog_qss_style)
-        self.setMinimumWidth(380)
+        self.setMinimumWidth(560)
         self.name_ed.setFocus()
         # 信号
         self.name_ed.textChanged.connect(self.set_user)
@@ -130,6 +130,7 @@ class LoginDialog(QDialog):
 
         self.form = QFormLayout()
         self.form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        self.form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)  # 覆盖MacOS的默认样式
         self.form.addRow(self.name_lb, self.name_ed)
         self.form.addRow(self.pwd_lb, self.pwd_ed)
         if is_windows:
@@ -227,12 +228,12 @@ class LoginDialog(QDialog):
             title = '请选择账户'
             msg = '请单击选择需要删除的账户\n\n注意不能删除当前账户(绿色)'
         message_box = QMessageBox(self)
-        message_box.setIcon(QMessageBox.Critical)
+        message_box.setIcon(QMessageBox.Icon.Critical)
         message_box.setStyleSheet(btn_style)
         message_box.setWindowTitle(title)
         message_box.setText(msg)
-        message_box.setStandardButtons(QMessageBox.Close)
-        buttonC = message_box.button(QMessageBox.Close)
+        message_box.setStandardButtons(QMessageBox.StandardButton.Close)
+        buttonC = message_box.button(QMessageBox.StandardButton.Close)
         buttonC.setText('关闭')
         message_box.exec()
 
@@ -313,7 +314,7 @@ class LoginDialog(QDialog):
         cookies = self.cookie_ed.toPlainText()
         if cookies:
             try:
-                self._cookie = {kv.split("=")[0].strip(" "): kv.split("=")[1].strip(" ") for kv in cookies.split(";")}
+                self._cookie = {kv.split("=")[0].strip(" "): kv.split("=")[1].strip(" ") for kv in cookies.split(";") if kv.strip(" ") }
             except: self._cookie = None
 
     def change_cancel_btn(self):
@@ -358,12 +359,12 @@ class LoginDialog(QDialog):
                   '如果不嫌文件体积大，请下载登录辅助程序：\n' + \
                   'https://github.com/rachpt/lanzou-gui/releases'
             message_box = QMessageBox(self)
-            message_box.setIcon(QMessageBox.Critical)
+            message_box.setIcon(QMessageBox.Icon.Critical)
             message_box.setStyleSheet(btn_style)
             message_box.setWindowTitle(title)
             message_box.setText(msg)
-            message_box.setStandardButtons(QMessageBox.Close)
-            buttonC = message_box.button(QMessageBox.Close)
+            message_box.setStandardButtons(QMessageBox.StandardButton.Close)
+            buttonC = message_box.button(QMessageBox.StandardButton.Close)
             buttonC.setText('关闭')
             message_box.exec()
 
