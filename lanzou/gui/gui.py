@@ -508,7 +508,7 @@ class MainWindow(Ui_MainWindow):
         """登出确认对话框"""
         message_box = QMessageBox(self)
         message_box.setStyleSheet(btn_style)
-        message_box.setIcon(QMessageBox.Question)
+        message_box.setIcon(QMessageBox.Icon.Question)
         message_box.setWindowTitle("确认登出")
         message_box.setText("提示：登出不会删除已经保存的用户信息！\n\n是否确认登出？")
         message_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
@@ -1324,12 +1324,12 @@ class MainWindow(Ui_MainWindow):
 
     def show_new_version_msg(self, ver, msg):
         message_box = QMessageBox(self)
-        message_box.setIcon(QMessageBox.Information)
+        message_box.setIcon(QMessageBox.Icon.Information)
         message_box.setStyleSheet(btn_style)
         message_box.setWindowTitle(f"检测到新版 {ver}")
         message_box.setText(msg)
-        message_box.setStandardButtons(QMessageBox.Close)
-        buttonC = message_box.button(QMessageBox.Close)
+        message_box.setStandardButtons(QMessageBox.StandardButton.Close)
+        buttonC = message_box.button(QMessageBox.StandardButton.Close)
         buttonC.setText('关闭')
         message_box.exec()
 
